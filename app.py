@@ -6,14 +6,21 @@ import random
 from datetime import datetime, timedelta
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
+import os  # ✅ add this
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'vendorconnect_secret_key_2024'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///../instance/vendorconnect.db'
+
+# ✅ fix DB path
+basedir = os.path.abspath(os.path.dirname(__file__))
+db_path = os.path.join(basedir, '../instance/vendorconnect.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 CORS(app)
+
 
 # Database Models
 class Vendor(db.Model):
