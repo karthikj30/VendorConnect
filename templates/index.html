@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VendorConnect - Street Food Vendor Platform</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+
+        nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: #667eea;
+        }
+
+        /* Hero Section */
+        .hero {
+            padding: 120px 0 80px;
+            text-align: center;
+            color: white;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #ff5252;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+        }
+
+        .btn-secondary:hover {
+            background: white;
+            color: #667eea;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background: white;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Stats Section */
+        .stats {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            text-align: center;
+        }
+
+        .stat-item h3 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-item p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Footer */
+        footer {
+            background: #333;
+            color: white;
+            padding: 40px 0;
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .cta-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Language Support */
+        .language-selector {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .language-btn {
+            background: none;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 0 2px;
+        }
+
+        .language-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Dark Mode Overrides */
+        body.dark-mode {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            color: #f1f1f1;
+        }
+        .dark-mode header {
+            background: rgba(30, 30, 30, 0.95);
+            color: #f1f1f1;
+        }
+        .dark-mode .nav-links a {
+            color: #f1f1f1;
+        }
+        .dark-mode .nav-links a:hover {
+            color: #ffd700;
+        }
+        .dark-mode .logo {
+            color: #ffd700;
+        }
+        .dark-mode .hero {
+            color: #fff;
+        }
+        .dark-mode .features {
+            background: #232526;
+        }
+        .dark-mode .feature-card {
+            background: #2c2c2c;
+            color: #f1f1f1;
+        }
+        .dark-mode .section-title {
+            color: #ffd700;
+        }
+        .dark-mode .feature-card h3 {
+            color: #ffd700;
+        }
+        .dark-mode .feature-icon {
+            color: #ffd700;
+        }
+        .dark-mode .feature-card p {
+            color: #ccc;
+        }
+        .dark-mode .stats {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            color: #ffd700;
+        }
+        .dark-mode .stat-item p {
+            color: #ccc;
+        }
+        .dark-mode .btn {
+            background: #232526;
+            color: #ffd700;
+            border: 1px solid #ffd700;
+        }
+        .dark-mode .btn-primary {
+            background: #ffd700;
+            color: #232526;
+        }
+        .dark-mode .btn-primary:hover {
+            background: #ffe066;
+            color: #232526;
+        }
+        .dark-mode .btn-secondary {
+            background: #232526;
+            color: #ffd700;
+            border: 1px solid #ffd700;
+        }
+        .dark-mode .btn-secondary:hover {
+            background: #ffd700;
+            color: #232526;
+        }
+        .dark-mode .language-selector {
+            background: #232526;
+            color: #ffd700;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        .dark-mode .language-btn.active {
+            background: #ffd700;
+            color: #232526;
+        }
+        .dark-mode .language-btn {
+            color: #ffd700;
+        }
+        .dark-mode footer {
+            background: #232526;
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <nav class="container">
+            <div class="logo">
+                <i class="fas fa-utensils"></i> VendorConnect
+            </div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#about">About</a></li>
+                <li><a href="/vendor/login">Login</a></li>
+                <li><a href="/vendor/register">Register</a></li>
+            </ul>
+            <button id="darkModeToggle" title="Toggle dark mode" style="margin-left:20px; background:none; border:none; font-size:1.3rem; cursor:pointer;"><i class="fas fa-moon"></i></button>
+        </nav>
+    </header>
+
+    <!-- Language Selector -->
+    <div class="language-selector">
+        <button class="language-btn active" onclick="changeLanguage('en')">EN</button>
+        <button class="language-btn" onclick="changeLanguage('hi')">हिं</button>
+        <button class="language-btn" onclick="changeLanguage('bn')">বাং</button>
+        <button class="language-btn" onclick="changeLanguage('ta')">தமிழ்</button>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container">
+            <h1 id="hero-title">Connect. Source. Succeed.</h1>
+            <p id="hero-subtitle">India's first digital platform connecting street food vendors with trusted suppliers. Get quality raw materials at wholesale prices.</p>
+            <div class="cta-buttons">
+                <a href="/vendor/register" class="btn btn-primary">Get Started Free</a>
+                <a href="#features" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="container">
+            <h2 class="section-title" id="features-title">Why Choose VendorConnect?</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 id="feature1-title">Vendor-Verified Suppliers</h3>
+                    <p id="feature1-desc">Every supplier is peer-rated and verified by real vendor feedback. Filter by hygiene rating, distance, and pricing.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3 id="feature2-title">Live Price Discovery</h3>
+                    <p id="feature2-desc">Compare real-time prices of tomatoes, onions, oil, etc., from nearby sellers. Avoid getting overcharged.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3 id="feature3-title">Group Order System</h3>
+                    <p id="feature3-desc">Multiple vendors can pool orders for bulk discounts. Get wholesale rates with collective buying power.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-microphone"></i>
+                    </div>
+                    <h3 id="feature4-title">Voice Interface</h3>
+                    <p id="feature4-desc">Use Hindi, Bengali, Tamil + voice search. Perfect for vendors who aren't tech-savvy.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <h3 id="feature5-title">Delivery Tracking</h3>
+                    <p id="feature5-desc">Map-based delivery updates with offline sync. Works even with patchy internet connectivity.</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h3 id="feature6-title">Price Alerts</h3>
+                    <p id="feature6-desc">Get SMS/WhatsApp alerts for daily price updates. Never miss the best deals in your area.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats Section -->
+    <section class="stats">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <h3>500+</h3>
+                    <p>Active Vendors</p>
+                </div>
+                <div class="stat-item">
+                    <h3>50+</h3>
+                    <p>Verified Suppliers</p>
+                </div>
+                <div class="stat-item">
+                    <h3>₹2.5L</h3>
+                    <p>Monthly Savings</p>
+                </div>
+                <div class="stat-item">
+                    <h3>4.8★</h3>
+                    <p>Vendor Rating</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 VendorConnect. Empowering street food vendors across India.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Language translations
+        const translations = {
+            en: {
+                'hero-title': 'Connect. Source. Succeed.',
+                'hero-subtitle': "India's first digital platform connecting street food vendors with trusted suppliers. Get quality raw materials at wholesale prices.",
+                'features-title': 'Why Choose VendorConnect?',
+                'feature1-title': 'Vendor-Verified Suppliers',
+                'feature1-desc': 'Every supplier is peer-rated and verified by real vendor feedback. Filter by hygiene rating, distance, and pricing.',
+                'feature2-title': 'Live Price Discovery',
+                'feature2-desc': 'Compare real-time prices of tomatoes, onions, oil, etc., from nearby sellers. Avoid getting overcharged.',
+                'feature3-title': 'Group Order System',
+                'feature3-desc': 'Multiple vendors can pool orders for bulk discounts. Get wholesale rates with collective buying power.',
+                'feature4-title': 'Voice Interface',
+                'feature4-desc': 'Use Hindi, Bengali, Tamil + voice search. Perfect for vendors who are not tech-savvy.',
+                'feature5-title': 'Delivery Tracking',
+                'feature5-desc': 'Map-based delivery updates with offline sync. Works even with patchy internet connectivity.',
+                'feature6-title': 'Price Alerts',
+                'feature6-desc': 'Get SMS/WhatsApp alerts for daily price updates. Never miss the best deals in your area.'
+            },
+            hi: {
+                'hero-title': 'जुड़ें। सोर्स करें। सफल हों।',
+                'hero-subtitle': 'भारत का पहला डिजिटल प्लेटफॉर्म जो स्ट्रीट फूड वेंडर्स को विश्वसनीय आपूर्तिकर्ताओं से जोड़ता है। थोक मूल्य पर गुणवत्तापूर्ण कच्चा माल प्राप्त करें।',
+                'features-title': 'VendorConnect क्यों चुनें?',
+                'feature1-title': 'वेंडर-सत्यापित आपूर्तिकर्ता',
+                'feature1-desc': 'हर आपूर्तिकर्ता को वास्तविक वेंडर फीडबैक द्वारा पीयर-रेटेड और सत्यापित किया जाता है। स्वच्छता रेटिंग, दूरी और मूल्य निर्धारण के अनुसार फ़िल्टर करें।',
+                'feature2-title': 'लाइव प्राइस डिस्कवरी',
+                'feature2-desc': 'आस-पास के विक्रेताओं से टमाटर, प्याज, तेल आदि के रीयल-टाइम मूल्यों की तुलना करें। ओवरचार्ज से बचें।',
+                'feature3-title': 'ग्रुप ऑर्डर सिस्टम',
+                'feature3-desc': 'कई वेंडर्स बल्क डिस्काउंट के लिए ऑर्डर पूल कर सकते हैं। सामूहिक खरीद शक्ति के साथ थोक दरें प्राप्त करें।',
+                'feature4-title': 'वॉइस इंटरफेस',
+                'feature4-desc': 'हिंदी, बंगाली, तमिल + वॉइस सर्च का उपयोग करें। उन वेंडर्स के लिए परफेक्ट जो टेक-सेवी नहीं हैं।',
+                'feature5-title': 'डिलीवरी ट्रैकिंग',
+                'feature5-desc': 'ऑफलाइन सिंक के साथ मैप-आधारित डिलीवरी अपडेट। पैची इंटरनेट कनेक्टिविटी के साथ भी काम करता है।',
+                'feature6-title': 'प्राइस अलर्ट्स',
+                'feature6-desc': 'दैनिक मूल्य अपडेट के लिए SMS/WhatsApp अलर्ट प्राप्त करें। अपने क्षेत्र में सर्वोत्तम सौदों को कभी न छोड़ें।'
+            },
+            bn: {
+                'hero-title': 'সংযুক্ত হন। সোর্স করুন। সফল হন।',
+                'hero-subtitle': 'ভারতের প্রথম ডিজিটাল প্ল্যাটফর্ম যা স্ট্রিট ফুড বিক্রেতাদের বিশ্বস্ত সরবরাহকারীদের সাথে সংযুক্ত করে। পাইকারি মূল্যে মানসম্পন্ন কাঁচামাল পান।',
+                'features-title': 'VendorConnect কেন বেছে নেবেন?',
+                'feature1-title': 'বিক্রেতা-যাচাইকৃত সরবরাহকারী',
+                'feature1-desc': 'প্রতিটি সরবরাহকারী প্রকৃত বিক্রেতা প্রতিক্রিয়া দ্বারা পিয়ার-রেটেড এবং যাচাইকৃত। স্বাস্থ্যবিধি রেটিং, দূরত্ব এবং মূল্য নির্ধারণ অনুযায়ী ফিল্টার করুন।',
+                'feature2-title': 'লাইভ প্রাইস ডিসকভারি',
+                'feature2-desc': 'কাছাকাছি বিক্রেতাদের থেকে টমেটো, পেঁয়াজ, তেল ইত্যাদির রিয়েল-টাইম মূল্যের তুলনা করুন। অতিরিক্ত চার্জ এড়িয়ে চলুন।',
+                'feature3-title': 'গ্রুপ অর্ডার সিস্টেম',
+                'feature3-desc': 'কয়েকজন বিক্রেতা বাল্ক ডিসকাউন্টের জন্য অর্ডার পুল করতে পারেন। সম্মিলিত ক্রয় ক্ষমতার সাথে পাইকারি হার পান।',
+                'feature4-title': 'ভয়েস ইন্টারফেস',
+                'feature4-desc': 'হিন্দি, বাংলা, তামিল + ভয়েস সার্চ ব্যবহার করুন। যারা টেক-স্যাভি নন তাদের জন্য পারফেক্ট।',
+                'feature5-title': 'ডেলিভারি ট্র্যাকিং',
+                'feature5-desc': 'অফলাইন সিঙ্ক সহ ম্যাপ-ভিত্তিক ডেলিভারি আপডেট। প্যাচি ইন্টারনেট সংযোগের সাথেও কাজ করে।',
+                'feature6-title': 'প্রাইস অ্যালার্ট',
+                'feature6-desc': 'দৈনিক মূল্য আপডেটের জন্য SMS/WhatsApp অ্যালার্ট পান। আপনার এলাকার সেরা ডিল কখনও মিস করবেন না।'
+            },
+            ta: {
+                'hero-title': 'இணைக்கவும். மூலப்பொருள் பெறவும். வெற்றி பெறவும்.',
+                'hero-subtitle': 'தெருக்கடை உணவு விற்பனையாளர்களை நம்பகமான சப்ளையர்களுடன் இணைக்கும் இந்தியாவின் முதல் டிஜிட்டல் தளம். மொத்த விலையில் தரமான மூலப்பொருட்களைப் பெறுங்கள்.',
+                'features-title': 'VendorConnect ஏன் தேர்வு செய்ய வேண்டும்?',
+                'feature1-title': 'விற்பனையாளர்-சரிபார்க்கப்பட்ட சப்ளையர்கள்',
+                'feature1-desc': 'ஒவ்வொரு சப்ளையரும் உண்மையான விற்பனையாளர் கருத்துக்களால் பீர்-ரேட்டட் மற்றும் சரிபார்க்கப்படுகிறார்கள். சுகாதார மதிப்பீடு, தூரம் மற்றும் விலை நிர்ணயம் ஆகியவற்றால் வடிகட்டுங்கள்.',
+                'feature2-title': 'நேரலை விலை கண்டுபிடிப்பு',
+                'feature2-desc': 'அருகிலுள்ள விற்பனையாளர்களிடமிருந்து தக்காளி, வெங்காயம், எண்ணெய் போன்றவற்றின் நேரலை விலைகளை ஒப்பிடுங்கள். அதிகப்படியான கட்டணம் விதிக்கப்படுவதைத் தவிர்க்கவும்.',
+                'feature3-title': 'குழு ஆர்டர் அமைப்பு',
+                'feature3-desc': 'பல விற்பனையாளர்கள் மொத்த தள்ளுபடிக்காக ஆர்டர்களை ஒன்றிணைக்க முடியும். கூட்டு வாங்கும் சக்தியுடன் மொத்த விலைகளைப் பெறுங்கள்.',
+                'feature4-title': 'குரல் இடைமுகம்',
+                'feature4-desc': 'ஹிந்தி, வங்காளி, தமிழ் + குரல் தேடலைப் பயன்படுத்துங்கள். டெக்-சாவி அல்லாத விற்பனையாளர்களுக்கு சரியானது.',
+                'feature5-title': 'டெலிவரி கண்காணிப்பு',
+                'feature5-desc': 'ஆஃப்லைன் சிங்குடன் வரைபட அடிப்படையிலான டெலிவரி புதுப்பிப்புகள். பேச்சி இணைய இணைப்புடனும் வேலை செய்கிறது.',
+                'feature6-title': 'விலை எச்சரிக்கைகள்',
+                'feature6-desc': 'தினசரி விலை புதுப்பிப்புகளுக்கு SMS/WhatsApp எச்சரிக்கைகளைப் பெறுங்கள். உங்கள் பகுதியில் சிறந்த சலுகைகளை ஒருபோதும் தவறவிடாதீர்கள்.'
+            }
+        };
+
+        function changeLanguage(lang) {
+            // Update active button
+            document.querySelectorAll('.language-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Update text content
+            const elements = translations[lang];
+            for (const [key, value] of Object.entries(elements)) {
+                const element = document.getElementById(key);
+                if (element) {
+                    element.textContent = value;
+                }
+            }
+        }
+
+        // Voice recognition for search
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'hi-IN'; // Hindi by default
+
+            // Voice search functionality can be added here
+        }
+    </script>
+    <script>
+// Dark mode toggle logic
+const darkModeToggle = document.getElementById('darkModeToggle');
+function setDarkMode(enabled) {
+    if (enabled) {
+        document.body.classList.add('dark-mode');
+        localStorage.setItem('darkMode', 'enabled');
+        darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    } else {
+        document.body.classList.remove('dark-mode');
+        localStorage.setItem('darkMode', 'disabled');
+        darkModeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    }
+}
+darkModeToggle.addEventListener('click', () => {
+    setDarkMode(!document.body.classList.contains('dark-mode'));
+});
+// On load
+if (localStorage.getItem('darkMode') === 'enabled' || (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    setDarkMode(true);
+} else {
+    setDarkMode(false);
+}
+</script>
+</body>
+</html> 
