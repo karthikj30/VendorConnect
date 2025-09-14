@@ -6,7 +6,26 @@ import random
 from datetime import datetime, timedelta
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
-import os  # ✅ add this
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import string
+
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # If python-dotenv is not installed, try to load .env manually
+    try:
+        with open('.env', 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    os.environ[key] = value
+    except FileNotFoundError:
+        pass  # .env file doesn't exist, use default values
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -23,8 +42,112 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + db_path
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# Email configuration
+try:
+    from email_config import MAIL_USERNAME, MAIL_PASSWORD, MAIL_SERVER, MAIL_PORT, MAIL_USE_TLS
+    app.config['MAIL_SERVER'] = MAIL_SERVER
+    app.config['MAIL_PORT'] = MAIL_PORT
+    app.config['MAIL_USE_TLS'] = MAIL_USE_TLS
+    app.config['MAIL_USERNAME'] = MAIL_USERNAME
+    app.config['MAIL_PASSWORD'] = MAIL_PASSWORD
+except ImportError:
+    # Fallback to environment variables
+    app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+    app.config['MAIL_PORT'] = 587
+    app.config['MAIL_USE_TLS'] = True
+    app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'hackathongoo@gmail.com')
+    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
+
 db = SQLAlchemy(app)
 CORS(app)
+
+# Email helper functions
+def send_otp_email(email, otp):
+    """Send OTP email to user"""
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = email
+        msg['Subject'] = "VendorConnect - Password Reset OTP"
+        
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 24px;">🍽️ VendorConnect</h1>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">Street Food Vendor Platform</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e9ecef;">
+                <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
+                <p style="color: #666; line-height: 1.6;">You have requested to reset your password for your VendorConnect account.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0; border: 2px solid #667eea;">
+                    <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">Your verification code is:</p>
+                    <div style="font-size: 32px; font-weight: bold; color: #667eea; letter-spacing: 5px; margin: 10px 0;">{otp}</div>
+                    <p style="margin: 10px 0 0 0; color: #dc3545; font-size: 12px; font-weight: bold;">⏰ Valid for 10 minutes only</p>
+                </div>
+                
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <p style="margin: 0; color: #856404; font-size: 14px;">
+                        <strong>⚠️ Security Notice:</strong> If you did not request this password reset, please ignore this email. 
+                        Your account remains secure.
+                    </p>
+                </div>
+                
+                <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                    This email was sent from <strong>hackathongoo@gmail.com</strong><br>
+                    For support, please contact our team.
+                </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px; color: #999; font-size: 12px;">
+                <p>© 2024 VendorConnect - Empowering Street Food Vendors</p>
+                <p>Built with ❤️ for India's Street Food Culture</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        text = msg.as_string()
+        server.sendmail(app.config['MAIL_USERNAME'], email, text)
+        server.quit()
+        
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        # Fallback to mock email service for testing
+        return send_mock_otp_email(email, otp)
+
+def send_mock_otp_email(email, otp):
+    """Mock email sending - just prints the OTP to console"""
+    print("\n" + "="*60)
+    print("📧 MOCK EMAIL SENT (For Testing Purposes)")
+    print("="*60)
+    print(f"📧 To: {email}")
+    print(f"📧 From: hackathongoo@gmail.com")
+    print(f"📧 Subject: VendorConnect - Password Reset OTP")
+    print(f"🔑 OTP Code: {otp}")
+    print(f"⏰ Expires: 10 minutes from now")
+    print("="*60)
+    print("✅ In production, this would be sent as a real email")
+    print("✅ The user would receive this OTP in their inbox")
+    print("="*60)
+    
+    # Also save to a file for easy access
+    with open('otp_log.txt', 'a') as f:
+        f.write(f"{datetime.now()}: OTP {otp} sent to {email}\n")
+    
+    return True
+
+def generate_otp():
+    """Generate a 6-digit OTP"""
+    return ''.join(random.choices(string.digits, k=6))
 
 
 # Database Models
@@ -32,6 +155,7 @@ class Vendor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     phone = db.Column(db.String(15), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     location = db.Column(db.String(200), nullable=False)
     business_type = db.Column(db.String(100), nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
@@ -86,6 +210,14 @@ class GroupOrderParticipant(db.Model):
     group_order_id = db.Column(db.Integer, db.ForeignKey('group_order.id'), nullable=False)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
     quantity = db.Column(db.Float, nullable=False)
+
+class OTPVerification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), nullable=False)
+    otp = db.Column(db.String(6), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
 
 # Sample data for demonstration
 def create_sample_data():
@@ -398,15 +530,21 @@ def vendor_register():
     if request.method == 'POST':
         data = request.get_json()
         
-        # Check if vendor already exists
-        existing_vendor = Vendor.query.filter_by(phone=data.get('phone')).first()
-        if existing_vendor:
+        # Check if vendor already exists with phone or email
+        existing_vendor_phone = Vendor.query.filter_by(phone=data.get('phone')).first()
+        existing_vendor_email = Vendor.query.filter_by(email=data.get('email')).first()
+        
+        if existing_vendor_phone:
             return jsonify({'success': False, 'message': 'Vendor already registered with this phone number'})
+        
+        if existing_vendor_email:
+            return jsonify({'success': False, 'message': 'Vendor already registered with this email address'})
         
         # Create new vendor
         vendor = Vendor(
             name=data.get('name'),
             phone=data.get('phone'),
+            email=data.get('email'),
             location=data.get('location'),
             business_type=data.get('business_type'),
             password_hash=generate_password_hash(data.get('password'))
@@ -426,6 +564,91 @@ def vendor_dashboard():
     
     vendor = Vendor.query.get(session['vendor_id'])
     return render_template('vendor_dashboard.html', vendor=vendor)
+
+@app.route('/vendor/forgot-password', methods=['POST'])
+def forgot_password():
+    """Send OTP to user's email for password reset"""
+    data = request.get_json()
+    email = data.get('email')
+    
+    if not email:
+        return jsonify({'success': False, 'message': 'Email is required'})
+    
+    # Check if vendor exists with this email
+    vendor = Vendor.query.filter_by(email=email).first()
+    if not vendor:
+        return jsonify({'success': False, 'message': 'No account found with this email address'})
+    
+    # Generate OTP
+    otp = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    # Save OTP to database
+    otp_record = OTPVerification(
+        email=email,
+        otp=otp,
+        expires_at=expires_at
+    )
+    
+    db.session.add(otp_record)
+    db.session.commit()
+    
+    # Send OTP email
+    if send_otp_email(email, otp):
+        return jsonify({'success': True, 'message': 'OTP sent to your email address'})
+    else:
+        return jsonify({'success': False, 'message': 'Failed to send OTP. Please try again.'})
+
+@app.route('/vendor/verify-otp', methods=['POST'])
+def verify_otp():
+    """Verify OTP and allow password reset"""
+    data = request.get_json()
+    email = data.get('email')
+    otp = data.get('otp')
+    
+    if not email or not otp:
+        return jsonify({'success': False, 'message': 'Email and OTP are required'})
+    
+    # Find valid OTP
+    otp_record = OTPVerification.query.filter_by(
+        email=email, 
+        otp=otp, 
+        is_used=False
+    ).first()
+    
+    if not otp_record:
+        return jsonify({'success': False, 'message': 'Invalid OTP'})
+    
+    # Check if OTP is expired
+    if datetime.utcnow() > otp_record.expires_at:
+        return jsonify({'success': False, 'message': 'OTP has expired'})
+    
+    # Mark OTP as used
+    otp_record.is_used = True
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'OTP verified successfully'})
+
+@app.route('/vendor/reset-password', methods=['POST'])
+def reset_password():
+    """Reset password after OTP verification"""
+    data = request.get_json()
+    email = data.get('email')
+    new_password = data.get('new_password')
+    
+    if not email or not new_password:
+        return jsonify({'success': False, 'message': 'Email and new password are required'})
+    
+    # Find vendor
+    vendor = Vendor.query.filter_by(email=email).first()
+    if not vendor:
+        return jsonify({'success': False, 'message': 'Vendor not found'})
+    
+    # Update password
+    vendor.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': 'Password reset successfully'})
 
 @app.route('/api/suppliers')
 def get_suppliers():

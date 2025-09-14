@@ -201,6 +201,70 @@
             color: #ffd700;
             border: 1px solid #ffd700;
         }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h3 {
+            margin: 0;
+            color: #333;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .dark-mode .modal-content {
+            background-color: #232526;
+            color: #ffd700;
+        }
+
+        .dark-mode .modal-header h3 {
+            color: #ffd700;
+        }
+
+        .dark-mode .close {
+            color: #ffd700;
+        }
+
+        .dark-mode .close:hover {
+            color: #ffe066;
+        }
     </style>
 </head>
 <body>
@@ -230,6 +294,10 @@
                 <input type="password" id="password" name="password" required placeholder="Enter your password">
             </div>
             
+            <div class="form-group" style="text-align: right; margin-bottom: 1rem;">
+                <a href="#" id="forgotPasswordLink" style="color: #667eea; text-decoration: none; font-size: 0.9rem;">Forgot Password?</a>
+            </div>
+            
             <button type="submit" class="btn" id="loginBtn">
                 <span id="loginText">Login</span>
                 <div class="loading" id="loading">
@@ -240,6 +308,48 @@
         
         <div class="register-link">
             Don't have an account? <a href="/vendor/register">Register here</a>
+        </div>
+    </div>
+
+    <!-- Forgot Password Modal -->
+    <div id="forgotPasswordModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Reset Password</h3>
+                <span class="close" id="closeModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-error" id="modalErrorAlert"></div>
+                <div class="alert alert-success" id="modalSuccessAlert"></div>
+                
+                <div id="emailStep">
+                    <div class="form-group">
+                        <label for="resetEmail">Email Address</label>
+                        <input type="email" id="resetEmail" placeholder="Enter your email address">
+                    </div>
+                    <button type="button" class="btn" id="sendOtpBtn">Send OTP</button>
+                </div>
+                
+                <div id="otpStep" style="display: none;">
+                    <div class="form-group">
+                        <label for="otpCode">Enter OTP</label>
+                        <input type="text" id="otpCode" placeholder="Enter 6-digit OTP" maxlength="6">
+                    </div>
+                    <button type="button" class="btn" id="verifyOtpBtn">Verify OTP</button>
+                </div>
+                
+                <div id="passwordStep" style="display: none;">
+                    <div class="form-group">
+                        <label for="newPassword">New Password</label>
+                        <input type="password" id="newPassword" placeholder="Enter new password">
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmNewPassword">Confirm New Password</label>
+                        <input type="password" id="confirmNewPassword" placeholder="Confirm new password">
+                    </div>
+                    <button type="button" class="btn" id="resetPasswordBtn">Reset Password</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -301,6 +411,187 @@
             let value = e.target.value.replace(/\D/g, '');
             if (value.length > 10) {
                 value = value.slice(0, 10);
+            }
+            e.target.value = value;
+        });
+
+        // Forgot Password Modal functionality
+        const forgotPasswordLink = document.getElementById('forgotPasswordLink');
+        const forgotPasswordModal = document.getElementById('forgotPasswordModal');
+        const closeModal = document.getElementById('closeModal');
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        const resetPasswordBtn = document.getElementById('resetPasswordBtn');
+        const emailStep = document.getElementById('emailStep');
+        const otpStep = document.getElementById('otpStep');
+        const passwordStep = document.getElementById('passwordStep');
+        const modalErrorAlert = document.getElementById('modalErrorAlert');
+        const modalSuccessAlert = document.getElementById('modalSuccessAlert');
+
+        let currentEmail = '';
+
+        // Open modal
+        forgotPasswordLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            forgotPasswordModal.style.display = 'flex';
+            resetModal();
+        });
+
+        // Close modal
+        closeModal.addEventListener('click', function() {
+            forgotPasswordModal.style.display = 'none';
+            resetModal();
+        });
+
+        // Close modal when clicking outside
+        forgotPasswordModal.addEventListener('click', function(e) {
+            if (e.target === forgotPasswordModal) {
+                forgotPasswordModal.style.display = 'none';
+                resetModal();
+            }
+        });
+
+        // Reset modal to initial state
+        function resetModal() {
+            emailStep.style.display = 'block';
+            otpStep.style.display = 'none';
+            passwordStep.style.display = 'none';
+            modalErrorAlert.style.display = 'none';
+            modalSuccessAlert.style.display = 'none';
+            currentEmail = '';
+        }
+
+        // Send OTP
+        sendOtpBtn.addEventListener('click', async function() {
+            const email = document.getElementById('resetEmail').value;
+            
+            if (!email) {
+                modalErrorAlert.textContent = 'Please enter your email address';
+                modalErrorAlert.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/vendor/forgot-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentEmail = email;
+                    emailStep.style.display = 'none';
+                    otpStep.style.display = 'block';
+                    modalSuccessAlert.textContent = data.message;
+                    modalSuccessAlert.style.display = 'block';
+                } else {
+                    modalErrorAlert.textContent = data.message;
+                    modalErrorAlert.style.display = 'block';
+                }
+            } catch (error) {
+                modalErrorAlert.textContent = 'An error occurred. Please try again.';
+                modalErrorAlert.style.display = 'block';
+            }
+        });
+
+        // Verify OTP
+        verifyOtpBtn.addEventListener('click', async function() {
+            const otp = document.getElementById('otpCode').value;
+
+            if (!otp || otp.length !== 6) {
+                modalErrorAlert.textContent = 'Please enter a valid 6-digit OTP';
+                modalErrorAlert.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/vendor/verify-otp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        email: currentEmail, 
+                        otp: otp 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    otpStep.style.display = 'none';
+                    passwordStep.style.display = 'block';
+                    modalSuccessAlert.textContent = data.message;
+                    modalSuccessAlert.style.display = 'block';
+                } else {
+                    modalErrorAlert.textContent = data.message;
+                    modalErrorAlert.style.display = 'block';
+                }
+            } catch (error) {
+                modalErrorAlert.textContent = 'An error occurred. Please try again.';
+                modalErrorAlert.style.display = 'block';
+            }
+        });
+
+        // Reset Password
+        resetPasswordBtn.addEventListener('click', async function() {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+
+            if (!newPassword || newPassword.length < 8) {
+                modalErrorAlert.textContent = 'Password must be at least 8 characters long';
+                modalErrorAlert.style.display = 'block';
+                return;
+            }
+
+            if (newPassword !== confirmNewPassword) {
+                modalErrorAlert.textContent = 'Passwords do not match';
+                modalErrorAlert.style.display = 'block';
+                return;
+            }
+
+            try {
+                const response = await fetch('/vendor/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        email: currentEmail, 
+                        new_password: newPassword 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    modalSuccessAlert.textContent = data.message + '. You can now login with your new password.';
+                    modalSuccessAlert.style.display = 'block';
+                    
+                    // Close modal after 3 seconds
+                    setTimeout(() => {
+                        forgotPasswordModal.style.display = 'none';
+                        resetModal();
+                    }, 3000);
+                } else {
+                    modalErrorAlert.textContent = data.message;
+                    modalErrorAlert.style.display = 'block';
+                }
+            } catch (error) {
+                modalErrorAlert.textContent = 'An error occurred. Please try again.';
+                modalErrorAlert.style.display = 'block';
+            }
+        });
+
+        // OTP input formatting
+        document.getElementById('otpCode').addEventListener('input', function(e) {
+            let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 6) {
+                value = value.slice(0, 6);
             }
             e.target.value = value;
         });

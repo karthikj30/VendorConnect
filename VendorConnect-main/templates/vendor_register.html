@@ -282,6 +282,11 @@
             </div>
             
             <div class="form-group">
+                <label for="email">Email Address</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email address">
+            </div>
+            
+            <div class="form-group">
                 <label for="location">Location/Area</label>
                 <input type="text" id="location" name="location" required placeholder="Enter your location (e.g., Bandra West, Mumbai)">
             </div>
@@ -384,6 +389,7 @@
             
             const name = document.getElementById('name').value;
             const phone = document.getElementById('phone').value;
+            const email = document.getElementById('email').value;
             const location = document.getElementById('location').value;
             const businessType = document.getElementById('business_type').value;
             const password = document.getElementById('password').value;
@@ -420,6 +426,7 @@
                     body: JSON.stringify({
                         name: name,
                         phone: phone,
+                        email: email,
                         location: location,
                         business_type: businessType,
                         password: password
