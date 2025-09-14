@@ -464,6 +464,12 @@ For issues and questions:
 
 ---
 
-**Built with ❤️ for India's Street Food Vendors**
-Made By: https://github.com/karthikj30 , https://github.com/anu07718 , https://github.com/Riya-1106 , https://github.com/stashlop
-"Empowering the backbone of India's food culture through technology"
+**Built with ❤️ for India's Street Food Vendors**  
+Made By:  
+- [Karthik Janardhan](https://github.com/karthikj30) | [LinkedIn](https://www.linkedin.com/in/karthik-janardhan-73a8b12a8/)  
+- [Anushka Kotal](https://github.com/anu07718) | [LinkedIn](https://www.linkedin.com/in/anushka-kotal-ab20a22b7/)  
+- [Riya Vishwakarma](https://github.com/Riya-1106) | [LinkedIn](https://www.linkedin.com/in/riya-vishwakarma-2540a52b7/)  
+- [Stash Lopes](https://github.com/stashlop) | [LinkedIn](https://www.linkedin.com/in/stash-lopes-176068333/)  
+
+*"Empowering the backbone of India's food culture through technology"*
+
