@@ -1,0 +1,3673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Dashboard - VendorConnect</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+        }
+
+        .dashboard {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid #34495e;
+        }
+
+        .sidebar-header h3 {
+            color: #ecf0f1;
+            font-size: 1.2rem;
+        }
+
+        .sidebar-header p {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .nav-menu {
+            list-style: none;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: #bdc3c7;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background: #34495e;
+            color: #ecf0f1;
+        }
+
+        .nav-link i {
+            margin-right: 10px;
+            width: 20px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cart-icon {
+            position: relative;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 5px;
+            background: #667eea;
+            color: white;
+            margin-right: 10px;
+        }
+
+        .cart-count {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* Cart Modal */
+        .cart-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .cart-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cart-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .close-cart {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .cart-items {
+            margin-bottom: 20px;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .cart-item-info {
+            flex: 1;
+        }
+
+        .cart-item-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .cart-item-price {
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .cart-item-quantity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quantity-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .quantity-input {
+            width: 50px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 5px;
+        }
+
+        .remove-item {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .cart-total {
+            text-align: right;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 20px 0;
+            padding-top: 20px;
+            border-top: 2px solid #eee;
+        }
+
+        .cart-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .empty-cart {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .empty-cart i {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+
+        /* Payment Gateway Styles */
+        .payment-modal {
+            display: none;
+            position: fixed;
+            z-index: 1001;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .payment-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .payment-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .payment-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .payment-amount {
+            font-size: 1.5rem;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .payment-methods {
+            margin-bottom: 30px;
+        }
+
+        .payment-method {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .payment-method:hover {
+            border-color: #667eea;
+            background-color: #f8f9ff;
+        }
+
+        .payment-method.selected {
+            border-color: #667eea;
+            background-color: #f0f4ff;
+        }
+
+        .payment-method-icon {
+            font-size: 1.5rem;
+            margin-right: 15px;
+            width: 30px;
+            text-align: center;
+        }
+
+        .payment-method-info {
+            flex: 1;
+        }
+
+        .payment-method-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .payment-method-desc {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .payment-form {
+            display: none;
+        }
+
+        .payment-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .upi-form {
+            text-align: center;
+        }
+
+        .upi-qr {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 10px;
+            margin: 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .payment-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .payment-success {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .payment-success i {
+            font-size: 4rem;
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+
+        .payment-success h3 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+
+        .payment-loading {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .payment-loading .spinner {
+            margin: 0 auto 20px;
+        }
+
+        .close-payment {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        /* Product Details Modal */
+        .product-details-modal {
+            display: none;
+            position: fixed;
+            z-index: 1002;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .product-details-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .product-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .product-details-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .product-details-category {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .close-product-details {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .product-details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .product-details-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .product-details-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .detail-value {
+            color: #333;
+            text-align: right;
+        }
+
+        .supplier-info {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .supplier-info h3 {
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .supplier-rating {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .stars {
+            color: #ffd700;
+        }
+
+        .storage-instructions {
+            background: #e8f5e8;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .storage-instructions h3 {
+            color: #2d5a2d;
+            margin-bottom: 15px;
+        }
+
+        .storage-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .storage-list li {
+            padding: 5px 0;
+            color: #2d5a2d;
+        }
+
+        .storage-list li:before {
+            content: "✓ ";
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .product-actions-details {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .product-image-placeholder {
+            width: 100%;
+            height: 200px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .price-history {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .price-history h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .price-trend {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #856404;
+        }
+
+        .trend-up {
+            color: #dc3545;
+        }
+
+        .trend-down {
+            color: #28a745;
+        }
+
+        .trend-stable {
+            color: #6c757d;
+        }
+
+        @media (max-width: 768px) {
+            .product-details-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+        }
+
+        /* Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .card-icon {
+            font-size: 1.5rem;
+            color: #667eea;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* Product Grid */
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .product-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .product-price {
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .product-supplier {
+            color: #666;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn:hover {
+            opacity: 0.8;
+        }
+
+        /* Group Orders */
+        .group-order-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .progress-bar {
+            background: rgba(255,255,255,0.3);
+            height: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: #fff;
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        /* Alerts */
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        /* Voice Search */
+        .voice-search {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            position: fixed;
+            top: 30px;
+            right: 40px;
+            width: 350px;
+            max-width: 90vw;
+            z-index: 1200;
+            margin-bottom: 0;
+        }
+
+        .voice-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .voice-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+        }
+
+        .voice-btn.recording {
+            background: #e74c3c;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Business Combinations */
+        .business-combinations {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .combination-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .combination-card h4 {
+            margin-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        .combination-card p {
+            margin-bottom: 15px;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .combination-price {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Supplier Details Modal */
+        .supplier-details-modal {
+            display: none;
+            position: fixed;
+            z-index: 1003;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .supplier-details-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .supplier-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .close-supplier-details {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .supplier-products-list {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .supplier-products-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .supplier-contact-modal {
+            display: none;
+            position: fixed;
+            z-index: 1004;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .supplier-contact-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .close-supplier-contact {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+        .supplier-contact-info {
+            font-size: 1.1rem;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .supplier-contact-label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .supplier-contact-value {
+            color: #555;
+        }
+
+        /* Dark Mode Overrides */
+        body.dark-mode {
+            background: #18191a;
+            color: #f1f1f1;
+        }
+        .dark-mode .sidebar {
+            background: #232526;
+            color: #ffd700;
+        }
+        .dark-mode .sidebar-header h3,
+        .dark-mode .sidebar-header p {
+            color: #ffd700;
+        }
+        .dark-mode .nav-link {
+            color: #ffd700;
+        }
+        .dark-mode .nav-link.active,
+        .dark-mode .nav-link:hover {
+            background: #414345;
+            color: #fff;
+        }
+        .dark-mode .main-content {
+            background: #18191a;
+            color: #f1f1f1;
+        }
+        .dark-mode .header {
+            background: #232526;
+            color: #ffd700;
+        }
+        .dark-mode .card,
+        .dark-mode .stat-card,
+        .dark-mode .product-card,
+        .dark-mode .voice-search,
+        .dark-mode .group-order-card,
+        .dark-mode .combination-card {
+            background: #232526;
+            color: #ffd700;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        .dark-mode .btn,
+        .dark-mode .btn-primary,
+        .dark-mode .btn-secondary {
+            background: #ffd700;
+            color: #232526;
+            border: 1px solid #ffd700;
+        }
+        .dark-mode .btn:hover {
+            background: #ffe066;
+            color: #232526;
+        }
+        .dark-mode .alert-info,
+        .dark-mode .alert-success {
+            background: #232526;
+            color: #ffd700;
+            border: 1px solid #ffd700;
+        }
+        .dark-mode .product-details-section {
+            background: #232526;
+            color: #ffd700;
+        }
+        .dark-mode .supplier-info {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            color: #ffd700;
+        }
+        .dark-mode .storage-instructions {
+            background: #232526;
+            color: #ffd700;
+        }
+        .dark-mode .price-history {
+            background: #232526;
+            color: #ffd700;
+        }
+        .dark-mode .payment-content,
+        .dark-mode .cart-content,
+        .dark-mode .product-details-content,
+        .dark-mode .supplier-details-content,
+        .dark-mode .supplier-contact-content {
+            background: #232526;
+            color: #ffd700;
+        }
+        #delivery-map { width: 100%; height: 320px; border-radius: 12px; }
+        #group-orders-map, #delivery-map {
+            width: 100%;
+            min-width: 300px;
+            height: 320px;
+            min-height: 200px;
+            border-radius: 12px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        // Expose vendor business_type to JS
+        window.vendorBusinessType = "{{ vendor.business_type }}";
+    </script>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3><i class="fas fa-utensils"></i> VendorConnect</h3>
+                <p>Welcome, {{ vendor.name }}</p>
+                <button id="darkModeToggle" title="Toggle dark mode" style="margin-top:10px; background:none; border:none; font-size:1.3rem; cursor:pointer;"><i class="fas fa-moon"></i></button>
+            </div>
+            
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="#dashboard" class="nav-link active" onclick="showSection('dashboard')">
+                        <i class="fas fa-tachometer-alt"></i> Dashboard
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#products" class="nav-link" onclick="showSection('products')">
+                        <i class="fas fa-shopping-cart"></i> Products
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#suppliers" class="nav-link" onclick="showSection('suppliers')">
+                        <i class="fas fa-store"></i> Suppliers
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#orders" class="nav-link" onclick="showSection('orders')">
+                        <i class="fas fa-list"></i> My Orders
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#alerts" class="nav-link" onclick="showSection('alerts')">
+                        <i class="fas fa-bell"></i> Price Alerts
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#ledger" class="nav-link" onclick="showSection('ledger')">
+                        <i class="fas fa-book"></i> Digital Ledger
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="header">
+                <div>
+                    <h1 id="section-title">Dashboard</h1>
+                    <p style="margin: 5px 0; color: #666; font-size: 14px;">
+                        <i class="fas fa-store"></i> {{ vendor.business_type.replace('_', ' ').title() }} Stall
+                    </p>
+                </div>
+                <div class="user-info">
+                    <div class="cart-icon" onclick="openCart()">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count" id="cart-count">0</span>
+                    </div>
+                    <span>{{ vendor.location }}</span>
+                    <a href="/logout" class="logout-btn">Logout</a>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboard-section" class="section">
+                <!-- Stats -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-orders">0</div>
+                        <div class="stat-label">Total Orders</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="monthly-savings">₹0</div>
+                        <div class="stat-label">Monthly Savings</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="active-group-orders">0</div>
+                        <div class="stat-label">Active Group Orders</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="verified-suppliers">0</div>
+                        <div class="stat-label">Verified Suppliers</div>
+                    </div>
+                </div>
+
+                <!-- Recent Products -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Your {{ vendor.business_type.replace('_', ' ').title() }} Ingredients</h3>
+                        <i class="fas fa-shopping-cart card-icon"></i>
+                    </div>
+                    <div class="products-grid" id="recent-products">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading products...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Type Special Sections -->
+                <!-- Ice Cream Special Section -->
+                <div id="ice-cream-special" class="card" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-ice-cream"></i> Popular Ice Cream Combinations</h3>
+                        <i class="fas fa-star card-icon"></i>
+                    </div>
+                    <div class="business-combinations" id="ice-cream-combinations">
+                        <div class="combination-card">
+                            <h4>Vanilla Delight</h4>
+                            <p>Ice Cream Mix + Vanilla Essence + Sprinkles</p>
+                            <div class="combination-price">₹850 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('vanilla')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Chocolate Fantasy</h4>
+                            <p>Ice Cream Mix + Chocolate Syrup + Chocolate Chips</p>
+                            <div class="combination-price">₹900 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('chocolate')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Fruit Blast</h4>
+                            <p>Ice Cream Mix + Mango Pulp + Strawberries</p>
+                            <div class="combination-price">₹750 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('fruit')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Royal Kesar</h4>
+                            <p>Ice Cream Mix + Kesar + Badam + Rose Essence</p>
+                            <div class="combination-price">₹1,200 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('kesar')">Order Combo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chaat Special Section -->
+                <div id="chaat-special" class="card" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-utensils"></i> Popular Chaat Combinations</h3>
+                        <i class="fas fa-star card-icon"></i>
+                    </div>
+                    <div class="business-combinations" id="chaat-combinations">
+                        <div class="combination-card">
+                            <h4>Dahi Puri Combo</h4>
+                            <p>Papdi + Curd + Sweet Chutney + Sev</p>
+                            <div class="combination-price">₹450 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('dahi_puri')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Bhel Puri Combo</h4>
+                            <p>Puffed Rice + Sev + Green Chutney + Tamarind</p>
+                            <div class="combination-price">₹380 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('bhel_puri')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Samosa Chaat Combo</h4>
+                            <p>Samosa + Curd + Chutneys + Boondi</p>
+                            <div class="combination-price">₹520 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('samosa_chaat')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Pani Puri Combo</h4>
+                            <p>Puris + Mint Water + Sweet Chutney + Boondi</p>
+                            <div class="combination-price">₹320 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('pani_puri')">Order Combo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dosa Special Section -->
+                <div id="dosa-special" class="card" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-bread-slice"></i> Popular Dosa Combinations</h3>
+                        <i class="fas fa-star card-icon"></i>
+                    </div>
+                    <div class="business-combinations" id="dosa-combinations">
+                        <div class="combination-card">
+                            <h4>Masala Dosa Combo</h4>
+                            <p>Rice Batter + Potato Filling + Coconut Chutney + Sambar</p>
+                            <div class="combination-price">₹680 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('masala_dosa')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Plain Dosa Combo</h4>
+                            <p>Rice Batter + Coconut Chutney + Sambar + Onion Chutney</p>
+                            <div class="combination-price">₹580 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('plain_dosa')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Rava Dosa Combo</h4>
+                            <p>Rava Batter + Coconut Chutney + Sambar + Ginger Chutney</p>
+                            <div class="combination-price">₹620 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('rava_dosa')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Onion Dosa Combo</h4>
+                            <p>Rice Batter + Onions + Coconut Chutney + Sambar</p>
+                            <div class="combination-price">₹550 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('onion_dosa')">Order Combo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Samosa Special Section -->
+                <div id="samosa-special" class="card" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-drumstick-bite"></i> Popular Samosa Combinations</h3>
+                        <i class="fas fa-star card-icon"></i>
+                    </div>
+                    <div class="business-combinations" id="samosa-combinations">
+                        <div class="combination-card">
+                            <h4>Classic Samosa Combo</h4>
+                            <p>Samosa Sheets + Potato Filling + Samosa Masala + Green Chutney</p>
+                            <div class="combination-price">₹420 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('classic_samosa')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Veg Samosa Combo</h4>
+                            <p>Samosa Sheets + Mixed Vegetables + Spices + Sweet Chutney</p>
+                            <div class="combination-price">₹480 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('veg_samosa')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Punjabi Samosa Combo</h4>
+                            <p>Samosa Sheets + Potato Peas + Punjabi Masala + Mint Chutney</p>
+                            <div class="combination-price">₹520 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('punjabi_samosa')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Mini Samosa Combo</h4>
+                            <p>Mini Sheets + Potato Filling + Masala + Mixed Chutneys</p>
+                            <div class="combination-price">₹380 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('mini_samosa')">Order Combo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vada Pav Special Section -->
+                <div id="vada_pav-special" class="card" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="fas fa-hamburger"></i> Popular Vada Pav Combinations</h3>
+                        <i class="fas fa-star card-icon"></i>
+                    </div>
+                    <div class="business-combinations" id="vada_pav-combinations">
+                        <div class="combination-card">
+                            <h4>Classic Vada Pav</h4>
+                            <p>Pav Bread + Potato Vada + Green Chutney + Red Chutney</p>
+                            <div class="combination-price">₹280 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('classic_vada_pav')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Spicy Vada Pav</h4>
+                            <p>Pav Bread + Spicy Vada + Garlic Chutney + Green Chutney</p>
+                            <div class="combination-price">₹320 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('spicy_vada_pav')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Cheese Vada Pav</h4>
+                            <p>Pav Bread + Cheese Vada + Mixed Chutneys + Onions</p>
+                            <div class="combination-price">₹380 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('cheese_vada_pav')">Order Combo</button>
+                        </div>
+                        <div class="combination-card">
+                            <h4>Schezwan Vada Pav</h4>
+                            <p>Pav Bread + Schezwan Vada + Spicy Chutney + Vegetables</p>
+                            <div class="combination-price">₹350 for combo</div>
+                            <button class="btn btn-primary" onclick="orderCombination('schezwan_vada_pav')">Order Combo</button>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- Price Alerts -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Recent Price Alerts</h3>
+                        <i class="fas fa-bell card-icon"></i>
+                    </div>
+                    <div id="price-alerts">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading alerts...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Section -->
+            <div id="products-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Available Products</h3>
+                        <div>
+                            <select id="category-filter" onchange="filterProducts()">
+                                <option value="">All Categories</option>
+                                <option value="ice_cream">Ice Cream Ingredients</option>
+                                <option value="fruits">Fresh Fruits</option>
+                                <option value="dairy">Dairy Products</option>
+                                <option value="essentials">Essentials</option>
+                                <option value="chaat">Chaat Ingredients</option>
+                                <option value="dosa">Dosa Ingredients</option>
+                                <option value="samosa">Samosa Ingredients</option>
+                                <option value="vada_pav">Vada Pav Ingredients</option>
+                                <option value="tea">Tea Ingredients</option>
+                                <option value="juice">Juice Ingredients</option>
+                                <option value="vegetables">Vegetables</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="products-grid" id="products-grid">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading products...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suppliers Section -->
+            <div id="suppliers-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Verified Suppliers</h3>
+                        <i class="fas fa-store card-icon"></i>
+                    </div>
+                    <div id="suppliers-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading suppliers...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Tracking Section -->
+            <div id="delivery-tracking-section" class="section">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Delivery Tracking</h3>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+                        <div style="flex: 2 1 350px; min-width: 300px;">
+                            <!-- Leaflet Map -->
+                            <div id="delivery-map"></div>
+                        </div>
+                        <div style="flex: 1 1 220px; min-width: 200px;">
+                            <div style="background:#f8f9fa; border-radius:10px; padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                                <h4 style="margin-top:0; font-size:1.1rem;">Delivery Status</h4>
+                                <ul id="delivery-status-list" style="list-style:none; padding:0; margin:0; font-size:15px; color:#444;">
+                                    <li><b>Order ID:</b> <span id="delivery-order-id">VC-2024-001</span></li>
+                                    <li><b>Status:</b> <span id="delivery-status">Out for Delivery</span></li>
+                                    <li><b>Estimated Arrival:</b> <span id="delivery-eta">45 min</span></li>
+                                    <li><b>Rider:</b> <span id="delivery-rider">Ramesh Kumar</span></li>
+                                    <li><b>Contact:</b> <span id="delivery-contact">+91-9876543210</span></li>
+                                    <li><b>Last Updated:</b> <span id="delivery-last-updated">2 min ago</span></li>
+                                </ul>
+                                <button onclick="moveDeliveryDemo()" class="btn btn-secondary" style="margin-top:12px; width:100%;">Simulate Move</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Section -->
+            <div id="orders-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">My Orders</h3>
+                        <i class="fas fa-list card-icon"></i>
+                    </div>
+                    <div id="orders-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading orders...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerts Section -->
+            <div id="alerts-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Price Alerts</h3>
+                        <i class="fas fa-bell card-icon"></i>
+                    </div>
+                    <div id="alerts-list">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading alerts...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ledger Section -->
+            <div id="ledger-section" class="section" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Digital Ledger</h3>
+                        <i class="fas fa-book card-icon"></i>
+                    </div>
+                    <div id="ledger-content">
+                        <div class="loading">
+                            <div class="spinner"></div>
+                            Loading ledger...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cart Modal -->
+    <div id="cart-modal" class="cart-modal">
+        <div class="cart-content">
+            <div class="cart-header">
+                <h2 class="cart-title"><i class="fas fa-shopping-cart"></i> Shopping Cart</h2>
+                <button class="close-cart" onclick="closeCart()">&times;</button>
+            </div>
+            <div id="cart-items" class="cart-items">
+                <!-- Cart items will be populated here -->
+            </div>
+            <div id="cart-total" class="cart-total">
+                Total: ₹0
+            </div>
+            <div class="cart-actions">
+                <button class="btn btn-secondary" onclick="clearCart()">Clear Cart</button>
+                <button class="btn btn-primary" onclick="checkout()">Checkout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Gateway Modal -->
+    <div id="payment-modal" class="payment-modal">
+        <div class="payment-content">
+            <button class="close-payment" onclick="closePayment()">&times;</button>
+            
+            <!-- Payment Header -->
+            <div class="payment-header">
+                <h2 class="payment-title">Secure Payment</h2>
+                <div class="payment-amount" id="payment-amount">₹0</div>
+            </div>
+
+            <!-- Payment Methods Selection -->
+            <div id="payment-methods" class="payment-methods">
+                <div class="payment-method" onclick="selectPaymentMethod('card')">
+                    <div class="payment-method-icon">
+                        <i class="fas fa-credit-card"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <div class="payment-method-name">Credit/Debit Card</div>
+                        <div class="payment-method-desc">Visa, Mastercard, RuPay</div>
+                    </div>
+                </div>
+
+                <div class="payment-method" onclick="selectPaymentMethod('upi')">
+                    <div class="payment-method-icon">
+                        <i class="fas fa-mobile-alt"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <div class="payment-method-name">UPI Payment</div>
+                        <div class="payment-method-desc">Google Pay, PhonePe, Paytm</div>
+                    </div>
+                </div>
+
+                <div class="payment-method" onclick="selectPaymentMethod('netbanking')">
+                    <div class="payment-method-icon">
+                        <i class="fas fa-university"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <div class="payment-method-name">Net Banking</div>
+                        <div class="payment-method-desc">All major banks supported</div>
+                    </div>
+                </div>
+
+                <div class="payment-method" onclick="selectPaymentMethod('wallet')">
+                    <div class="payment-method-icon">
+                        <i class="fas fa-wallet"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <div class="payment-method-name">Digital Wallet</div>
+                        <div class="payment-method-desc">Paytm, Amazon Pay, FreeCharge</div>
+                    </div>
+                </div>
+
+                <div class="payment-method" onclick="selectPaymentMethod('cod')">
+                    <div class="payment-method-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="payment-method-info">
+                        <div class="payment-method-name">Cash on Delivery</div>
+                        <div class="payment-method-desc">Pay when you receive</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Payment Form -->
+            <div id="card-form" class="payment-form">
+                <div class="form-group">
+                    <label class="form-label">Card Number</label>
+                    <input type="text" class="form-input" id="card-number" placeholder="1234 5678 9012 3456" maxlength="19">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Expiry Date</label>
+                        <input type="text" class="form-input" id="card-expiry" placeholder="MM/YY" maxlength="5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CVV</label>
+                        <input type="text" class="form-input" id="card-cvv" placeholder="123" maxlength="3">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Card Holder Name</label>
+                    <input type="text" class="form-input" id="card-holder" placeholder="John Doe">
+                </div>
+            </div>
+
+            <!-- UPI Payment Form -->
+            <div id="upi-form" class="payment-form">
+                <div class="upi-qr">
+                    <div>
+                        <i class="fas fa-qrcode" style="font-size: 3rem; margin-bottom: 10px;"></i><br>
+                        Scan QR Code
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">UPI ID</label>
+                    <input type="text" class="form-input" id="upi-id" placeholder="username@upi">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mobile Number</label>
+                    <input type="text" class="form-input" id="upi-mobile" placeholder="9876543210">
+                </div>
+            </div>
+
+            <!-- Net Banking Form -->
+            <div id="netbanking-form" class="payment-form">
+                <div class="form-group">
+                    <label class="form-label">Select Bank</label>
+                    <select class="form-input" id="bank-select">
+                        <option value="">Choose your bank</option>
+                        <option value="sbi">State Bank of India</option>
+                        <option value="hdfc">HDFC Bank</option>
+                        <option value="icici">ICICI Bank</option>
+                        <option value="axis">Axis Bank</option>
+                        <option value="kotak">Kotak Mahindra Bank</option>
+                        <option value="yes">Yes Bank</option>
+                        <option value="pnb">Punjab National Bank</option>
+                        <option value="bob">Bank of Baroda</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Number</label>
+                    <input type="text" class="form-input" id="account-number" placeholder="Enter account number">
+                </div>
+            </div>
+
+            <!-- Digital Wallet Form -->
+            <div id="wallet-form" class="payment-form">
+                <div class="form-group">
+                    <label class="form-label">Select Wallet</label>
+                    <select class="form-input" id="wallet-select">
+                        <option value="">Choose your wallet</option>
+                        <option value="paytm">Paytm</option>
+                        <option value="amazon">Amazon Pay</option>
+                        <option value="freecharge">FreeCharge</option>
+                        <option value="mobikwik">MobiKwik</option>
+                        <option value="phonepe">PhonePe</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Mobile Number</label>
+                    <input type="text" class="form-input" id="wallet-mobile" placeholder="9876543210">
+                </div>
+            </div>
+
+            <!-- COD Confirmation -->
+            <div id="cod-form" class="payment-form">
+                <div style="text-align: center; padding: 40px 20px;">
+                    <i class="fas fa-money-bill-wave" style="font-size: 4rem; color: #28a745; margin-bottom: 20px;"></i>
+                    <h3 style="color: #28a745; margin-bottom: 10px;">Cash on Delivery</h3>
+                    <p style="color: #666; margin-bottom: 20px;">You will pay ₹<span id="cod-amount">0</span> when you receive your order.</p>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                        <strong>Delivery Details:</strong><br>
+                        <small>• Free delivery within 24 hours</small><br>
+                        <small>• Cash payment at doorstep</small><br>
+                        <small>• Order confirmation via SMS</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Actions -->
+            <div id="payment-actions" class="payment-actions">
+                <button class="btn btn-secondary" onclick="closePayment()">Cancel</button>
+                <button class="btn btn-primary" id="pay-button" onclick="processPayment()">Pay Now</button>
+            </div>
+
+            <!-- Payment Loading -->
+            <div id="payment-loading" class="payment-loading" style="display: none;">
+                <div class="spinner"></div>
+                <h3>Processing Payment...</h3>
+                <p>Please wait while we process your payment securely.</p>
+            </div>
+
+            <!-- Payment Success -->
+            <div id="payment-success" class="payment-success" style="display: none;">
+                <i class="fas fa-check-circle"></i>
+                <h3>Payment Successful!</h3>
+                <p>Your order has been placed successfully.</p>
+                <p><strong>Order ID:</strong> <span id="order-id">VC-2024-001</span></p>
+                <p>You will receive a confirmation call shortly.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Details Modal -->
+    <div id="product-details-modal" class="product-details-modal">
+        <div class="product-details-content">
+            <div class="product-details-header">
+                <div>
+                    <h2 class="product-details-title" id="product-details-name">Product Name</h2>
+                    <div class="product-details-category" id="product-details-category">Category</div>
+                </div>
+                <button class="close-product-details" onclick="closeProductDetails()">&times;</button>
+            </div>
+
+            <!-- Product Image Placeholder -->
+            <div class="product-image-placeholder" id="product-details-image">
+                <i class="fas fa-image"></i> Product Image
+            </div>
+
+            <!-- Product Details Grid -->
+            <div class="product-details-grid">
+                <!-- Basic Information -->
+                <div class="product-details-section">
+                    <h3><i class="fas fa-info-circle"></i> Basic Information</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Current Price:</span>
+                        <span class="detail-value" id="product-details-price">₹0</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Unit:</span>
+                        <span class="detail-value" id="product-details-unit">kg</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Stock Available:</span>
+                        <span class="detail-value" id="product-details-stock">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Minimum Order:</span>
+                        <span class="detail-value">5 kg</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Delivery Time:</span>
+                        <span class="detail-value">2-4 hours</span>
+                    </div>
+                </div>
+
+                <!-- Quality & Certification -->
+                <div class="product-details-section">
+                    <h3><i class="fas fa-certificate"></i> Quality & Certification</h3>
+                    <div class="detail-item">
+                        <span class="detail-label">Quality Grade:</span>
+                        <span class="detail-value">Premium A+</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Organic Certified:</span>
+                        <span class="detail-value">Yes</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">FSSAI Approved:</span>
+                        <span class="detail-value">Yes</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Pesticide Free:</span>
+                        <span class="detail-value">Yes</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Best Before:</span>
+                        <span class="detail-value">7 days</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Supplier Information -->
+            <div class="supplier-info">
+                <h3><i class="fas fa-store"></i> Supplier Information</h3>
+                <div class="detail-item">
+                    <span class="detail-label">Supplier Name:</span>
+                    <span class="detail-value" id="product-details-supplier">Supplier Name</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Location:</span>
+                    <span class="detail-value" id="product-details-location">Location</span>
+                </div>
+                <div class="supplier-rating">
+                    <span class="detail-label">Rating:</span>
+                    <span class="stars" id="product-details-rating">★★★★★</span>
+                    <span class="detail-value" id="product-details-rating-value">4.5/5</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Verification Status:</span>
+                    <span class="detail-value" id="product-details-verification">Verified ✓</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Hygiene Rating:</span>
+                    <span class="detail-value" id="product-details-hygiene">4.2/5</span>
+                </div>
+            </div>
+
+            <!-- Storage Instructions -->
+            <div class="storage-instructions">
+                <h3><i class="fas fa-snowflake"></i> Storage Instructions</h3>
+                <ul class="storage-list" id="product-details-storage">
+                    <li>Store in a cool, dry place</li>
+                    <li>Keep away from direct sunlight</li>
+                    <li>Refrigerate after opening</li>
+                    <li>Use within 7 days of purchase</li>
+                    <li>Keep in airtight container</li>
+                </ul>
+            </div>
+
+            <!-- Price History -->
+            <div class="price-history">
+                <h4><i class="fas fa-chart-line"></i> Price History</h4>
+                <div class="price-trend">
+                    <span>Last Week: ₹<span id="product-details-last-week">0</span></span>
+                    <span class="trend-down"><i class="fas fa-arrow-down"></i> 5% decrease</span>
+                </div>
+                <div class="price-trend">
+                    <span>Last Month: ₹<span id="product-details-last-month">0</span></span>
+                    <span class="trend-stable"><i class="fas fa-minus"></i> Stable</span>
+                </div>
+            </div>
+
+            <!-- Product Actions -->
+            <div class="product-actions-details">
+                <button class="btn btn-primary" id="product-details-add-cart" onclick="addToCartFromDetails()">
+                    <i class="fas fa-cart-plus"></i> Add to Cart
+                </button>
+                <button class="btn btn-secondary" onclick="contactSupplierFromDetails()">
+                    <i class="fas fa-phone"></i> Contact Supplier
+                </button>
+                <button class="btn btn-secondary" onclick="shareProduct()">
+                    <i class="fas fa-share"></i> Share
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supplier Details Modal -->
+    <div id="supplier-details-modal" class="supplier-details-modal">
+        <div class="supplier-details-content">
+            <div class="supplier-details-header">
+                <h2 id="supplier-details-name">Supplier Products</h2>
+                <button class="close-supplier-details" onclick="closeSupplierDetails()">&times;</button>
+            </div>
+            <div>
+                <ul id="supplier-products-list" class="supplier-products-list"></ul>
+            </div>
+        </div>
+    </div>
+    <!-- Supplier Contact Modal -->
+    <div id="supplier-contact-modal" class="supplier-contact-modal">
+        <div class="supplier-contact-content">
+            <div class="supplier-details-header">
+                <h2>Contact Details</h2>
+                <button class="close-supplier-contact" onclick="closeSupplierContact()">&times;</button>
+            </div>
+            <div class="supplier-contact-info">
+                <div><span class="supplier-contact-label">Name:</span> <span id="contact-supplier-name" class="supplier-contact-value"></span></div>
+                <div><span class="supplier-contact-label">Phone:</span> <span id="contact-supplier-phone" class="supplier-contact-value"></span></div>
+                <div><span class="supplier-contact-label">Address:</span> <span id="contact-supplier-address" class="supplier-contact-value"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSection = 'dashboard';
+        let products = [];
+        let suppliers = [];
+        let groupOrders = [];
+        let orders = [];
+        let alerts = [];
+        let cart = JSON.parse(localStorage.getItem('vendorCart')) || [];
+
+        // Navigation
+        function showSection(section) {
+            // Hide all sections except delivery tracking
+            document.querySelectorAll('.section').forEach(s => {
+                if (s.id !== 'delivery-tracking-section') {
+                    s.style.display = 'none';
+                }
+            });
+            
+            // Show selected section
+            document.getElementById(section + '-section').style.display = 'block';
+            
+            // Update active nav link
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update title
+            const titles = {
+                'dashboard': 'Dashboard',
+                'products': 'Products',
+                'suppliers': 'Suppliers',
+                'group-orders': 'Group Orders',
+                'orders': 'My Orders',
+                'alerts': 'Price Alerts',
+                'ledger': 'Digital Ledger'
+            };
+            document.getElementById('section-title').textContent = titles[section];
+            
+            currentSection = section;
+            
+            // Load section data
+            loadSectionData(section);
+        }
+
+        // Load section data
+        async function loadSectionData(section) {
+            switch(section) {
+                case 'dashboard':
+                    await loadDashboardData();
+                    break;
+                case 'products':
+                    await loadProducts();
+                    break;
+                case 'suppliers':
+                    await loadSuppliers();
+                    break;
+                case 'group-orders':
+                    await loadGroupOrders();
+                    break;
+                case 'orders':
+                    await loadOrders();
+                    break;
+                case 'alerts':
+                    await loadAlerts();
+                    break;
+                case 'ledger':
+                    await loadLedger();
+                    break;
+            }
+        }
+
+        // Dashboard data
+        async function loadDashboardData() {
+            try {
+                const [productsRes, alertsRes, statsRes] = await Promise.all([
+                    fetch('/api/products'),
+                    fetch('/api/price-alerts'),
+                    fetch('/api/vendor/dashboard-stats')
+                ]);
+                
+                products = await productsRes.json();
+                alerts = await alertsRes.json();
+                const stats = await statsRes.json();
+                
+                // Update stats with real data
+                document.getElementById('total-orders').textContent = stats.total_orders;
+                document.getElementById('monthly-savings').textContent = `₹${stats.monthly_savings.toFixed(0)}`;
+                document.getElementById('active-group-orders').textContent = stats.active_group_orders;
+                document.getElementById('verified-suppliers').textContent = stats.verified_suppliers;
+                
+                // Show recent products
+                displayRecentProducts();
+                
+                // Show price alerts
+                displayPriceAlerts();
+                
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
+        }
+
+        // Display recent products
+        function displayRecentProducts() {
+            const container = document.getElementById('recent-products');
+            const businessType = window.vendorBusinessType || 'other';
+            
+            // For all vendors, prioritize their business-specific ingredients
+            let recentProducts = products;
+            if (businessType !== 'other') {
+                // Sort to show business-specific ingredients first
+                recentProducts = products.sort((a, b) => {
+                    if (a.category === businessType && b.category !== businessType) return -1;
+                    if (a.category !== businessType && b.category === businessType) return 1;
+                    return 0;
+                });
+            }
+            
+            const displayProducts = recentProducts.slice(0, 8); // Show more products
+            
+            container.innerHTML = displayProducts.map(product => `
+                <div class="product-card">
+                    <div class="product-name">${product.name}</div>
+                    <div class="product-price">₹${product.current_price}/${product.unit}</div>
+                    <div class="product-supplier">${product.supplier_name}</div>
+                    <div class="product-actions">
+                        <button class="btn btn-primary" onclick="addToCart('${product.id}')">Add to Cart</button>
+                        <button class="btn btn-secondary" onclick="viewDetails('${product.id}')">Details</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Display price alerts
+        function displayPriceAlerts() {
+            const container = document.getElementById('price-alerts');
+            
+            container.innerHTML = alerts.map(alert => `
+                <div class="alert alert-info">
+                    <strong>${alert.product}:</strong> ${alert.message}
+                    <br><small>${alert.timestamp}</small>
+                </div>
+            `).join('');
+        }
+
+        // Load products
+        async function loadProducts() {
+            try {
+                const response = await fetch('/api/products');
+                products = await response.json();
+                
+                const container = document.getElementById('products-grid');
+                container.innerHTML = products.map(product => `
+                    <div class="product-card">
+                        <div class="product-name">${product.name}</div>
+                        <div class="product-price">₹${product.current_price}/${product.unit}</div>
+                        <div class="product-supplier">${product.supplier_name} (${product.supplier_location})</div>
+                        <div class="product-actions">
+                            <button class="btn btn-primary" onclick="addToCart('${product.id}')">Add to Cart</button>
+                            <button class="btn btn-secondary" onclick="viewDetails('${product.id}')">Details</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading products:', error);
+            }
+        }
+
+        // Load suppliers
+        async function loadSuppliers() {
+            try {
+                const response = await fetch('/api/suppliers');
+                suppliers = await response.json();
+                
+                const container = document.getElementById('suppliers-list');
+                container.innerHTML = suppliers.map(supplier => `
+                    <div class="product-card">
+                        <div class="product-name">${supplier.name}</div>
+                        <div class="product-supplier">
+                            <i class="fas fa-map-marker-alt"></i> ${supplier.location}<br>
+                            <i class="fas fa-star"></i> ${supplier.rating}/5.0<br>
+                            <i class="fas fa-shield-alt"></i> ${supplier.verification_status ? 'Verified' : 'Pending'}<br>
+                            <i class="fas fa-hands-wash"></i> Hygiene: ${supplier.hygiene_rating}/5.0
+                        </div>
+                        <div class="product-actions">
+                            <button class="btn btn-primary" onclick="viewSupplierProducts('${supplier.id}')">View Products</button>
+                            <button class="btn btn-secondary" onclick="contactSupplier(${supplier.id})">Contact</button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading suppliers:', error);
+            }
+        }
+
+        // Load group orders
+        async function loadGroupOrders() {
+            try {
+                const response = await fetch('/api/group-orders');
+                groupOrders = await response.json();
+                
+                const container = document.getElementById('group-orders-list');
+                container.innerHTML = groupOrders.map(order => `
+                    <div class="group-order-card">
+                        <h4>${order.product_name}</h4>
+                        <p>Target: ${order.target_quantity}kg | Current: ${order.current_quantity}kg</p>
+                        <p>Price: ₹${order.price_per_unit}/kg | Participants: ${order.participants_count}</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: ${order.progress_percentage}%"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="joinGroupOrder('${order.id}')">Join Order</button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading group orders:', error);
+            }
+        }
+
+        // Load orders
+        async function loadOrders() {
+            try {
+                const response = await fetch('/api/vendor/orders');
+                orders = await response.json();
+                
+                const container = document.getElementById('orders-list');
+                container.innerHTML = orders.map(order => `
+                    <div class="product-card">
+                        <div class="product-name">Order #${order.id}</div>
+                        <div class="product-supplier">${order.supplier_name}</div>
+                        <div class="product-price">₹${order.total_amount}</div>
+                        <div class="product-supplier">
+                            Status: <span style="color: ${order.status === 'completed' ? 'green' : 'orange'}">${order.status}</span><br>
+                            Type: ${order.order_type}<br>
+                            Date: ${order.created_at}
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading orders:', error);
+            }
+        }
+
+        // Load alerts
+        async function loadAlerts() {
+            try {
+                const response = await fetch('/api/price-alerts');
+                alerts = await response.json();
+                
+                const container = document.getElementById('alerts-list');
+                container.innerHTML = alerts.map(alert => `
+                    <div class="alert alert-info">
+                        <strong>${alert.product}:</strong> ${alert.message}
+                        <br><small>${alert.timestamp}</small>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('Error loading alerts:', error);
+            }
+        }
+
+        // Load ledger
+        async function loadLedger() {
+            try {
+                const response = await fetch('/api/vendor/ledger');
+                const ledgerData = await response.json();
+                
+                const container = document.getElementById('ledger-content');
+                container.innerHTML = `
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-number">₹${ledgerData.monthly_spending.toFixed(0)}</div>
+                            <div class="stat-label">Total Spent (This Month)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">₹${ledgerData.group_order_savings.toFixed(0)}</div>
+                            <div class="stat-label">Saved via Group Orders</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">${ledgerData.monthly_orders}</div>
+                            <div class="stat-label">Orders This Month</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-number">₹${ledgerData.avg_order_value.toFixed(0)}</div>
+                            <div class="stat-label">Average Order Value</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">Recent Transactions</h3>
+                        </div>
+                        <div style="padding: 20px;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <th style="text-align: left; padding: 10px;">Date</th>
+                                        <th style="text-align: left; padding: 10px;">Description</th>
+                                        <th style="text-align: right; padding: 10px;">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${ledgerData.transactions.map(transaction => `
+                                        <tr style="border-bottom: 1px solid #eee;">
+                                            <td style="padding: 10px;">${transaction.date}</td>
+                                            <td style="padding: 10px;">${transaction.description}</td>
+                                            <td style="text-align: right; padding: 10px;">₹${transaction.amount.toFixed(0)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading ledger data:', error);
+                // Fallback to static data if API fails
+            const container = document.getElementById('ledger-content');
+            container.innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">₹12,450</div>
+                        <div class="stat-label">Total Spent (This Month)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">₹2,450</div>
+                        <div class="stat-label">Saved via Group Orders</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">15</div>
+                        <div class="stat-label">Orders This Month</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">₹850</div>
+                        <div class="stat-label">Average Order Value</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Recent Transactions</h3>
+                    </div>
+                    <div style="padding: 20px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid #ddd;">
+                                    <th style="text-align: left; padding: 10px;">Date</th>
+                                    <th style="text-align: left; padding: 10px;">Description</th>
+                                    <th style="text-align: right; padding: 10px;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px;">2024-01-15</td>
+                                    <td style="padding: 10px;">Tomatoes, Onions - Krishna Mandi</td>
+                                    <td style="text-align: right; padding: 10px;">₹1,200</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px;">2024-01-12</td>
+                                    <td style="padding: 10px;">Cooking Oil - Fresh Farm Supplies</td>
+                                    <td style="text-align: right; padding: 10px;">₹800</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #eee;">
+                                    <td style="padding: 10px;">2024-01-10</td>
+                                    <td style="padding: 10px;">Rice, Lentils - Quality Vegetables</td>
+                                    <td style="text-align: right; padding: 10px;">₹1,500</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            }
+        }
+
+        // Cart functions
+        function addToCart(productId) {
+            const product = products.find(p => p.id == productId);
+            if (!product) {
+                alert('Product not found!');
+                return;
+            }
+
+            // Check if product already in cart
+            const existingItem = cart.find(item => item.id == productId);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.current_price,
+                    unit: product.unit,
+                    supplier_name: product.supplier_name,
+                    quantity: 1
+                });
+            }
+
+            // Save to localStorage
+            localStorage.setItem('vendorCart', JSON.stringify(cart));
+            
+            // Update cart count
+            updateCartCount();
+            
+            // Show success message
+            showCartMessage('Product added to cart!', 'success');
+        }
+
+        function openCart() {
+            document.getElementById('cart-modal').style.display = 'block';
+            renderCart();
+        }
+
+        function closeCart() {
+            document.getElementById('cart-modal').style.display = 'none';
+        }
+
+        function renderCart() {
+            const cartItems = document.getElementById('cart-items');
+            const cartTotal = document.getElementById('cart-total');
+            
+            if (cart.length === 0) {
+                cartItems.innerHTML = `
+                    <div class="empty-cart">
+                        <i class="fas fa-shopping-cart"></i>
+                        <h3>Your cart is empty</h3>
+                        <p>Add some products to get started!</p>
+                    </div>
+                `;
+                cartTotal.textContent = 'Total: ₹0';
+                return;
+            }
+
+            cartItems.innerHTML = cart.map(item => `
+                <div class="cart-item">
+                    <div class="cart-item-info">
+                        <div class="cart-item-name">${item.name}</div>
+                        <div class="cart-item-price">₹${item.price}/${item.unit}</div>
+                        <small>${item.supplier_name}</small>
+                    </div>
+                    <div class="cart-item-quantity">
+                        <button class="quantity-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
+                        <input type="number" class="quantity-input" value="${item.quantity}" 
+                               onchange="updateQuantityInput(${item.id}, this.value)" min="1">
+                        <button class="quantity-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
+                    </div>
+                    <button class="remove-item" onclick="removeFromCart(${item.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+
+            // Calculate and display total
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            cartTotal.textContent = `Total: ₹${total.toFixed(2)}`;
+        }
+
+        function updateQuantity(productId, change) {
+            const item = cart.find(item => item.id == productId);
+            if (item) {
+                item.quantity = Math.max(1, item.quantity + change);
+                localStorage.setItem('vendorCart', JSON.stringify(cart));
+                renderCart();
+                updateCartCount();
+            }
+        }
+
+        function updateQuantityInput(productId, newQuantity) {
+            const item = cart.find(item => item.id == productId);
+            if (item) {
+                item.quantity = Math.max(1, parseInt(newQuantity) || 1);
+                localStorage.setItem('vendorCart', JSON.stringify(cart));
+                renderCart();
+                updateCartCount();
+            }
+        }
+
+        function removeFromCart(productId) {
+            cart = cart.filter(item => item.id != productId);
+            localStorage.setItem('vendorCart', JSON.stringify(cart));
+            renderCart();
+            updateCartCount();
+        }
+
+        function clearCart() {
+            if (confirm('Are you sure you want to clear your cart?')) {
+                cart = [];
+                localStorage.setItem('vendorCart', JSON.stringify(cart));
+                renderCart();
+                updateCartCount();
+            }
+        }
+
+        function updateCartCount() {
+            const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+            document.getElementById('cart-count').textContent = count;
+        }
+
+        function showCartMessage(message, type) {
+            // Create a temporary message element
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 5px;
+                color: white;
+                font-weight: bold;
+                z-index: 1001;
+                background: ${type === 'success' ? '#28a745' : '#dc3545'};
+            `;
+            messageDiv.textContent = message;
+            
+            document.body.appendChild(messageDiv);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.remove();
+                }
+            }, 3000);
+        }
+
+        function checkout() {
+            if (cart.length === 0) {
+                alert('Your cart is empty!');
+                return;
+            }
+
+            const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            openPaymentGateway(total);
+        }
+
+        // Payment Gateway Functions
+        let selectedPaymentMethod = '';
+        let paymentAmount = 0;
+
+        function openPaymentGateway(amount) {
+            paymentAmount = amount;
+            document.getElementById('payment-amount').textContent = `₹${amount.toFixed(2)}`;
+            document.getElementById('cod-amount').textContent = amount.toFixed(2);
+            document.getElementById('payment-modal').style.display = 'block';
+            
+            // Reset payment method selection
+            selectedPaymentMethod = '';
+            document.querySelectorAll('.payment-method').forEach(method => {
+                method.classList.remove('selected');
+            });
+            
+            // Hide all forms and show payment methods
+            document.querySelectorAll('.payment-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            document.getElementById('payment-methods').style.display = 'block';
+            document.getElementById('payment-actions').style.display = 'flex';
+            document.getElementById('payment-loading').style.display = 'none';
+            document.getElementById('payment-success').style.display = 'none';
+        }
+
+        function closePayment() {
+            document.getElementById('payment-modal').style.display = 'none';
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            
+            // Update UI
+            document.querySelectorAll('.payment-method').forEach(m => {
+                m.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // Hide all forms
+            document.querySelectorAll('.payment-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            
+            // Show selected form
+            document.getElementById(method + '-form').classList.add('active');
+            
+            // Update pay button text
+            const payButton = document.getElementById('pay-button');
+            if (method === 'cod') {
+                payButton.textContent = 'Place Order';
+            } else {
+                payButton.textContent = 'Pay Now';
+            }
+        }
+
+        async function processPayment() {
+            if (!selectedPaymentMethod) {
+                alert('Please select a payment method');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('payment-methods').style.display = 'none';
+            document.getElementById('payment-actions').style.display = 'none';
+            document.querySelectorAll('.payment-form').forEach(form => {
+                form.classList.remove('active');
+            });
+            document.getElementById('payment-loading').style.display = 'block';
+
+            // Prepare order data
+            if (cart.length === 0) {
+                alert('Your cart is empty!');
+                document.getElementById('payment-loading').style.display = 'none';
+                return;
+            }
+            // For demo: use the supplier of the first product in cart
+            const supplierName = cart[0].supplier_name;
+            const supplier = suppliers.find(s => s.name === supplierName);
+            const supplier_id = supplier ? supplier.id : 1;
+            const total_amount = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const order_type = selectedPaymentMethod === 'upi' || selectedPaymentMethod === 'card' || selectedPaymentMethod === 'wallet' || selectedPaymentMethod === 'netbanking' ? 'individual' : 'group';
+            const order_items = cart.map(item => ({
+                product_id: item.id,
+                quantity: item.quantity,
+                price_per_unit: item.price
+            }));
+
+            // Send order to backend
+            try {
+                const res = await fetch('/api/place-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        supplier_id,
+                        total_amount,
+                        order_type,
+                        items: order_items
+                    })
+                });
+                const data = await res.json();
+                if (!data.success) {
+                    document.getElementById('payment-loading').style.display = 'none';
+                    alert('Order failed: ' + (data.message || 'Unknown error'));
+                    return;
+                }
+            } catch (err) {
+                document.getElementById('payment-loading').style.display = 'none';
+                alert('Order failed: Could not connect to server.');
+                return;
+            }
+
+            // Simulate payment processing
+            setTimeout(() => {
+                // Hide loading
+                document.getElementById('payment-loading').style.display = 'none';
+                
+                // Show success
+                document.getElementById('payment-success').style.display = 'block';
+                
+                // Generate order ID
+                const orderId = 'VC-' + new Date().getFullYear() + '-' + 
+                               String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+                document.getElementById('order-id').textContent = orderId;
+                
+                // Clear cart after successful payment
+                setTimeout(() => {
+                    cart = [];
+                    localStorage.setItem('vendorCart', JSON.stringify(cart));
+                    renderCart();
+                    updateCartCount();
+                    closePayment();
+                    closeCart();
+                    
+                    // Show success message
+                    showCartMessage('Order placed successfully! Order ID: ' + orderId, 'success');
+                    // --- ADDED: Refresh dashboard, ledger, and orders ---
+                    loadDashboardData();
+                    if (currentSection === 'ledger') {
+                        loadLedger();
+                    }
+                    if (currentSection === 'orders') {
+                        loadOrders();
+                    }
+                }, 3000);
+                
+            }, 2000);
+        }
+
+        // Card number formatting
+        document.addEventListener('DOMContentLoaded', function() {
+            const cardNumber = document.getElementById('card-number');
+            if (cardNumber) {
+                cardNumber.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+                    let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+                    e.target.value = formattedValue;
+                });
+            }
+
+            // Card expiry formatting
+            const cardExpiry = document.getElementById('card-expiry');
+            if (cardExpiry) {
+                cardExpiry.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length >= 2) {
+                        value = value.substring(0, 2) + '/' + value.substring(2, 4);
+                    }
+                    e.target.value = value;
+                });
+            }
+
+            // CVV only numbers
+            const cardCvv = document.getElementById('card-cvv');
+            if (cardCvv) {
+                cardCvv.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.replace(/\D/g, '');
+                });
+            }
+
+            // Mobile number formatting
+            const mobileInputs = document.querySelectorAll('#upi-mobile, #wallet-mobile');
+            mobileInputs.forEach(input => {
+                input.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.replace(/\D/g, '').substring(0, 10);
+                });
+            });
+        });
+
+        // Product Details Functions
+        let currentProductDetails = null;
+
+        function viewDetails(productId) {
+            const product = products.find(p => p.id == productId);
+            if (!product) {
+                alert('Product not found!');
+                return;
+            }
+
+            currentProductDetails = product;
+            populateProductDetails(product);
+            document.getElementById('product-details-modal').style.display = 'block';
+        }
+
+        function closeProductDetails() {
+            document.getElementById('product-details-modal').style.display = 'none';
+            currentProductDetails = null;
+        }
+
+        function populateProductDetails(product) {
+            // Basic information
+            document.getElementById('product-details-name').textContent = product.name;
+            document.getElementById('product-details-category').textContent = product.category.replace('_', ' ').toUpperCase();
+            document.getElementById('product-details-price').textContent = `₹${product.current_price}`;
+            document.getElementById('product-details-unit').textContent = product.unit;
+            document.getElementById('product-details-stock').textContent = product.stock_available;
+
+            // Supplier information
+            document.getElementById('product-details-supplier').textContent = product.supplier_name;
+            document.getElementById('product-details-location').textContent = product.supplier_location;
+            document.getElementById('product-details-rating-value').textContent = `${product.supplier_rating}/5`;
+
+            // Generate stars based on rating
+            const rating = product.supplier_rating;
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 !== 0;
+            let stars = '★'.repeat(fullStars);
+            if (hasHalfStar) stars += '☆';
+            stars += '☆'.repeat(5 - fullStars - (hasHalfStar ? 1 : 0));
+            document.getElementById('product-details-rating').textContent = stars;
+
+            // Update product image placeholder
+            const imagePlaceholder = document.getElementById('product-details-image');
+            const name = product.name.toLowerCase();
+            let imageFile = '';
+            if (/\balmonds?\b/.test(name)) imageFile = 'almonds.jpg';
+            else if (/\bapples?\b/.test(name)) imageFile = 'apples.jpg';
+            else if (/\bbananas?\b/.test(name)) imageFile = 'bananas.jpg';
+            else if (/\bbeans?\b/.test(name)) imageFile = 'beans.jpg';
+            else if (/\bbesan\b/.test(name)) imageFile = 'besan.jpg';
+            else if (/\bbitter gourd\b/.test(name)) imageFile = 'bitter gourd.jpg';
+            else if (/\bblueberries?\b/.test(name)) imageFile = 'blueberries.jpg';
+            else if (/\bbottle gourd\b/.test(name)) imageFile = 'bottle gourd.jpg';
+            else if (/\bbread\b/.test(name)) imageFile = 'bread.jpg';
+            else if (/\bbrinjal\b/.test(name)) imageFile = 'Brinjal.jpg';
+            else if (/\bbroccoli\b/.test(name)) imageFile = 'broccoli.jpg';
+            else if (/\bbutter\b/.test(name)) imageFile = 'butter.jpg';
+            else if (/\bcabbage\b/.test(name)) imageFile = 'cabbage.jpg';
+            else if (/\bcapsicum\b/.test(name)) imageFile = 'capsicum.jpg';
+            else if (/\bcarrots?\b/.test(name)) imageFile = 'carrot.jpg';
+            else if (/\bcauliflower\b/.test(name)) imageFile = 'cauliflower.jpg';
+            else if (/\bcheese\b/.test(name)) imageFile = 'cheese.jpg';
+            else if (/\bcherry\b/.test(name)) imageFile = 'cherry.jpg';
+            else if (/\bchickoo\b/.test(name)) imageFile = 'chickoo.jpg';
+            else if (name.includes('chocolate chip')) imageFile = 'chocolate chip.jpg';
+            else if (name.includes('chocolate syrup')) imageFile = 'chocolate syrup.jpg';
+            else if (name.includes('coconut powder')) imageFile = 'coconut powder.jpg';
+            else if (name.includes('cucumber')) imageFile = 'cucumber.jpg';
+            else if (name.includes('dry fruit mix')) imageFile = 'dryfruit mix.jpg';
+            else if (/\beggs?\b/.test(name)) imageFile = 'eggs.jpg';
+            else if (/\bfresh cream\b/.test(name)) imageFile = 'fresh cream.jpg';
+            else if (/\bghee\b/.test(name)) imageFile = 'ghee.jpg';
+            else if (/\bginger\b/.test(name)) imageFile = 'ginger.jpg';
+            else if (/\bgrapes?\b/.test(name)) imageFile = 'grapes.jpg';
+            else if (name.includes('ice cream cone')) imageFile = 'icecream cone.jpg';
+            else if (name.includes('ice cream mix')) imageFile = 'icecream mix.jpg';
+            else if (/\bkesar\b/.test(name)) imageFile = 'kesar.jpg';
+            else if (/\bkiwi\b/.test(name)) imageFile = 'kiwi.jpg';
+            else if (/\blentils?\b/.test(name)) imageFile = 'lentils.jpg';
+            else if (/\bmango(es)?\b/.test(name)) imageFile = 'mangoes.jpg';
+            else if (/\bmilk\b/.test(name)) imageFile = 'milk.jpg';
+            else if (/\bonions?\b/.test(name)) imageFile = 'onions.jpg';
+            else if (/\borange\b/.test(name)) imageFile = 'orange.jpg';
+            else if (name.includes('oranges')) imageFile = 'orange.jpg';
+            else if (/\bpaneer\b/.test(name)) imageFile = 'paneer.jpg';
+            else if (/\bpapaya\b/.test(name)) imageFile = 'papaya.jpg';
+            else if (/\bpepper\b/.test(name)) imageFile = 'pepper.jpg';
+            else if (/\bpineapple\b/.test(name)) imageFile = 'pineapple.jpg';
+            else if (/\bpista\b/.test(name)) imageFile = 'pista.jpg';
+            else if (/\bpotatoes?\b/.test(name)) imageFile = 'potatoes.jpg';
+            else if (/\bpumpkin\b/.test(name)) imageFile = 'pumpkin.jpg';
+            else if (/\bradish\b/.test(name)) imageFile = 'radish.jpg';
+            else if (/\brice\b/.test(name)) imageFile = 'rice.jpg';
+            else if (name.includes('rose essence')) imageFile = 'rose essence.jpg';
+            else if (/\bspinach\b/.test(name)) imageFile = 'spinach.jpg';
+            else if (/\bsprinkles?\b/.test(name)) imageFile = 'sprinkles.jpg';
+            else if (name === 'strawberry syrup' || name.includes('strawberry syrup')) imageFile = 'strawberry syrup.jpg';
+            else if (/\bstrawberries?\b/.test(name)) imageFile = 'strawberry.jpg';
+            else if (/\bsugar\b/.test(name)) imageFile = 'sugar.jpg';
+            else if (/\btomatoes?\b/.test(name)) imageFile = 'tomatoes.jpg';
+            else if (name.includes('vanilla essence')) imageFile = 'vanilla essence.jpg';
+            else if (name.includes('waffle mix')) imageFile = 'waffle mix.jpg';
+            else if (/\bCurd\b/.test(name)) imageFile = 'curd.jpg';
+            else if (name.includes('tea leaves')) imageFile = 'tea leaves.jpg';
+            else if (/\bcorn\b/.test(name)) imageFile = 'corn.jpg';
+            else if (name.includes('rice batter')) imageFile = 'rice batter.jpg';
+            else if (name.includes('corn starch')) imageFile = 'corn starch.jpg';
+            else if (/\bgarlic\b/.test(name)) imageFile = 'garlic.jpg';
+            else if (name.includes('mango pulp')) imageFile = 'mango pulp.jpg';
+            else if (/\bmango(es)?\b/.test(name) && !name.includes('mango pulp')) imageFile = 'mangoes.jpg';
+            else if (/\blemon\b/.test(name)) imageFile = 'lemons.jpg';
+            else if (name.includes('pav bread')) imageFile = 'pav bread.jpg';
+            else if (name.includes('cardamom')) imageFile = 'cardamom.jpg';
+            else if (name.includes('black pepper')) imageFile = 'black pepper.jpg';
+            else if (name.includes('cinnamon')) imageFile = 'cinnamon.jpg';
+            else if (name.includes('papdi')) imageFile = 'papdi.jpg';
+            else if (name.includes('sev')) imageFile = 'sev.jpg';
+            else if (name.includes('puffed rice')) imageFile = 'puffed rice.jpg';
+            else if (name.includes('boondi')) imageFile = 'boondi.jpg';
+            else if (name.includes('puris')) imageFile = 'puris.jpg';
+            else if (name.includes('punjabi masala')) imageFile = 'punjabi masala.jpg';
+            else if (name.includes('garlic chutney')) imageFile = 'garlic chutney.jpg';
+            else if (name.includes('cloves')) imageFile = 'cloves.jpg';
+            else if (name.includes('bay leaves')) imageFile = 'bay leaves.jpg';
+            else if (name.includes('tulsi leaves')) imageFile = 'tulsi leaves.jpeg';
+
+            if (imageFile) {
+              imagePlaceholder.innerHTML = `<img src="/static/images/${imageFile}" alt="${product.name}" style="max-width:100%;max-height:180px;display:block;margin:auto;">`;
+            } else {
+              imagePlaceholder.innerHTML = `<i class="fas fa-${getProductIcon(product.name)}"></i> ${product.name}`;
+            }
+
+            // Update price history
+            const lastWeekPrice = Math.round(product.current_price * 0.95);
+            const lastMonthPrice = Math.round(product.current_price * 1.02);
+            document.getElementById('product-details-last-week').textContent = lastWeekPrice;
+            document.getElementById('product-details-last-month').textContent = lastMonthPrice;
+
+            // Update storage instructions based on product type
+            updateStorageInstructions(product);
+
+            // Update add to cart button
+            document.getElementById('product-details-add-cart').onclick = () => addToCartFromDetails();
+        }
+
+        function getProductIcon(productName) {
+            const name = productName.toLowerCase();
+            if (name.includes('tomato')) return 'carrot';
+            if (name.includes('onion')) return 'carrot';
+            if (name.includes('potato')) return 'carrot';
+            if (name.includes('rice')) return 'bread-slice';
+            if (name.includes('oil')) return 'tint';
+            if (name.includes('milk')) return 'tint';
+            if (name.includes('sugar')) return 'cube';
+            if (name.includes('ice cream')) return 'ice-cream';
+            if (name.includes('vanilla')) return 'ice-cream';
+            if (name.includes('chocolate')) return 'ice-cream';
+            if (name.includes('strawberry')) return 'ice-cream';
+            if (name.includes('mango')) return 'ice-cream';
+            if (name.includes('pista')) return 'ice-cream';
+            if (name.includes('badam')) return 'ice-cream';
+            if (name.includes('kesar')) return 'ice-cream';
+            if (name.includes('rose')) return 'ice-cream';
+            if (name.includes('coconut')) return 'ice-cream';
+            if (name.includes('cone')) return 'ice-cream';
+            if (name.includes('sprinkle')) return 'ice-cream';
+            if (name.includes('chip')) return 'ice-cream';
+            if (name.includes('waffle')) return 'ice-cream';
+            if (name.includes('chickpea')) return 'seedling';
+            if (name.includes('tamarind')) return 'seedling';
+            if (name.includes('mint')) return 'leaf';
+            if (name.includes('sev')) return 'seedling';
+            if (name.includes('papdi')) return 'seedling';
+            if (name.includes('boondi')) return 'seedling';
+            if (name.includes('pomegranate')) return 'seedling';
+            if (name.includes('coriander')) return 'leaf';
+            if (name.includes('chutney')) return 'leaf';
+            if (name.includes('curd')) return 'tint';
+            if (name.includes('masala')) return 'seedling';
+            if (name.includes('batter')) return 'bread-slice';
+            if (name.includes('dal')) return 'seedling';
+            if (name.includes('sambar')) return 'seedling';
+            if (name.includes('vegetable')) return 'carrot';
+            if (name.includes('sheet')) return 'bread-slice';
+            if (name.includes('pea')) return 'seedling';
+            if (name.includes('spice')) return 'seedling';
+            if (name.includes('cumin')) return 'seedling';
+            if (name.includes('garam')) return 'seedling';
+            if (name.includes('chili')) return 'seedling';
+            if (name.includes('turmeric')) return 'seedling';
+            if (name.includes('ginger')) return 'carrot';
+            if (name.includes('garlic')) return 'carrot';
+            if (name.includes('mustard')) return 'seedling';
+            if (name.includes('curry')) return 'leaf';
+            if (name.includes('asafoetida')) return 'seedling';
+            if (name.includes('tea')) return 'mug-hot';
+            if (name.includes('cardamom')) return 'seedling';
+            if (name.includes('pepper')) return 'seedling';
+            if (name.includes('cinnamon')) return 'seedling';
+            if (name.includes('clove')) return 'seedling';
+            if (name.includes('bay')) return 'leaf';
+            if (name.includes('tulsi')) return 'leaf';
+            if (name.includes('lemongrass')) return 'leaf';
+            if (name.includes('orange')) return 'lemon';
+            if (name.includes('apple')) return 'lemon';
+            if (name.includes('carrot')) return 'carrot';
+            if (name.includes('beetroot')) return 'carrot';
+            if (name.includes('cucumber')) return 'carrot';
+            if (name.includes('spinach')) return 'leaf';
+            if (name.includes('honey')) return 'tint';
+            if (name.includes('salt')) return 'cube';
+            if (name.includes('lemon')) return 'lemon';
+            if (name.includes('banana')) return 'lemon';
+            if (name.includes('pineapple')) return 'lemon';
+            if (name.includes('blueberry')) return 'lemon';
+            if (name.includes('kiwi')) return 'lemon';
+            if (name.includes('bread')) return 'bread-slice';
+            if (name.includes('pav')) return 'bread-slice';
+            if (name.includes('besan')) return 'seedling';
+            if (name.includes('vada')) return 'hamburger';
+            if (name.includes('masala')) return 'seedling';
+            return 'shopping-bag';
+        }
+
+        function updateStorageInstructions(product) {
+            const storageList = document.getElementById('product-details-storage');
+            const productName = product.name.toLowerCase();
+            const category = product.category;
+
+            let instructions = [];
+
+            // Category-specific instructions
+            if (category === 'ice_cream' || productName.includes('ice cream')) {
+                instructions = [
+                    'Store in freezer at -18°C',
+                    'Keep frozen until use',
+                    'Do not refreeze after thawing',
+                    'Use within 7 days of opening',
+                    'Store in airtight container'
+                ];
+            } else if (category === 'dairy' || productName.includes('milk') || productName.includes('curd')) {
+                instructions = [
+                    'Refrigerate immediately',
+                    'Store at 2-4°C',
+                    'Use within 3-5 days',
+                    'Keep in original container',
+                    'Do not freeze'
+                ];
+            } else if (category === 'vegetables' || productName.includes('tomato') || productName.includes('onion') || productName.includes('potato')) {
+                instructions = [
+                    'Store in refrigerator',
+                    'Keep in vegetable crisper',
+                    'Use within 7-10 days',
+                    'Remove any spoiled parts',
+                    'Store separately from fruits'
+                ];
+            } else if (category === 'fruits' || productName.includes('orange') || productName.includes('apple') || productName.includes('mango')) {
+                instructions = [
+                    'Store in refrigerator',
+                    'Keep in fruit drawer',
+                    'Use within 5-7 days',
+                    'Wash before consumption',
+                    'Store at room temperature until ripe'
+                ];
+            } else if (category === 'grains' || productName.includes('rice')) {
+                instructions = [
+                    'Store in airtight container',
+                    'Keep in cool, dry place',
+                    'Use within 6 months',
+                    'Check for insects regularly',
+                    'Store away from moisture'
+                ];
+            } else if (category === 'oils' || productName.includes('oil')) {
+                instructions = [
+                    'Store in cool, dark place',
+                    'Keep away from heat',
+                    'Use within 6 months',
+                    'Store in original container',
+                    'Check for rancidity'
+                ];
+            } else if (category === 'tea' || productName.includes('tea')) {
+                instructions = [
+                    'Store in airtight container',
+                    'Keep away from moisture',
+                    'Store in cool, dark place',
+                    'Use within 12 months',
+                    'Avoid strong odors'
+                ];
+            } else if (category === 'juice' || productName.includes('juice')) {
+                instructions = [
+                    'Refrigerate after opening',
+                    'Consume within 3-5 days',
+                    'Shake well before use',
+                    'Store in original container',
+                    'Keep chilled'
+                ];
+            } else {
+                // Default instructions
+                instructions = [
+                    'Store in a cool, dry place',
+                    'Keep away from direct sunlight',
+                    'Refrigerate after opening',
+                    'Use within 7 days of purchase',
+                    'Keep in airtight container'
+                ];
+            }
+
+            storageList.innerHTML = instructions.map(instruction => `<li>${instruction}</li>`).join('');
+        }
+
+        function addToCartFromDetails() {
+            if (currentProductDetails) {
+                addToCart(currentProductDetails.id);
+                closeProductDetails();
+            }
+        }
+
+        function contactSupplierFromDetails() {
+            if (currentProductDetails) {
+                const supplier = suppliers.find(s => s.name === currentProductDetails.supplier_name);
+                if (supplier) {
+                    alert(`Calling ${supplier.phone}...\n\nSupplier: ${supplier.name}\nLocation: ${supplier.location}\nRating: ${supplier.rating}/5`);
+                } else {
+                    alert('Supplier contact information not available.');
+                }
+            }
+        }
+
+        function shareProduct() {
+            if (currentProductDetails) {
+                const shareText = `Check out ${currentProductDetails.name} at ₹${currentProductDetails.current_price}/${currentProductDetails.unit} from ${currentProductDetails.supplier_name}!`;
+                
+                if (navigator.share) {
+                    navigator.share({
+                        title: currentProductDetails.name,
+                        text: shareText,
+                        url: window.location.href
+                    });
+                } else {
+                    // Fallback: copy to clipboard
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        showCartMessage('Product details copied to clipboard!', 'success');
+                    });
+                }
+            }
+        }
+
+        // Action functions
+
+        function viewSupplierProducts(supplierId) {
+            const supplier = suppliers.find(s => s.id == supplierId);
+            if (!supplier) return;
+            document.getElementById('supplier-details-name').textContent = supplier.name + ' Products';
+            // Filter products for this supplier
+            const supplierProducts = products.filter(p => p.supplier_name === supplier.name);
+            const list = document.getElementById('supplier-products-list');
+            if (supplierProducts.length === 0) {
+                list.innerHTML = '<li>No products found for this supplier.</li>';
+            } else {
+                list.innerHTML = supplierProducts.map(p => `<li><b>${p.name}</b> - ₹${p.current_price}/${p.unit} <span style='color:#888;'>(${p.category})</span></li>`).join('');
+            }
+            document.getElementById('supplier-details-modal').style.display = 'block';
+        }
+        function closeSupplierDetails() {
+            document.getElementById('supplier-details-modal').style.display = 'none';
+        }
+        function contactSupplier(phoneOrId) {
+            let supplier;
+            if (typeof phoneOrId === 'number' || !isNaN(Number(phoneOrId))) {
+                supplier = suppliers.find(s => s.id == phoneOrId);
+            } else {
+                supplier = suppliers.find(s => s.phone == phoneOrId);
+            }
+            if (!supplier) return;
+            document.getElementById('contact-supplier-name').textContent = supplier.name;
+            document.getElementById('contact-supplier-phone').textContent = supplier.phone;
+            document.getElementById('contact-supplier-address').textContent = supplier.location;
+            document.getElementById('supplier-contact-modal').style.display = 'block';
+        }
+        function closeSupplierContact() {
+            document.getElementById('supplier-contact-modal').style.display = 'none';
+        }
+        // Add click outside to close supplier modals
+        document.addEventListener('click', function(e) {
+            const detailsModal = document.getElementById('supplier-details-modal');
+            if (e.target === detailsModal) closeSupplierDetails();
+            const contactModal = document.getElementById('supplier-contact-modal');
+            if (e.target === contactModal) closeSupplierContact();
+        });
+
+        // Business type to category mapping
+        const businessTypeCategories = {
+            'ice_cream': [
+                {value: 'ice_cream', label: 'Ice Cream Ingredients'},
+                {value: 'fruits', label: 'Fresh Fruits'},
+                {value: 'dairy', label: 'Dairy Products'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'chaat': [
+                {value: 'chaat', label: 'Chaat Ingredients'},
+                {value: 'vegetables', label: 'Vegetables'},
+                {value: 'dairy', label: 'Dairy Products'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'dosa': [
+                {value: 'dosa', label: 'Dosa Ingredients'},
+                {value: 'vegetables', label: 'Vegetables'},
+                {value: 'dairy', label: 'Dairy Products'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'samosa': [
+                {value: 'samosa', label: 'Samosa Ingredients'},
+                {value: 'vegetables', label: 'Vegetables'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'vada_pav': [
+                {value: 'vada_pav', label: 'Vada Pav Ingredients'},
+                {value: 'vegetables', label: 'Vegetables'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'tea': [
+                {value: 'tea', label: 'Tea Ingredients'},
+                {value: 'dairy', label: 'Dairy Products'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'juice': [
+                {value: 'juice', label: 'Juice Ingredients'},
+                {value: 'vegetables', label: 'Vegetables'},
+                {value: 'fruits', label: 'Fresh Fruits'},
+                {value: 'essentials', label: 'Essentials'}
+            ],
+            'other': [
+                {value: 'ice_cream', label: 'Ice Cream Ingredients'},
+                {value: 'chaat', label: 'Chaat Ingredients'},
+                {value: 'dosa', label: 'Dosa Ingredients'},
+                {value: 'samosa', label: 'Samosa Ingredients'},
+                {value: 'vada_pav', label: 'Vada Pav Ingredients'},
+                {value: 'tea', label: 'Tea Ingredients'},
+                {value: 'juice', label: 'Juice Ingredients'},
+                {value: 'vegetables', label: 'Vegetables'},
+                {value: 'dairy', label: 'Dairy'},
+                {value: 'essentials', label: 'Essentials'}
+            ]
+        };
+
+        // Populate category filter based on business type
+        function populateCategoryFilter() {
+            const categoryFilter = document.getElementById('category-filter');
+            const businessType = window.vendorBusinessType || 'other';
+            
+            // Clear existing options except "All Categories"
+            categoryFilter.innerHTML = '<option value="">All Categories</option>';
+            
+            // Add relevant categories for this business type
+            const categories = businessTypeCategories[businessType] || businessTypeCategories['other'];
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.value;
+                option.textContent = category.label;
+                categoryFilter.appendChild(option);
+            });
+        }
+
+        // Show business-specific special sections
+        function showBusinessSpecial() {
+            const businessType = window.vendorBusinessType || 'other';
+            
+            // Hide all special sections first
+            const specialSections = [
+                'ice-cream-special', 'chaat-special', 'dosa-special', 
+                'samosa-special', 'vada_pav-special', 'tea-special', 'juice-special'
+            ];
+            
+            specialSections.forEach(sectionId => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.style.display = 'none';
+                }
+            });
+            
+            // Show the relevant section based on business type
+            // Convert business type to section ID format (replace underscore with hyphen)
+            const sectionId = businessType.replace('_', '-') + '-special';
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.style.display = 'block';
+            }
+        }
+
+        // Order combination function for all business types
+        function orderCombination(type) {
+            const combinations = {
+                // Ice Cream combinations
+                'vanilla': {
+                    name: 'Vanilla Delight',
+                    products: ['Ice Cream Mix', 'Vanilla Essence', 'Sprinkles'],
+                    price: 850
+                },
+                'chocolate': {
+                    name: 'Chocolate Fantasy',
+                    products: ['Ice Cream Mix', 'Chocolate Syrup', 'Chocolate Chips'],
+                    price: 900
+                },
+                'fruit': {
+                    name: 'Fruit Blast',
+                    products: ['Ice Cream Mix', 'Mango Pulp', 'Strawberries'],
+                    price: 750
+                },
+                'kesar': {
+                    name: 'Royal Kesar',
+                    products: ['Ice Cream Mix', 'Kesar (Saffron)', 'Badam (Almonds)', 'Rose Essence'],
+                    price: 1200
+                },
+                // Chaat combinations
+                'dahi_puri': {
+                    name: 'Dahi Puri Combo',
+                    products: ['Papdi', 'Curd', 'Sweet Chutney', 'Sev'],
+                    price: 450
+                },
+                'bhel_puri': {
+                    name: 'Bhel Puri Combo',
+                    products: ['Puffed Rice', 'Sev', 'Green Chutney', 'Tamarind'],
+                    price: 380
+                },
+                'samosa_chaat': {
+                    name: 'Samosa Chaat Combo',
+                    products: ['Samosa', 'Curd', 'Chutneys', 'Boondi'],
+                    price: 520
+                },
+                'pani_puri': {
+                    name: 'Pani Puri Combo',
+                    products: ['Puris', 'Mint Water', 'Sweet Chutney', 'Boondi'],
+                    price: 320
+                },
+                // Dosa combinations
+                'masala_dosa': {
+                    name: 'Masala Dosa Combo',
+                    products: ['Rice Batter', 'Potato Filling', 'Coconut Chutney', 'Sambar'],
+                    price: 680
+                },
+                'plain_dosa': {
+                    name: 'Plain Dosa Combo',
+                    products: ['Rice Batter', 'Coconut Chutney', 'Sambar', 'Onion Chutney'],
+                    price: 580
+                },
+                'rava_dosa': {
+                    name: 'Rava Dosa Combo',
+                    products: ['Rava Batter', 'Coconut Chutney', 'Sambar', 'Ginger Chutney'],
+                    price: 620
+                },
+                'onion_dosa': {
+                    name: 'Onion Dosa Combo',
+                    products: ['Rice Batter', 'Onions', 'Coconut Chutney', 'Sambar'],
+                    price: 550
+                },
+                // Samosa combinations
+                'classic_samosa': {
+                    name: 'Classic Samosa Combo',
+                    products: ['Samosa Sheets', 'Potato Filling', 'Samosa Masala', 'Green Chutney'],
+                    price: 420
+                },
+                'veg_samosa': {
+                    name: 'Veg Samosa Combo',
+                    products: ['Samosa Sheets', 'Mixed Vegetables', 'Spices', 'Sweet Chutney'],
+                    price: 480
+                },
+                'punjabi_samosa': {
+                    name: 'Punjabi Samosa Combo',
+                    products: ['Samosa Sheets', 'Potato Peas', 'Punjabi Masala', 'Mint Chutney'],
+                    price: 520
+                },
+                'mini_samosa': {
+                    name: 'Mini Samosa Combo',
+                    products: ['Mini Sheets', 'Potato Filling', 'Masala', 'Mixed Chutneys'],
+                    price: 380
+                },
+                // Vada Pav combinations
+                'classic_vada_pav': {
+                    name: 'Classic Vada Pav',
+                    products: ['Pav Bread', 'Potato Vada', 'Green Chutney', 'Red Chutney'],
+                    price: 280
+                },
+                'spicy_vada_pav': {
+                    name: 'Spicy Vada Pav',
+                    products: ['Pav Bread', 'Spicy Vada', 'Garlic Chutney', 'Green Chutney'],
+                    price: 320
+                },
+                'cheese_vada_pav': {
+                    name: 'Cheese Vada Pav',
+                    products: ['Pav Bread', 'Cheese Vada', 'Mixed Chutneys', 'Onions'],
+                    price: 380
+                },
+                'schezwan_vada_pav': {
+                    name: 'Schezwan Vada Pav',
+                    products: ['Pav Bread', 'Schezwan Vada', 'Spicy Chutney', 'Vegetables'],
+                    price: 350
+                },
+                // Tea combinations
+                'masala_chai': {
+                    name: 'Masala Chai Combo',
+                    products: ['Tea Leaves', 'Ginger', 'Cardamom', 'Tea Masala'],
+                    price: 580
+                },
+                'ginger_tea': {
+                    name: 'Ginger Tea Combo',
+                    products: ['Tea Leaves', 'Fresh Ginger', 'Black Pepper', 'Honey'],
+                    price: 520
+                },
+                'cardamom_tea': {
+                    name: 'Cardamom Tea Combo',
+                    products: ['Tea Leaves', 'Cardamom', 'Cinnamon', 'Cloves'],
+                    price: 680
+                },
+                'herbal_tea': {
+                    name: 'Herbal Tea Combo',
+                    products: ['Tulsi Leaves', 'Lemon Grass', 'Bay Leaves', 'Honey'],
+                    price: 450
+                },
+                // Juice combinations
+                'orange_carrot': {
+                    name: 'Orange Carrot Combo',
+                    products: ['Oranges', 'Carrots', 'Ginger', 'Honey'],
+                    price: 380
+                },
+                'beetroot_apple': {
+                    name: 'Beetroot Apple Combo',
+                    products: ['Beetroot', 'Apples', 'Lemon', 'Honey'],
+                    price: 420
+                },
+                'green_detox': {
+                    name: 'Green Detox Combo',
+                    products: ['Spinach', 'Cucumber', 'Mint', 'Ginger'],
+                    price: 320
+                },
+                'mixed_fruit': {
+                    name: 'Mixed Fruit Combo',
+                    products: ['Oranges', 'Apples', 'Carrots', 'Beetroot'],
+                    price: 480
+                }
+            };
+            
+            const combo = combinations[type];
+            if (combo && confirm(`Order ${combo.name} combo for ₹${combo.price}?`)) {
+                alert('Combo order placed successfully! You will receive a call for confirmation.');
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            populateCategoryFilter();
+            loadDashboardData();
+            showBusinessSpecial();
+            updateCartCount(); // Initialize cart count
+            
+            // Add keyboard shortcut for voice search (Ctrl+Shift+V)
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.shiftKey && e.key === 'V') {
+                    e.preventDefault();
+                    startVoiceSearch();
+                }
+                // Add keyboard shortcut for cart (Ctrl+Shift+C)
+                if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                    e.preventDefault();
+                    openCart();
+                }
+            });
+            
+            // Add click outside to stop voice recognition
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.voice-search') && !e.target.closest('#voice-btn')) {
+                    const voiceBtn = document.getElementById('voice-btn');
+                    if (voiceBtn.classList.contains('recording')) {
+                        voiceBtn.classList.remove('recording');
+                        voiceBtn.style.animation = '';
+                        document.getElementById('voice-search-input').placeholder = 'Search products by voice or type here...';
+                        document.getElementById('voice-search-input').style.borderColor = '#ddd';
+                    }
+                }
+            });
+
+            // Add click outside to close cart modal
+            document.addEventListener('click', function(e) {
+                const cartModal = document.getElementById('cart-modal');
+                if (e.target === cartModal) {
+                    closeCart();
+                }
+                
+                // Add click outside to close payment modal
+                const paymentModal = document.getElementById('payment-modal');
+                if (e.target === paymentModal) {
+                    closePayment();
+                }
+                
+                // Add click outside to close product details modal
+                const productDetailsModal = document.getElementById('product-details-modal');
+                if (e.target === productDetailsModal) {
+                    closeProductDetails();
+                }
+            });
+            
+            // Check voice recognition support on load
+            checkVoiceSupport();
+        });
+        
+        // Check voice recognition support
+        function checkVoiceSupport() {
+            const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+            console.log('Voice recognition supported:', isSupported);
+            
+            if (!isSupported) {
+                showVoiceMessage('Voice recognition not supported in this browser. You can still type your search.', 'error');
+            }
+            
+            // Check microphone permission
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        console.log('Microphone permission granted');
+                    })
+                    .catch(function(err) {
+                        console.log('Microphone permission not granted:', err);
+                        showVoiceMessage('Microphone access needed for voice search. Please allow microphone access.', 'error');
+                    });
+            }
+        }
+        
+        // Test voice recognition (for debugging)
+        function testVoiceRecognition() {
+            console.log('Testing voice recognition...');
+            console.log('SpeechRecognition available:', 'SpeechRecognition' in window);
+            console.log('webkitSpeechRecognition available:', 'webkitSpeechRecognition' in window);
+            console.log('navigator.mediaDevices available:', !!navigator.mediaDevices);
+            
+            if (navigator.mediaDevices) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(stream) {
+                        console.log('Microphone access granted');
+                        stream.getTracks().forEach(track => track.stop());
+                    })
+                    .catch(function(err) {
+                        console.error('Microphone access denied:', err);
+                    });
+            }
+        }
+    </script>
+    <script>
+    // Dark mode toggle logic
+    const darkModeToggle = document.getElementById('darkModeToggle');
+    function setDarkMode(enabled) {
+        if (enabled) {
+            document.body.classList.add('dark-mode');
+            localStorage.setItem('darkMode', 'enabled');
+            darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+        } else {
+            document.body.classList.remove('dark-mode');
+            localStorage.setItem('darkMode', 'disabled');
+            darkModeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+        }
+    }
+    darkModeToggle.addEventListener('click', () => {
+        setDarkMode(!document.body.classList.contains('dark-mode'));
+    });
+    // On load
+    if (localStorage.getItem('darkMode') === 'enabled' || (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        setDarkMode(true);
+    } else {
+        setDarkMode(false);
+    }
+    </script>
+    <script>
+    // ... existing code ...
+    function showCreateGroupOrder() {
+        document.getElementById('create-group-order-modal').style.display = 'block';
+    }
+    function closeCreateGroupOrder() {
+        document.getElementById('create-group-order-modal').style.display = 'none';
+    }
+    function submitGroupOrder(e) {
+        e.preventDefault();
+        // You can add AJAX here to actually create the group order
+        closeCreateGroupOrder();
+        alert('Group order created! (Demo)');
+    }
+    // ... existing code ...
+    </script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+    // ... existing code ...
+    // Initialize Leaflet map for delivery tracking
+    var deliveryMap, deliveryMarker, driverMarker, routeLine, stopMarkers = [];
+    var driverIcon = L.icon({
+        iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png', // Replace with custom icon if desired
+        iconSize: [32, 48],
+        iconAnchor: [16, 48],
+        popupAnchor: [0, -40]
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('delivery-map')) {
+            deliveryMap = L.map('delivery-map').setView([19.0760, 72.8777], 12); // Mumbai example
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(deliveryMap);
+            deliveryMarker = L.marker([19.0606, 72.8365]).addTo(deliveryMap)
+                .bindPopup('Delivery Location (Mumbai)').openPopup();
+            // Add driver marker
+            driverMarker = L.marker([19.0728, 72.8826], {icon: driverIcon}).addTo(deliveryMap)
+                .bindPopup('Driver Location');
+            // Add route polyline
+            routeLine = L.polyline([[19.0760, 72.8777], [19.0728, 72.8826], [19.0606, 72.8365]], {color: 'blue'}).addTo(deliveryMap);
+            // Add stops
+            stopMarkers = [
+                L.marker([19.0760, 72.8777]).addTo(deliveryMap).bindPopup('Warehouse'),
+                L.marker([19.0606, 72.8365]).addTo(deliveryMap).bindPopup('Customer')
+            ];
+            deliveryMap.fitBounds(routeLine.getBounds());
+        }
+    });
+
+    function updateDeliveryLocation(lat, lng, label) {
+        if (deliveryMap && deliveryMarker) {
+            deliveryMap.setView([lat, lng], 13);
+            deliveryMarker.setLatLng([lat, lng]);
+            deliveryMarker.setPopupContent(label || 'Delivery Location').openPopup();
+        }
+    }
+
+    function updateDriverLocation(lat, lng) {
+        if (driverMarker) {
+            driverMarker.setLatLng([lat, lng]);
+            driverMarker.setPopupContent('Driver Location').openPopup();
+        }
+    }
+
+    function updateRoute(route) {
+        if (routeLine) {
+            deliveryMap.removeLayer(routeLine);
+        }
+        routeLine = L.polyline(route, {color: 'blue'}).addTo(deliveryMap);
+        deliveryMap.fitBounds(routeLine.getBounds());
+    }
+
+    function updateStops(stops) {
+        // Remove old stop markers
+        stopMarkers.forEach(m => deliveryMap.removeLayer(m));
+        stopMarkers = [];
+        stops.forEach(stop => {
+            var m = L.marker([stop.lat, stop.lng]).addTo(deliveryMap).bindPopup(stop.label);
+            stopMarkers.push(m);
+        });
+    }
+
+    function updateDeliveryStatusPanel(data) {
+        document.getElementById('delivery-order-id').textContent = data.order_id;
+        document.getElementById('delivery-status').textContent = data.status;
+        document.getElementById('delivery-eta').textContent = data.eta;
+        document.getElementById('delivery-rider').textContent = data.rider;
+        document.getElementById('delivery-contact').textContent = data.contact;
+        document.getElementById('delivery-last-updated').textContent = data.last_updated;
+    }
+
+    function fetchAndUpdateDelivery() {
+        fetch('/api/delivery-location')
+            .then(res => res.json())
+            .then(data => {
+                updateDeliveryLocation(data.lat, data.lng, 'Delivery Location (' + data.status + ')');
+                updateDriverLocation(data.driver.lat, data.driver.lng);
+                updateRoute(data.route);
+                updateStops(data.stops);
+                updateDeliveryStatusPanel(data);
+            });
+    }
+
+    // Poll every 30 seconds
+    setInterval(fetchAndUpdateDelivery, 30000);
+    // Fetch once on load
+    fetchAndUpdateDelivery();
+    // ... existing code ...
+    </script>
+    <script>
+    // ... existing code ...
+    // Group Orders Map Example
+    var groupOrdersMap, groupOrderMarkers = [];
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('group-orders-map')) {
+            groupOrdersMap = L.map('group-orders-map').setView([19.0760, 72.8777], 12);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(groupOrdersMap);
+            // Example group order locations
+            var groupOrders = [
+                {lat: 19.0606, lng: 72.8365, label: 'Order #GO-001: Bandra'},
+                {lat: 19.1197, lng: 72.8468, label: 'Order #GO-002: Andheri'},
+                {lat: 19.0180, lng: 72.8446, label: 'Order #GO-003: Dadar'}
+            ];
+            groupOrderMarkers = groupOrders.map(order =>
+                L.marker([order.lat, order.lng]).addTo(groupOrdersMap).bindPopup(order.label)
+            );
+            var bounds = L.latLngBounds(groupOrders.map(o => [o.lat, o.lng]));
+            groupOrdersMap.fitBounds(bounds);
+        }
+    });
+    // ... existing code ...
+    </script>
+    
+    <!-- Chatbot Integration -->
+    <div id="chatbot-container" class="chatbot-container">
+        <!-- Chatbot Header -->
+        <div class="chatbot-header">
+            <div class="chatbot-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="chatbot-info">
+                <h3>VendorConnect Assistant</h3>
+                <p class="status">Online</p>
+            </div>
+            <div class="chatbot-controls">
+                <button id="minimize-btn" class="control-btn" title="Minimize">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="close-btn" class="control-btn" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">
+                        <p>Namaste! I'm your VendorConnect Assistant. I can help you with:</p>
+                        <ul>
+                            <li>Finding suppliers and products</li>
+                            <li>Placing orders</li>
+                            <li>Tracking deliveries</li>
+                            <li>Managing your account</li>
+                            <li>Price alerts and notifications</li>
+                        </ul>
+                        <p>How can I assist you today?</p>
+                    </div>
+                    <div class="message-time">Just now</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Predefined Tags -->
+        <div class="quick-actions" id="quick-actions">
+            <button class="quick-action-btn" data-action="find-suppliers">
+                <i class="fas fa-search"></i>
+                <span>Find Suppliers</span>
+            </button>
+            <button class="quick-action-btn" data-action="place-order">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Place Order</span>
+            </button>
+            <button class="quick-action-btn" data-action="track-delivery">
+                <i class="fas fa-truck"></i>
+                <span>Track Delivery</span>
+            </button>
+            <button class="quick-action-btn" data-action="price-alerts">
+                <i class="fas fa-bell"></i>
+                <span>Price Alerts</span>
+            </button>
+            <button class="quick-action-btn" data-action="business-tips">
+                <i class="fas fa-lightbulb"></i>
+                <span>Business Tips</span>
+            </button>
+            <button class="quick-action-btn" data-action="account-help">
+                <i class="fas fa-user-cog"></i>
+                <span>Account Help</span>
+            </button>
+            <button class="quick-action-btn" data-action="market-trends">
+                <i class="fas fa-chart-line"></i>
+                <span>Market Trends</span>
+            </button>
+            <button class="quick-action-btn" data-action="contact-support">
+                <i class="fas fa-headset"></i>
+                <span>Contact Support</span>
+            </button>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="language-selector">
+            <button class="lang-btn active" data-lang="en">EN</button>
+            <button class="lang-btn" data-lang="hi">हिं</button>
+            <button class="lang-btn" data-lang="bn">বাং</button>
+            <button class="lang-btn" data-lang="ta">தமிழ்</button>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span class="typing-text">Assistant is typing...</span>
+        </div>
+    </div>
+
+    <!-- Chatbot Toggle Button -->
+    <button id="chatbot-toggle" class="chatbot-toggle">
+        <i class="fas fa-comments"></i>
+        <span class="notification-badge" id="notification-badge">1</span>
+    </button>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Processing your request...</p>
+    </div>
+
+    <!-- Chatbot Styles -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+    
+    <!-- Chatbot Script -->
+    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+</body>
+</html>

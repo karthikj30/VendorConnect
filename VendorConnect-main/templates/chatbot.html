@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VendorConnect Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
+</head>
+<body>
+    <!-- Chatbot Container -->
+    <div id="chatbot-container" class="chatbot-container">
+        <!-- Chatbot Header -->
+        <div class="chatbot-header">
+            <div class="chatbot-avatar">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="chatbot-info">
+                <h3>VendorConnect Assistant</h3>
+                <p class="status">Online</p>
+            </div>
+            <div class="chatbot-controls">
+                <button id="minimize-btn" class="control-btn" title="Minimize">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="close-btn" class="control-btn" title="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Messages Area -->
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot-message">
+                <div class="message-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="message-content">
+                    <div class="message-text">
+                        <p>Namaste! I'm your VendorConnect Assistant. I can help you with:</p>
+                        <ul>
+                            <li>Finding suppliers and products</li>
+                            <li>Placing orders</li>
+                            <li>Tracking deliveries</li>
+                            <li>Managing your account</li>
+                            <li>Price alerts and notifications</li>
+                        </ul>
+                        <p>How can I assist you today?</p>
+                    </div>
+                    <div class="message-time">Just now</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Predefined Tags -->
+        <div class="quick-actions" id="quick-actions">
+            <button class="quick-action-btn" data-action="find-suppliers">
+                <i class="fas fa-search"></i>
+                <span>Find Suppliers</span>
+            </button>
+            <button class="quick-action-btn" data-action="place-order">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Place Order</span>
+            </button>
+            <button class="quick-action-btn" data-action="track-delivery">
+                <i class="fas fa-truck"></i>
+                <span>Track Delivery</span>
+            </button>
+            <button class="quick-action-btn" data-action="price-alerts">
+                <i class="fas fa-bell"></i>
+                <span>Price Alerts</span>
+            </button>
+            <button class="quick-action-btn" data-action="business-tips">
+                <i class="fas fa-lightbulb"></i>
+                <span>Business Tips</span>
+            </button>
+            <button class="quick-action-btn" data-action="account-help">
+                <i class="fas fa-user-cog"></i>
+                <span>Account Help</span>
+            </button>
+            <button class="quick-action-btn" data-action="market-trends">
+                <i class="fas fa-chart-line"></i>
+                <span>Market Trends</span>
+            </button>
+            <button class="quick-action-btn" data-action="contact-support">
+                <i class="fas fa-headset"></i>
+                <span>Contact Support</span>
+            </button>
+        </div>
+
+        <!-- Language Selector -->
+        <div class="language-selector">
+            <button class="lang-btn active" data-lang="en">EN</button>
+            <button class="lang-btn" data-lang="hi">हिं</button>
+            <button class="lang-btn" data-lang="bn">বাং</button>
+            <button class="lang-btn" data-lang="ta">தமிழ்</button>
+        </div>
+
+        <!-- Typing Indicator -->
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <span class="typing-text">Assistant is typing...</span>
+        </div>
+    </div>
+
+    <!-- Chatbot Toggle Button -->
+    <button id="chatbot-toggle" class="chatbot-toggle">
+        <i class="fas fa-comments"></i>
+        <span class="notification-badge" id="notification-badge">1</span>
+    </button>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Processing your request...</p>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
+</body>
+</html>

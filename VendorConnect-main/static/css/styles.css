@@ -1,0 +1,655 @@
+/* Additional Styles for VendorConnect */
+
+/* Modal Styles */
+.modal {
+    display: block;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    animation: fadeIn 0.3s;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 30px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+    animation: slideIn 0.3s;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    right: 20px;
+    top: 15px;
+}
+
+.close:hover {
+    color: #000;
+}
+
+/* Notification Styles */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 5px;
+    color: white;
+    font-weight: 500;
+    z-index: 1001;
+    animation: slideInRight 0.3s;
+    max-width: 300px;
+}
+
+.notification-success {
+    background: #28a745;
+}
+
+.notification-error {
+    background: #dc3545;
+}
+
+.notification-info {
+    background: #17a2b8;
+}
+
+.notification-warning {
+    background: #ffc107;
+    color: #333;
+}
+
+/* Cart Badge */
+.cart-badge {
+    position: relative;
+}
+
+#cart-count {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #e74c3c;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    display: none;
+}
+
+/* Enhanced Product Cards */
+.product-card {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.product-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.product-card:hover::before {
+    left: 100%;
+}
+
+.product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+}
+
+/* Progress Bar Animation */
+.progress-fill {
+    animation: progressFill 2s ease-out;
+}
+
+@keyframes progressFill {
+    from { width: 0%; }
+    to { width: var(--progress-width); }
+}
+
+/* Voice Button Animation */
+.voice-btn.recording {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Loading Animation */
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Enhanced Form Styles */
+.form-group {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.form-group input:focus + label,
+.form-group input:not(:placeholder-shown) + label {
+    transform: translateY(-25px) scale(0.8);
+    color: #667eea;
+}
+
+.form-group label {
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: all 0.3s;
+    pointer-events: none;
+    color: #666;
+}
+
+.form-group input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* Enhanced Button Styles */
+.btn {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+
+.btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+    width: 300px;
+    height: 300px;
+}
+
+/* Card Hover Effects */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+/* Stats Card Animation */
+.stat-card {
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.stat-number {
+    animation: countUp 2s ease-out;
+}
+
+@keyframes countUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 10% auto;
+        width: 95%;
+        padding: 20px;
+    }
+    
+    .notification {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .product-card {
+        margin-bottom: 15px;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .products-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .card {
+        background: #2c3e50;
+        color: #ecf0f1;
+    }
+    
+    .product-card {
+        background: #34495e;
+        color: #ecf0f1;
+    }
+    
+    .modal-content {
+        background: #2c3e50;
+        color: #ecf0f1;
+    }
+}
+
+/* Accessibility Enhancements */
+.btn:focus,
+input:focus,
+select:focus {
+    outline: 2px solid #667eea;
+    outline-offset: 2px;
+}
+
+/* High Contrast Mode */
+@media (prefers-contrast: high) {
+    .btn {
+        border: 2px solid currentColor;
+    }
+    
+    .card {
+        border: 2px solid #333;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .header,
+    .btn,
+    .modal {
+        display: none !important;
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+    
+    .card {
+        break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #5a6fd8;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255,255,255,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-content {
+    text-align: center;
+    color: #667eea;
+}
+
+/* Success/Error States */
+.success-state {
+    border-color: #28a745 !important;
+    background-color: #d4edda !important;
+}
+
+.error-state {
+    border-color: #dc3545 !important;
+    background-color: #f8d7da !important;
+}
+
+/* Tooltip */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 200px;
+    background-color: #333;
+    color: white;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -100px;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Enhanced Group Order Cards */
+.group-order-card {
+    position: relative;
+    overflow: hidden;
+}
+
+.group-order-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 30px 30px 0;
+    border-color: transparent rgba(255,255,255,0.3) transparent transparent;
+}
+
+.group-order-card:hover {
+    transform: scale(1.02);
+}
+
+/* Price Alert Styles */
+.alert {
+    position: relative;
+    padding-left: 50px;
+}
+
+.alert::before {
+    content: '💡';
+    position: absolute;
+    left: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+}
+
+/* Supplier Rating Stars */
+.supplier-rating {
+    color: #ffc107;
+}
+
+.supplier-rating .star {
+    display: inline-block;
+    margin-right: 2px;
+}
+
+.supplier-rating .star.filled {
+    color: #ffc107;
+}
+
+.supplier-rating .star.empty {
+    color: #ddd;
+}
+
+/* Verification Badge */
+.verification-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.verification-badge.verified {
+    background: #28a745;
+    color: white;
+}
+
+.verification-badge.pending {
+    background: #ffc107;
+    color: #333;
+}
+
+/* Enhanced Navigation */
+.nav-link {
+    position: relative;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: #667eea;
+    transition: all 0.3s;
+    transform: translateX(-50%);
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+    width: 100%;
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+    
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+} 
+
+/* Global Dark Mode Support */
+body.dark-mode {
+    background: #18191a !important;
+    color: #f1f1f1 !important;
+}
+.dark-mode .card,
+.dark-mode .product-card,
+.dark-mode .modal-content,
+.dark-mode .stat-card,
+.dark-mode .group-order-card,
+.dark-mode .feature-card,
+.dark-mode .register-container,
+.dark-mode .login-container {
+    background: #232526 !important;
+    color: #ffd700 !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5) !important;
+}
+.dark-mode .btn,
+.dark-mode .btn-primary,
+.dark-mode .btn-secondary {
+    background: #ffd700 !important;
+    color: #232526 !important;
+    border: 1px solid #ffd700 !important;
+}
+.dark-mode .btn:hover {
+    background: #ffe066 !important;
+    color: #232526 !important;
+}
+.dark-mode .nav-link,
+.dark-mode .nav-links a {
+    color: #ffd700 !important;
+}
+.dark-mode .nav-link.active,
+.dark-mode .nav-link:hover,
+.dark-mode .nav-links a:hover {
+    color: #fff !important;
+    background: #414345 !important;
+}
+.dark-mode header,
+.dark-mode .header {
+    background: #232526 !important;
+    color: #ffd700 !important;
+}
+.dark-mode .sidebar {
+    background: #232526 !important;
+    color: #ffd700 !important;
+}
+.dark-mode .sidebar-header h3,
+.dark-mode .sidebar-header p {
+    color: #ffd700 !important;
+}
+.dark-mode .alert,
+.dark-mode .alert-info,
+.dark-mode .alert-success,
+.dark-mode .alert-error {
+    background: #232526 !important;
+    color: #ffd700 !important;
+    border: 1px solid #ffd700 !important;
+}
+.dark-mode .form-group input,
+.dark-mode .form-group select {
+    background: #18191a !important;
+    color: #ffd700 !important;
+    border: 2px solid #ffd700 !important;
+}
+.dark-mode .form-group input:focus,
+.dark-mode .form-group select:focus {
+    border-color: #ffe066 !important;
+}
+.dark-mode .feature-icon,
+.dark-mode .section-title,
+.dark-mode .logo {
+    color: #ffd700 !important;
+}
+.dark-mode .language-selector {
+    background: #232526 !important;
+    color: #ffd700 !important;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5) !important;
+}
+.dark-mode .language-btn.active {
+    background: #ffd700 !important;
+    color: #232526 !important;
+}
+.dark-mode .language-btn {
+    color: #ffd700 !important;
+}
+.dark-mode footer {
+    background: #232526 !important;
+    color: #ffd700 !important;
+}
+.dark-mode .password-requirements {
+    color: #ffd700 !important;
+}
+.dark-mode .requirement.met {
+    color: #28a745 !important;
+}
+.dark-mode .requirement.unmet {
+    color: #dc3545 !important;
+} 
