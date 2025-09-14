@@ -454,4 +454,4 @@ For issues and questions:
 
 **Built with ❤️ for India's Street Food Vendors**
 
-*Empowering the backbone of India's food culture through technology*
+"Empowering the backbone of India's food culture through technology"
