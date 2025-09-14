@@ -32,7 +32,7 @@ Street food vendors in India struggle with:
 - Progress tracking and participant management
 - Automatic price optimization
 
-### 4. 🤖 Intelligent Chatbot Assistant
+### 4. Intelligent Chatbot Assistant
 - **Contextual Responses**: Understands user intent and provides relevant information
 - **Multilingual Support**: Available in English, Hindi, Bengali, and Tamil
 - **Voice Input**: Speech recognition for hands-free interaction using Web Speech API
