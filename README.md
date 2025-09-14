@@ -466,10 +466,10 @@ For issues and questions:
 
 **Built with ❤️ for India's Street Food Vendors**  
 Made By:  
-- [Karthik Janardhan] | [GitHub](https://github.com/karthikj30) | [LinkedIn](https://www.linkedin.com/in/karthik-janardhan-73a8b12a8/)  
-- [Anushka Kotal]     | [GitHub](https://github.com/anu07718) | [LinkedIn](https://www.linkedin.com/in/anushka-kotal-ab20a22b7/)  
-- [Riya Vishwakarma]  | [GitHub](https://github.com/Riya-1106) | [LinkedIn](https://www.linkedin.com/in/riya-vishwakarma-2540a52b7/)  
-- [Stash Lopes]       | [GitHub](https://github.com/stashlop) | [LinkedIn](https://www.linkedin.com/in/stash-lopes-176068333/)  
+- Karthik Janardhan | [GitHub](https://github.com/karthikj30) | [LinkedIn](https://www.linkedin.com/in/karthik-janardhan-73a8b12a8/)  
+- Anushka Kotal     | [GitHub](https://github.com/anu07718) | [LinkedIn](https://www.linkedin.com/in/anushka-kotal-ab20a22b7/)  
+- Riya Vishwakarma  | [GitHub](https://github.com/Riya-1106) | [LinkedIn](https://www.linkedin.com/in/riya-vishwakarma-2540a52b7/)  
+- Stash Lopes       | [GitHub](https://github.com/stashlop) | [LinkedIn](https://www.linkedin.com/in/stash-lopes-176068333/)  
 
 *"Empowering the backbone of India's food culture through technology"*
 
