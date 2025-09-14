@@ -4,6 +4,8 @@
 
 VendorConnect is a comprehensive digital platform designed to solve the raw material sourcing problems faced by street food vendors across India. The platform connects vendors with verified suppliers, offers group ordering for bulk discounts, provides real-time price alerts, and includes an intelligent chatbot with voice interface support for low-literacy users.
 
+<img width="1751" height="837" alt="image" src="https://github.com/user-attachments/assets/3049403a-bfdc-47e3-b567-13a51e96f17f" />
+
 ## 🎯 Problem Statement
 
 Street food vendors in India struggle with:
@@ -66,6 +68,14 @@ Street food vendors in India struggle with:
 - **Database**: SQLite (with SQLAlchemy ORM)
 - **APIs**: Web Speech API, Weather API integration
 - **Hosting**: Compatible with Netlify, Vercel, Heroku
+  
+<img width="1902" height="842" alt="image" src="https://github.com/user-attachments/assets/6a31338f-462d-4086-a99e-d0eaf75a43eb" />
+<img width="1898" height="842" alt="image" src="https://github.com/user-attachments/assets/bf083be8-709d-4129-88b5-b45daa238632" />
+<img width="1642" height="832" alt="image" src="https://github.com/user-attachments/assets/d2a5cad1-e8c1-44b2-b8ad-4b3692ec5e82" />
+<img width="1095" height="547" alt="image" src="https://github.com/user-attachments/assets/323a9fe8-1383-4aeb-b9f2-b4d5677fece0" />
+<img width="1701" height="743" alt="image" src="https://github.com/user-attachments/assets/d4c76c3d-4f0b-4ad2-b28d-88153f6ec5a5" />
+<img width="1667" height="510" alt="image" src="https://github.com/user-attachments/assets/976ed1db-736b-4a84-8ef6-a4823f89b2e9" />
+<img width="1705" height="842" alt="image" src="https://github.com/user-attachments/assets/ef5fdbce-2006-4d87-9ea6-8760a9e7fe67" />
 
 ## 🚀 Installation & Setup
 
@@ -278,6 +288,8 @@ VendorConnect-main/
 
 ## 🛠️ Chatbot Integration
 
+<img width="370" height="641" alt="image" src="https://github.com/user-attachments/assets/c4a9c412-5d84-463c-ba1e-712d7c22ae43" />
+
 ### Adding to Existing Pages
 
 To add the chatbot to any page, include these elements before the closing `</body>` tag:
@@ -430,7 +442,7 @@ window.chatbot.debug = true;
 1. Clone the repository
 2. Install dependencies: `pip install -r requirements.txt`
 3. Run the application: `python app.py`
-4. Visit `http://localhost:5000/chatbot` to test
+4. Visit `http://localhost:5000/chatbot` `https://vendorconnect-gkhy.onrender.com`  to test
 
 ### Code Style
 - Follow PEP 8 for Python code
@@ -453,5 +465,5 @@ For issues and questions:
 ---
 
 **Built with ❤️ for India's Street Food Vendors**
-
+Made By: https://github.com/karthikj30 , https://github.com/anu07718 , https://github.com/Riya-1106 , https://github.com/stashlop
 "Empowering the backbone of India's food culture through technology"
