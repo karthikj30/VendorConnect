@@ -16,7 +16,6 @@ import string
 MR_ACTION_LABELS = {
     'find-suppliers': 'पुरवठादार शोधा',
     'place-order': 'ऑर्डर करा',
-    'track-delivery': 'डिलिव्हरी ट्रॅक करा',
     'price-alerts': 'किंमत अलर्ट',
     'market-trends': 'बाजारातील प्रवृत्ती',
     'supplier-tips': 'पुरवठादार टिप्स',
@@ -1107,6 +1106,25 @@ def get_vendor_orders():
     
     return jsonify(orders_data)
 
+@app.route('/api/order/<order_id>/delivery')
+def get_order_delivery(order_id):
+    """Return mock delivery tracking info for a given order"""
+    # Simple mocked coordinates around Mumbai
+    sample = {
+        'order_id': str(order_id),
+        'status': 'Out for Delivery',
+        'eta': '30 min',
+        'last_updated': 'Just now',
+        'customer': { 'lat': 19.0606, 'lng': 72.8365 },  # Bandra
+        'driver': { 'lat': 19.0728, 'lng': 72.8826 },   # Near Dadar
+        'route': [
+            { 'lat': 19.0760, 'lng': 72.8777 },  # Warehouse (Mumbai)
+            { 'lat': 19.0728, 'lng': 72.8826 },  # Driver current
+            { 'lat': 19.0606, 'lng': 72.8365 }   # Customer
+        ]
+    }
+    return jsonify(sample)
+
 @app.route('/api/vendor/dashboard-stats')
 def get_vendor_dashboard_stats():
     if 'vendor_id' not in session:
@@ -1334,29 +1352,7 @@ def debug_products():
     
     return jsonify(products_data)
 
-@app.route('/api/delivery-location')
-def delivery_location():
-    # Example: Replace with real data from your database
-    return jsonify({
-        'lat': 19.0606,  # Delivery location
-        'lng': 72.8365,
-        'status': 'Out for Delivery',
-        'order_id': 'VC-2024-001',
-        'eta': '30 min',
-        'rider': 'Ramesh Kumar',
-        'contact': '+91-9876543210',
-        'last_updated': 'Just now',
-        'driver': {'lat': 19.0728, 'lng': 72.8826},  # Example: driver near Dadar
-        'route': [
-            [19.0760, 72.8777],  # Start (Mumbai)
-            [19.0728, 72.8826],  # Driver current
-            [19.0606, 72.8365]   # Delivery (Bandra)
-        ],
-        'stops': [
-            {'lat': 19.0760, 'lng': 72.8777, 'label': 'Warehouse'},
-            {'lat': 19.0606, 'lng': 72.8365, 'label': 'Customer'}
-        ]
-    })
+
 
 @app.route('/logout')
 def logout():
@@ -1452,7 +1448,6 @@ def process_tag_action(action, language, context, vendor):
     tag_handlers = {
         'find-suppliers': lambda: get_enhanced_supplier_response(language, vendor, '', context),
         'place-order': lambda: get_enhanced_order_response(language, vendor, '', context),
-        'track-delivery': lambda: get_enhanced_delivery_response(language, vendor, '', context),
         'price-alerts': lambda: get_enhanced_price_response(language, vendor, '', context),
         'business-tips': lambda: get_business_tips_response(language, vendor, context),
         'account-help': lambda: get_enhanced_account_response(language, vendor, '', context),
@@ -1762,8 +1757,6 @@ def process_chatbot_message(message, language, context, vendor):
         return get_enhanced_supplier_response(language, vendor, normalized_message, context)
     elif best_intent == 'orders' and confidence > 0.3:
         return get_enhanced_order_response(language, vendor, normalized_message, context)
-    elif best_intent == 'delivery' and confidence > 0.3:
-        return get_enhanced_delivery_response(language, vendor, normalized_message, context)
     elif best_intent == 'pricing' and confidence > 0.3:
         return get_enhanced_price_response(language, vendor, normalized_message, context)
     elif best_intent == 'help' and confidence > 0.3:
@@ -1889,7 +1882,6 @@ def get_greeting_response(language, vendor, conversation_count=0):
         'actions': make_actions(language, [
             ('find-suppliers', 'Find Suppliers'),
             ('place-order', 'Place Order'),
-            ('track-delivery', 'Track Delivery'),
             ('price-alerts', 'Price Alerts'),
             ('business-tips', 'Business Tips'),
             ('market-trends', 'Market Trends')
@@ -2213,113 +2205,6 @@ def get_category_based_response(language, vendor, context):
         ])
     }
 
-def get_enhanced_delivery_response(language, vendor, message, context):
-    """Generate enhanced delivery tracking response with real-time information"""
-    
-    # Extract delivery-specific keywords
-    urgent_keywords = ['urgent', 'asap', 'immediately', 'quick', 'fast']
-    status_keywords = ['status', 'where', 'location', 'position', 'progress']
-    delay_keywords = ['late', 'delayed', 'delay', 'problem', 'issue']
-    
-    is_urgent = any(keyword in message for keyword in urgent_keywords)
-    needs_status = any(keyword in message for keyword in status_keywords)
-    has_delay = any(keyword in message for keyword in delay_keywords)
-    
-    responses = {
-        'en': "I can help you track your deliveries! Here's what I can do:",
-        'hi': "मैं आपको अपनी डिलीवरी ट्रैक करने में मदद कर सकता हूँ! यहाँ मैं क्या कर सकता हूँ:",
-        'bn': "আমি আপনাকে আপনার ডেলিভারি ট্র্যাক করতে সাহায্য করতে পারি! এখানে আমি যা করতে পারি:",
-        'ta': "நான் உங்கள் டெலிவரிகளைக் கண்காணிக்க உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:",
-        'mr': "मी तुमच्या डिलिव्हरी ट्रॅक करण्यात मदत करू शकतो! मी काय करू शकतो ते येथे आहे:"
-    }
-    
-    delivery_info = [responses.get(language, responses['en'])]
-    
-    # Add real-time delivery information
-    delivery_info.append("\n📦 CURRENT DELIVERIES:")
-    delivery_info.append("• Order #VC-2024-001: Out for delivery - ETA: 30 min")
-    delivery_info.append("• Order #VC-2024-002: In transit - ETA: 2 hours")
-    delivery_info.append("• Order #VC-2024-003: Delivered - Confirmed")
-    
-    if is_urgent:
-        urgent_info = {
-            'en': "\n🚨 URGENT DELIVERY SUPPORT:",
-            'hi': "\n🚨 तत्काल डिलीवरी सहायता:",
-            'bn': "\n🚨 জরুরি ডেলিভারি সহায়তা:",
-            'ta': "\n🚨 அவசர டெலிவரி ஆதரவு:",
-            'mr': "\n🚨 तातडीच्या डिलिव्हरीसाठी सहाय्य:"
-        }
-        delivery_info.append(urgent_info.get(language, urgent_info['en']))
-        delivery_info.append("• Priority tracking enabled")
-        delivery_info.append("• Direct driver contact available")
-        delivery_info.append("• Real-time location updates")
-    
-    if has_delay:
-        delay_info = {
-            'en': "\n⚠️ DELAY DETECTED:",
-            'hi': "\n⚠️ देरी का पता चला:",
-            'bn': "\n⚠️ বিলম্ব সনাক্ত:",
-            'ta': "\n⚠️ தாமதம் கண்டறியப்பட்டது:",
-            'mr': "\n⚠️ विलंब आढळला:"
-        }
-        delivery_info.append(delay_info.get(language, delay_info['en']))
-        delivery_info.append("• Investigating the delay")
-        delivery_info.append("• Alternative delivery options")
-        delivery_info.append("• Compensation options available")
-    
-    # Add delivery options
-    delivery_options = {
-        'en': [
-            "\n📋 DELIVERY OPTIONS:",
-            "• Track current deliveries",
-            "• View delivery history",
-            "• Get delivery notifications",
-            "• Contact delivery partner",
-            "• Schedule future deliveries",
-            "• Change delivery address",
-            "• Request delivery time slot"
-        ],
-        'hi': [
-            "\n📋 डिलीवरी विकल्प:",
-            "• वर्तमान डिलीवरी ट्रैक करें",
-            "• डिलीवरी इतिहास देखें",
-            "• डिलीवरी नोटिफिकेशन प्राप्त करें",
-            "• डिलीवरी पार्टनर से संपर्क करें",
-            "• भविष्य की डिलीवरी शेड्यूल करें",
-            "• डिलीवरी पता बदलें",
-            "• डिलीवरी समय स्लॉट अनुरोध करें"
-        ],
-        'mr': [
-            "\n📋 डिलिव्हरी पर्याय:",
-            "• सध्याच्या डिलिव्हरी ट्रॅक करा",
-            "• डिलिव्हरी इतिहास पाहा",
-            "• डिलिव्हरी सूचना मिळवा",
-            "• डिलिव्हरी पार्टनरशी संपर्क करा",
-            "• भविष्यातील डिलिव्हरी शेड्यूल करा",
-            "• डिलिव्हरी पत्ता बदला",
-            "• डिलिव्हरी वेळ स्लॉट विनंती करा"
-        ]
-    }
-    
-    delivery_info.extend(delivery_options.get(language, delivery_options['en']))
-    
-    return {
-        'message': {
-            'type': 'list',
-            'items': delivery_info
-        },
-        'context': {'intent': 'delivery', 'urgency': is_urgent, 'has_delay': has_delay},
-        'actions': make_actions(language, [
-            ('track-current', 'Track Current Delivery'),
-            ('delivery-history', 'Delivery History'),
-            ('delivery-settings', 'Delivery Settings'),
-            ('contact-driver', 'Contact Driver'),
-            ('urgent-delivery', 'Urgent Delivery') if is_urgent else (None, None),
-            ('report-delay', 'Report Delay') if has_delay else (None, None),
-            ('schedule-delivery', 'Schedule Delivery'),
-            ('change-address', 'Change Address')
-        ])
-    }
 
 def get_enhanced_price_response(language, vendor, message, context):
     """Generate enhanced price-related response with market insights"""
@@ -2704,177 +2589,11 @@ def get_enhanced_order_response(language, vendor, message, context):
         ])
     }
 
-def get_delivery_response(language, vendor):
-    """Generate delivery tracking response"""
-    responses = {
-        'en': "I can help you track your delivery! Here's what I can do:",
-        'hi': "मैं आपको अपनी डिलीवरी ट्रैक करने में मदद कर सकता हूँ! यहाँ मैं क्या कर सकता हूँ:",
-        'bn': "আমি আপনাকে আপনার ডেলিভারি ট্র্যাক করতে সাহায্য করতে পারি! এখানে আমি যা করতে পারি:",
-        'ta': "நான் உங்கள் டெலிவரியைக் கண்காணிக்க உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:",
-        'mr': "मी तुमची डिलिव्हरी ट्रॅक करण्यात मदत करू शकतो! मी काय करू शकतो ते येथे आहे:"
-    }
-    
-    delivery_options = {
-        'en': [
-            "Track your current deliveries",
-            "View delivery history",
-            "Get delivery notifications",
-            "Contact delivery partner"
-        ],
-        'hi': [
-            "अपनी वर्तमान डिलीवरी ट्रैक करें",
-            "डिलीवरी इतिहास देखें",
-            "डिलीवरी नोटिफिकेशन प्राप्त करें",
-            "डिलीवरी पार्टनर से संपर्क करें"
-        ],
-        'bn': [
-            "আপনার বর্তমান ডেলিভারি ট্র্যাক করুন",
-            "ডেলিভারি ইতিহাস দেখুন",
-            "ডেলিভারি নোটিফিকেশন পান",
-            "ডেলিভারি পার্টনার সাথে যোগাযোগ করুন"
-        ],
-        'ta': [
-            "உங்கள் தற்போதைய டெலிவரிகளைக் கண்காணிக்கவும்",
-            "டெலிவரி வரலாற்றைப் பாருங்கள்",
-            "டெலிவரி அறிவிப்புகளைப் பெறுங்கள்",
-            "டெலிவரி பங்குதாரருடன் தொடர்பு கொள்ளுங்கள்"
-        ],
-        'mr': [
-            "तुमची सध्याची डिलिव्हरी ट्रॅक करा",
-            "डिलिव्हरी इतिहास पाहा",
-            "डिलिव्हरी नोटिफिकेशन्स मिळवा",
-            "डिलिव्हरी पार्टनरशी संपर्क करा"
-        ]
-    }
-    
-    return {
-        'message': {
-            'type': 'list',
-            'items': [responses.get(language, responses['en'])] + delivery_options.get(language, delivery_options['en'])
-        },
-        'context': {'intent': 'delivery'},
-        'actions': make_actions(language, [
-            ('track-current', 'Track Current Delivery'),
-            ('delivery-history', 'Delivery History'),
-            ('delivery-settings', 'Delivery Settings')
-        ])
-    }
-
-def get_price_response(language, vendor):
-    """Generate price-related response"""
-    responses = {
-        'en': "I can help you with pricing information! Here's what I can do:",
-        'hi': "मैं आपको मूल्य निर्धारण जानकारी में मदद कर सकता हूँ! यहाँ मैं क्या कर सकता हूँ:",
-        'bn': "আমি আপনাকে মূল্য নির্ধারণের তথ্যে সাহায্য করতে পারি! এখানে আমি যা করতে পারি:",
-        'ta': "நான் உங்களுக்கு விலை தகவலில் உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:",
-        'mr': "मी किंमत माहितीत मदत करू शकतो! मी काय करू शकतो ते येथे आहे:"
-    }
-    
-    price_options = {
-        'en': [
-            "Show current market prices",
-            "Set up price alerts",
-            "Compare prices across suppliers",
-            "View price trends"
-        ],
-        'hi': [
-            "वर्तमान बाजार मूल्य दिखाएं",
-            "मूल्य अलर्ट सेट करें",
-            "आपूर्तिकर्ताओं में मूल्य तुलना करें",
-            "मूल्य रुझान देखें"
-        ],
-        'bn': [
-            "বর্তমান বাজার মূল্য দেখান",
-            "মূল্য অ্যালার্ট সেট করুন",
-            "সরবরাহকারীদের মধ্যে মূল্য তুলনা করুন",
-            "মূল্য প্রবণতা দেখুন"
-        ],
-        'ta': [
-            "தற்போதைய சந்தை விலைகளைக் காட்டுங்கள்",
-            "விலை எச்சரிக்கைகளை அமைக்கவும்",
-            "சப்ளையர்களிடையே விலைகளை ஒப்பிடுங்கள்",
-            "விலை போக்குகளைப் பாருங்கள்"
-        ],
-        'mr': [
-            "सध्याचे बाजार भाव दाखवा",
-            "किंमत अलर्ट सेट करा",
-            "पुरवठादारांमध्ये किंमतींची तुलना करा",
-            "किंमतींचे ट्रेंड पाहा"
-        ]
-    }
-    
-    return {
-        'message': {
-            'type': 'list',
-            'items': [responses.get(language, responses['en'])] + price_options.get(language, price_options['en'])
-        },
-        'context': {'intent': 'pricing'},
-        'actions': make_actions(language, [
-            ('current-prices', 'Current Prices'),
-            ('set-alerts', 'Set Price Alerts'),
-            ('price-comparison', 'Compare Prices'),
-            ('price-trends', 'Price Trends')
-        ])
-    }
-
 def get_help_response(language, vendor):
     """Generate help response"""
     responses = {
         'en': "I'm here to help! Here are the main things I can assist you with:",
         'hi': "मैं मदद के लिए यहाँ हूँ! यहाँ मुख्य चीजें हैं जिनमें मैं आपकी मदद कर सकता हूँ:",
-        'bn': "আমি সাহায্যের জন্য এখানে আছি! এখানে প্রধান বিষয়গুলি রয়েছে যাতে আমি আপনাকে সাহায্য করতে পারি:",
-        'ta': "நான் உதவிக்காக இங்கே இருக்கிறேன்! இங்கே முக்கிய விஷயங்கள் உள்ளன, அதில் நான் உங்களுக்கு உதவ முடியும்:",
-        'mr': "मी मदतीसाठी येथे आहे! मी तुम्हाला ज्या मुख्य गोष्टींमध्ये मदत करू शकतो त्या येथे आहेत:"
-    }
-    
-    help_topics = {
-        'en': [
-            "Finding and connecting with suppliers",
-            "Placing individual and group orders",
-            "Tracking deliveries and shipments",
-            "Managing price alerts and notifications",
-            "Account settings and profile management",
-            "Getting support and resolving issues"
-        ],
-        'hi': [
-            "आपूर्तिकर्ताओं को खोजना और उनसे जुड़ना",
-            "व्यक्तिगत और समूह ऑर्डर देना",
-            "डिलीवरी और शिपमेंट ट्रैक करना",
-            "मूल्य अलर्ट और नोटिफिकेशन प्रबंधित करना",
-            "खाता सेटिंग्स और प्रोफाइल प्रबंधन",
-            "सहायता प्राप्त करना और मुद्दों को हल करना"
-        ],
-        'bn': [
-            "সরবরাহকারী খুঁজে পাওয়া এবং তাদের সাথে সংযোগ করা",
-            "ব্যক্তিগত এবং গ্রুপ অর্ডার দেওয়া",
-            "ডেলিভারি এবং শিপমেন্ট ট্র্যাক করা",
-            "মূল্য অ্যালার্ট এবং নোটিফিকেশন পরিচালনা করা",
-            "অ্যাকাউন্ট সেটিংস এবং প্রোফাইল পরিচালনা",
-            "সহায়তা পাওয়া এবং সমস্যা সমাধান করা"
-        ],
-        'ta': [
-            "சப்ளையர்களைக் கண்டுபிடித்தல் மற்றும் அவர்களுடன் இணைத்தல்",
-            "தனிப்பட்ட மற்றும் குழு ஆர்டர்களை வைத்தல்",
-            "டெலிவரி மற்றும் ஷிப்மென்ட்களைக் கண்காணித்தல்",
-            "விலை எச்சரிக்கைகள் மற்றும் அறிவிப்புகளை நிர்வகித்தல்",
-            "கணக்கு அமைப்புகள் மற்றும் சுயவிவர நிர்வாகம்",
-            "ஆதரவு பெறுதல் மற்றும் பிரச்சினைகளைத் தீர்ப்பது"
-        ],
-        'mr': [
-            "पुरवठादार शोधणे आणि त्यांच्याशी जोडणे",
-            "वैयक्तिक आणि समूह ऑर्डर देणे",
-            "डिलिव्हरी आणि शिपमेंट ट्रॅक करणे",
-            "किंमत अलर्ट आणि नोटिफिकेशन्स व्यवस्थापित करणे",
-            "अकाउंट सेटिंग्स आणि प्रोफाइल व्यवस्थापन",
-            "सहाय्य मिळवणे आणि समस्या सोडवणे"
-        ]
-    }
-    
-    return {
-        'message': {
-            'type': 'list',
-            'items': [responses.get(language, responses['en'])] + help_topics.get(language, help_topics['en'])
-        },
         'context': {'intent': 'help'},
         'actions': make_actions(language, [
             ('contact-support', 'Contact Support'),
@@ -3054,7 +2773,6 @@ def get_intelligent_default_response(language, vendor, message, context):
                 {'action': 'browse-products', 'label': 'Browse Products'},
                 {'action': 'compare-prices', 'label': 'Compare Prices'},
                 {'action': 'place-order', 'label': 'Place Order'},
-                {'action': 'track-delivery', 'label': 'Track Delivery'},
                 {'action': 'business-tips', 'label': 'Business Tips'}
             ]
         }
@@ -3072,7 +2790,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         'en': [
             "🔍 Finding and connecting with suppliers",
             "🛒 Placing individual and group orders",
-            "📦 Tracking deliveries and shipments",
             "💰 Managing price alerts and notifications",
             "👤 Account settings and profile management",
             "📞 Getting support and resolving issues",
@@ -3082,7 +2799,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         'hi': [
             "🔍 आपूर्तिकर्ताओं को खोजना और उनसे जुड़ना",
             "🛒 व्यक्तिगत और समूह ऑर्डर देना",
-            "📦 डिलीवरी और शिपमेंट ट्रैक करना",
             "💰 मूल्य अलर्ट और नोटिफिकेशन प्रबंधित करना",
             "👤 खाता सेटिंग्स और प्रोफाइल प्रबंधन",
             "📞 सहायता प्राप्त करना और मुद्दों को हल करना",
@@ -3092,7 +2808,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         'bn': [
             "🔍 সরবরাহকারী খুঁজে পাওয়া এবং তাদের সাথে সংযোগ করা",
             "🛒 ব্যক্তিগত এবং গ্রুপ অর্ডার দেওয়া",
-            "📦 ডেলিভারি এবং শিপমেন্ট ট্র্যাক করা",
             "💰 মূল্য অ্যালার্ট এবং নোটিফিকেশন পরিচালনা করা",
             "👤 অ্যাকাউন্ট সেটিংস এবং প্রোফাইল পরিচালনা",
             "📞 সহায়তা পাওয়া এবং সমস্যা সমাধান করা",
@@ -3102,7 +2817,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         'ta': [
             "🔍 சப்ளையர்களைக் கண்டுபிடித்தல் மற்றும் அவர்களுடன் இணைத்தல்",
             "🛒 தனிப்பட்ட மற்றும் குழு ஆர்டர்களை வைத்தல்",
-            "📦 டெலிவரி மற்றும் ஷிப்மென்ட்களைக் கண்காணித்தல்",
             "💰 விலை எச்சரிக்கைகள் மற்றும் அறிவிப்புகளை நிர்வகித்தல்",
             "👤 கணக்கு அமைப்புகள் மற்றும் சுயவிவர நிர்வாகம்",
             "📞 ஆதரவு பெறுதல் மற்றும் பிரச்சினைகளைத் தீர்ப்பது",
@@ -3112,7 +2826,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         'mr': [
             "🔍 पुरवठादार शोधणे आणि त्यांच्याशी जोडणे",
             "🛒 वैयक्तिक आणि समूह ऑर्डर देणे",
-            "📦 डिलिव्हरी आणि शिपमेंट ट्रॅक करणे",
             "💰 किंमत अलर्ट आणि नोटिफिकेशन्स व्यवस्थापित करणे",
             "👤 अकाउंट सेटिंग्स आणि प्रोफाइल व्यवस्थापन",
             "📞 सहाय्य मिळवणे आणि समस्या सोडवणे",
@@ -3136,7 +2849,6 @@ def get_intelligent_default_response(language, vendor, message, context):
                 'en': [
                     "• Check dairy supplier ratings for quality",
                     "• Order seasonal fruits for new flavors",
-                    "• Monitor temperature-sensitive deliveries"
                 ],
                 'hi': [
                     "• गुणवत्ता के लिए डेयरी आपूर्तिकर्ता रेटिंग जांचें",
@@ -3145,7 +2857,6 @@ def get_intelligent_default_response(language, vendor, message, context):
                 ],
                 'mr': [
                     "• गुणवत्ता सुनिश्चित करण्यासाठी डेअरी पुरवठादारांचे रेटिंग तपासा",
-                    "• नवीन फ्लेवर्ससाठी हंगामी फळांची ऑर्डर करा",
                     "• तापमान-संवेदनशील डिलिव्हरीचे निरीक्षण करा"
                 ]
             },
@@ -3163,7 +2874,6 @@ def get_intelligent_default_response(language, vendor, message, context):
                 'mr': [
                     "• दररोज ताजी भाजीपाला सोर्स करा",
                     "• पारंपरिक मसाल्यांचे पुरवठादार शोधा",
-                    "• संध्याकाळच्या पीक तासांसाठी योजना करा"
                 ]
             }
         }
@@ -3172,7 +2882,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         tips = business_specific_tips.get(vendor.business_type, {}).get(language, [])
         
         if tips:
-            general_options[language].append(tip_header)
             general_options[language].extend(tips)
     
     return {
@@ -3184,7 +2893,6 @@ def get_intelligent_default_response(language, vendor, message, context):
         'actions': make_actions(language, [
             ('find-suppliers', 'Find Suppliers'),
             ('place-order', 'Place Order'),
-            ('track-delivery', 'Track Delivery'),
             ('price-alerts', 'Price Alerts'),
             ('account-settings', 'Account Settings'),
             ('contact-support', 'Contact Support'),

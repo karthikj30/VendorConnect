@@ -361,7 +361,6 @@ class VendorConnectChatbot {
             const actionMap = {
                 'find-suppliers': 'findSuppliers',
                 'place-order': 'placeOrder',
-                'track-delivery': 'trackDelivery',
                 'price-alerts': 'priceAlerts',
                 'business-tips': 'businessTips',
                 'account-help': 'accountHelp',

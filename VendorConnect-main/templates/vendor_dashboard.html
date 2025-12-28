@@ -6,6 +6,7 @@
     <title>Vendor Dashboard - VendorConnect</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCBFCQNAcC3nh20qA_eX-NYqwMVoKPTvm0"></script>
     <style>
         * {
             margin: 0;
@@ -1124,6 +1125,51 @@
             background: #232526;
             color: #ffd700;
         }
+
+        /* Delivery Map Modal */
+        .delivery-map-modal {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+        }
+        .delivery-map-content {
+            background: white;
+            width: 900px;
+            max-width: 95vw;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            padding: 16px;
+        }
+        .delivery-map-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .delivery-map-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .close-delivery-map {
+            background: none;
+            border: none;
+            font-size: 24px;
+            line-height: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+        #google-delivery-map {
+            width: 100%;
+            height: 380px;
+            border-radius: 8px;
+            background: #e6f0ff;
+        }
     </style>
 </head>
 <body>
@@ -1464,30 +1510,6 @@
                 </div>
             </div>
 
-            <!-- Delivery Tracking Section -->
-            <div id="delivery-tracking-section" class="section">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Delivery Tracking</h3>
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
-                        <div style="flex: 1 1 220px; min-width: 200px;">
-                            <div style="background:#f8f9fa; border-radius:10px; padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-                                <h4 style="margin-top:0; font-size:1.1rem;">Delivery Status</h4>
-                                <ul id="delivery-status-list" style="list-style:none; padding:0; margin:0; font-size:15px; color:#444;">
-                                    <li><b>Order ID:</b> <span id="delivery-order-id">VC-2024-001</span></li>
-                                    <li><b>Status:</b> <span id="delivery-status">Out for Delivery</span></li>
-                                    <li><b>Estimated Arrival:</b> <span id="delivery-eta">45 min</span></li>
-                                    <li><b>Rider:</b> <span id="delivery-rider">Ramesh Kumar</span></li>
-                                    <li><b>Contact:</b> <span id="delivery-contact">+91-9876543210</span></li>
-                                    <li><b>Last Updated:</b> <span id="delivery-last-updated">2 min ago</span></li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- Orders Section -->
             <div id="orders-section" class="section" style="display: none;">
                 <div class="card">
@@ -1495,6 +1517,8 @@
                         <h3 class="card-title">My Orders</h3>
                         <i class="fas fa-list card-icon"></i>
                     </div>
+
+                    <!-- Orders List -->
                     <div id="orders-list">
                         <div class="loading">
                             <div class="spinner"></div>
@@ -1904,6 +1928,18 @@
         </div>
     </div>
 
+    <!-- Delivery Map Modal -->
+    <div id="delivery-map-modal" class="delivery-map-modal">
+        <div class="delivery-map-content">
+            <div class="delivery-map-header">
+                <div class="delivery-map-title">Delivery Tracking</div>
+                <button class="close-delivery-map" onclick="closeDeliveryMap()">&times;</button>
+            </div>
+            <div id="google-delivery-map"></div>
+            <div id="delivery-map-info" style="margin-top:10px; font-size:14px; color:#555;"></div>
+        </div>
+    </div>
+
     <script>
         let currentSection = 'dashboard';
         let products = [];
@@ -1912,14 +1948,13 @@
         let orders = [];
         let alerts = [];
         let cart = JSON.parse(localStorage.getItem('vendorCart')) || [];
+        const defaultCoords = [19.0760, 72.8777];
 
         // Navigation
         function showSection(section) {
-            // Hide all sections except delivery tracking
+            // Hide all sections
             document.querySelectorAll('.section').forEach(s => {
-                if (s.id !== 'delivery-tracking-section') {
-                    s.style.display = 'none';
-                }
+                s.style.display = 'none';
             });
             
             // Show selected section
@@ -2128,23 +2163,130 @@
             try {
                 const response = await fetch('/api/vendor/orders');
                 orders = await response.json();
-                
-                const container = document.getElementById('orders-list');
-                container.innerHTML = orders.map(order => `
-                    <div class="product-card">
+                if (!Array.isArray(orders) || orders.length === 0) {
+                    orders = [];
+                }
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                orders = [];
+            }
+
+            renderOrders();
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('orders-list');
+            if (!orders || orders.length === 0) {
+                container.innerHTML = '<div class="no-data">No orders found.</div>';
+                return;
+            }
+
+            container.innerHTML = orders.map(order => {
+                const progress = Math.min(Math.max(order.progress || 0, 0), 100);
+                const statusColor = order.status && order.status.toLowerCase().includes('delivered') ? 'green' : '#f39c12';
+                return `
+                    <div class="product-card order-card">
                         <div class="product-name">Order #${order.id}</div>
                         <div class="product-supplier">${order.supplier_name}</div>
                         <div class="product-price">₹${order.total_amount}</div>
                         <div class="product-supplier">
-                            Status: <span style="color: ${order.status === 'completed' ? 'green' : 'orange'}">${order.status}</span><br>
-                            Type: ${order.order_type}<br>
-                            Date: ${order.created_at}
+                            <div>Status: <span style="color:${statusColor}; font-weight:600;">${order.status || 'In progress'}</span></div>
+                            <div>ETA: ${order.eta || 'Updating...'}</div>
+                            <div>Last Update: ${order.last_updated || 'Just now'}</div>
+                            <div>Rider: ${order.rider || 'Assigned soon'} (${order.contact || 'N/A'})</div>
+                        </div>
+                        <div class="progress-bar" style="margin: 8px 0; height: 8px; background:#ececec; border-radius: 6px;">
+                            <div class="progress-fill" style="width:${progress}%; height:100%; background:#667eea; border-radius:6px;"></div>
+                        </div>
+                        <div class="product-actions" style="margin-top:8px; display:flex; gap:8px;">
+                            <button class="btn btn-secondary" onclick="viewOrderDetails('${order.id}')">Details</button>
+                            <button class="btn btn-primary" onclick="openDeliveryMap('${order.id}')">Track Delivery</button>
                         </div>
                     </div>
-                `).join('');
-                
-            } catch (error) {
-                console.error('Error loading orders:', error);
+                `;
+            }).join('');
+        }
+
+        function viewOrderDetails(orderId) {
+            const order = (orders || []).find(o => `${o.id}` === `${orderId}`);
+            if (!order) {
+                alert('Order not found.');
+                return;
+            }
+            alert(`Order #${order.id}\nSupplier: ${order.supplier_name}\nAmount: ₹${order.total_amount}\nStatus: ${order.status}\nETA: ${order.eta}`);
+        }
+
+        // Delivery Map logic
+        let deliveryMap = null;
+        let deliveryMarkers = [];
+
+        function openDeliveryMap(orderId) {
+            const modal = document.getElementById('delivery-map-modal');
+            modal.style.display = 'flex';
+            // Fetch delivery data for the order
+            fetch(`/api/order/${orderId}/delivery`).then(r => r.json()).then(data => {
+                document.querySelector('.delivery-map-title').textContent = `Delivery Tracking - Order #${data.order_id || orderId}`;
+                document.getElementById('delivery-map-info').textContent = `Status: ${data.status} • ETA: ${data.eta} • Last Updated: ${data.last_updated}`;
+                initGoogleDeliveryMap(data);
+            }).catch(() => {
+                // Fallback: initialize with default coords
+                initGoogleDeliveryMap({
+                    order_id: orderId,
+                    status: 'In Transit',
+                    eta: '30 min',
+                    last_updated: 'Just now',
+                    customer: { lat: 19.0606, lng: 72.8365 },
+                    driver: { lat: 19.0728, lng: 72.8826 },
+                    route: [ { lat: 19.0760, lng: 72.8777 }, { lat: 19.0728, lng: 72.8826 }, { lat: 19.0606, lng: 72.8365 } ]
+                });
+            });
+        }
+
+        function closeDeliveryMap() {
+            const modal = document.getElementById('delivery-map-modal');
+            modal.style.display = 'none';
+        }
+
+        function initGoogleDeliveryMap(data) {
+            const mapEl = document.getElementById('google-delivery-map');
+            if (!deliveryMap) {
+                deliveryMap = new google.maps.Map(mapEl, {
+                    center: data.driver || data.customer || { lat: 19.0760, lng: 72.8777 },
+                    zoom: 12,
+                    mapTypeId: 'roadmap'
+                });
+            } else {
+                deliveryMap.setCenter(data.driver || data.customer || { lat: 19.0760, lng: 72.8777 });
+            }
+            // Clear existing markers
+            deliveryMarkers.forEach(m => m.setMap(null));
+            deliveryMarkers = [];
+
+            if (data.customer) {
+                const customerMarker = new google.maps.Marker({
+                    position: data.customer,
+                    map: deliveryMap,
+                    label: 'C'
+                });
+                deliveryMarkers.push(customerMarker);
+            }
+            if (data.driver) {
+                const driverMarker = new google.maps.Marker({
+                    position: data.driver,
+                    map: deliveryMap,
+                    label: 'D'
+                });
+                deliveryMarkers.push(driverMarker);
+            }
+            if (Array.isArray(data.route) && data.route.length) {
+                const routePath = new google.maps.Polyline({
+                    path: data.route,
+                    geodesic: true,
+                    strokeColor: '#1e90ff',
+                    strokeOpacity: 0.9,
+                    strokeWeight: 4
+                });
+                routePath.setMap(deliveryMap);
             }
         }
 
@@ -3417,6 +3559,7 @@
     }
     // ... existing code ...
     </script>
+    </script>
     
     <!-- Chatbot Integration -->
     <div id="chatbot-container" class="chatbot-container">
@@ -3471,10 +3614,6 @@
             <button class="quick-action-btn" data-action="place-order">
                 <i class="fas fa-shopping-cart"></i>
                 <span>Place Order</span>
-            </button>
-            <button class="quick-action-btn" data-action="track-delivery">
-                <i class="fas fa-truck"></i>
-                <span>Track Delivery</span>
             </button>
             <button class="quick-action-btn" data-action="price-alerts">
                 <i class="fas fa-bell"></i>
