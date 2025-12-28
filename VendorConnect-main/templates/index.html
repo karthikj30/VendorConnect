@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VendorConnect - Street Food Vendor Platform</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -13,7 +14,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Poppins', 'Noto Sans Devanagari', sans-serif;
             line-height: 1.6;
             color: #333;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -252,6 +253,7 @@
             padding: 10px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            font-family: 'Noto Sans Devanagari', 'Noto Sans', Arial, sans-serif;
         }
 
         .language-btn {
@@ -261,6 +263,9 @@
             cursor: pointer;
             border-radius: 5px;
             margin: 0 2px;
+            font-family: 'Noto Sans Devanagari', 'Noto Sans', Arial, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .language-btn.active {
@@ -386,6 +391,7 @@
         <button class="language-btn" onclick="changeLanguage('hi')">हिं</button>
         <button class="language-btn" onclick="changeLanguage('bn')">বাং</button>
         <button class="language-btn" onclick="changeLanguage('ta')">தமிழ்</button>
+        <button class="language-btn" onclick="changeLanguage('mr')">मराठी</button>
     </div>
 
     <!-- Hero Section -->
@@ -557,6 +563,23 @@
                 'feature5-desc': 'ஆஃப்லைன் சிங்குடன் வரைபட அடிப்படையிலான டெலிவரி புதுப்பிப்புகள். பேச்சி இணைய இணைப்புடனும் வேலை செய்கிறது.',
                 'feature6-title': 'விலை எச்சரிக்கைகள்',
                 'feature6-desc': 'தினசரி விலை புதுப்பிப்புகளுக்கு SMS/WhatsApp எச்சரிக்கைகளைப் பெறுங்கள். உங்கள் பகுதியில் சிறந்த சலுகைகளை ஒருபோதும் தவறவிடாதீர்கள்.'
+            },
+            mr: {
+                'hero-title': 'जोडा. सोर्स करा. यशस्वी व्हा.',
+                'hero-subtitle': 'भारतातील पहिले डिजिटल प्लॅटफॉर्म जे स्ट्रीट फूड विक्रेत्यांना विश्वसनीय पुरवठादारांशी जोडते. घाऊक किमतीत दर्जेदार कच्चा माल मिळवा.',
+                'features-title': 'VendorConnect का निवडावे?',
+                'feature1-title': 'विक्रेता-सत्यापित पुरवठादार',
+                'feature1-desc': 'प्रत्येक पुरवठादार खऱ्या विक्रेत्यांच्या फीडबॅकद्वारे पीअर-रेटेड आणि सत्यापित केलेला आहे. स्वच्छता रेटिंग, अंतर आणि किंमतीनुसार फिल्टर करा.',
+                'feature2-title': 'लाइव्ह किंमत शोध',
+                'feature2-desc': 'जवळच्या विक्रेत्यांकडून टोमॅटो, कांदे, तेल इत्यादींच्या रिअल-टाइम किमतींची तुलना करा. जास्त शुल्क आकारणे टाळा.',
+                'feature3-title': 'ग्रुप ऑर्डर सिस्टम',
+                'feature3-desc': 'एकाधिक विक्रेते मोठ्या सवलतीसाठी ऑर्डर एकत्र करू शकतात. सामूहिक खरेदी शक्तीसह घाऊक दर मिळवा.',
+                'feature4-title': 'व्हॉइस इंटरफेस',
+                'feature4-desc': 'हिंदी, बंगाली, तामिळ + व्हॉइस सर्च वापरा. तंत्रज्ञानात अवघड नसलेल्या विक्रेत्यांसाठी परफेक्ट.',
+                'feature5-title': 'डिलिव्हरी ट्रॅकिंग',
+                'feature5-desc': 'ऑफलाइन सिंकसह नकाशा-आधारित डिलिव्हरी अपडेट्स. पॅची इंटरनेट कनेक्टिव्हिटीसह देखील कार्य करते.',
+                'feature6-title': 'किंमत अलर्ट',
+                'feature6-desc': 'दररोजच्या किंमत अपडेटसाठी SMS/WhatsApp अलर्ट मिळवा. तुमच्या क्षेत्रातील सर्वोत्तम डील कधीही चुकवू नका.'
             }
         };
 

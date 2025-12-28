@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vendor Dashboard - VendorConnect</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,7 +14,7 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Poppins', 'Noto Sans Devanagari', sans-serif;
             background: #f5f7fa;
             color: #333;
         }
@@ -1124,15 +1124,6 @@
             background: #232526;
             color: #ffd700;
         }
-        #delivery-map { width: 100%; height: 320px; border-radius: 12px; }
-        #group-orders-map, #delivery-map {
-            width: 100%;
-            min-width: 300px;
-            height: 320px;
-            min-height: 200px;
-            border-radius: 12px;
-            margin-bottom: 10px;
-        }
     </style>
 </head>
 <body>
@@ -1480,10 +1471,6 @@
                         <h3 class="card-title">Delivery Tracking</h3>
                     </div>
                     <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
-                        <div style="flex: 2 1 350px; min-width: 300px;">
-                            <!-- Leaflet Map -->
-                            <div id="delivery-map"></div>
-                        </div>
                         <div style="flex: 1 1 220px; min-width: 200px;">
                             <div style="background:#f8f9fa; border-radius:10px; padding:18px 16px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">
                                 <h4 style="margin-top:0; font-size:1.1rem;">Delivery Status</h4>
@@ -1495,7 +1482,6 @@
                                     <li><b>Contact:</b> <span id="delivery-contact">+91-9876543210</span></li>
                                     <li><b>Last Updated:</b> <span id="delivery-last-updated">2 min ago</span></li>
                                 </ul>
-                                <button onclick="moveDeliveryDemo()" class="btn btn-secondary" style="margin-top:12px; width:100%;">Simulate Move</button>
                             </div>
                         </div>
                     </div>
@@ -3431,127 +3417,6 @@
     }
     // ... existing code ...
     </script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-    // ... existing code ...
-    // Initialize Leaflet map for delivery tracking
-    var deliveryMap, deliveryMarker, driverMarker, routeLine, stopMarkers = [];
-    var driverIcon = L.icon({
-        iconUrl: 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/images/marker-icon.png', // Replace with custom icon if desired
-        iconSize: [32, 48],
-        iconAnchor: [16, 48],
-        popupAnchor: [0, -40]
-    });
-
-    document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('delivery-map')) {
-            deliveryMap = L.map('delivery-map').setView([19.0760, 72.8777], 12); // Mumbai example
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(deliveryMap);
-            deliveryMarker = L.marker([19.0606, 72.8365]).addTo(deliveryMap)
-                .bindPopup('Delivery Location (Mumbai)').openPopup();
-            // Add driver marker
-            driverMarker = L.marker([19.0728, 72.8826], {icon: driverIcon}).addTo(deliveryMap)
-                .bindPopup('Driver Location');
-            // Add route polyline
-            routeLine = L.polyline([[19.0760, 72.8777], [19.0728, 72.8826], [19.0606, 72.8365]], {color: 'blue'}).addTo(deliveryMap);
-            // Add stops
-            stopMarkers = [
-                L.marker([19.0760, 72.8777]).addTo(deliveryMap).bindPopup('Warehouse'),
-                L.marker([19.0606, 72.8365]).addTo(deliveryMap).bindPopup('Customer')
-            ];
-            deliveryMap.fitBounds(routeLine.getBounds());
-        }
-    });
-
-    function updateDeliveryLocation(lat, lng, label) {
-        if (deliveryMap && deliveryMarker) {
-            deliveryMap.setView([lat, lng], 13);
-            deliveryMarker.setLatLng([lat, lng]);
-            deliveryMarker.setPopupContent(label || 'Delivery Location').openPopup();
-        }
-    }
-
-    function updateDriverLocation(lat, lng) {
-        if (driverMarker) {
-            driverMarker.setLatLng([lat, lng]);
-            driverMarker.setPopupContent('Driver Location').openPopup();
-        }
-    }
-
-    function updateRoute(route) {
-        if (routeLine) {
-            deliveryMap.removeLayer(routeLine);
-        }
-        routeLine = L.polyline(route, {color: 'blue'}).addTo(deliveryMap);
-        deliveryMap.fitBounds(routeLine.getBounds());
-    }
-
-    function updateStops(stops) {
-        // Remove old stop markers
-        stopMarkers.forEach(m => deliveryMap.removeLayer(m));
-        stopMarkers = [];
-        stops.forEach(stop => {
-            var m = L.marker([stop.lat, stop.lng]).addTo(deliveryMap).bindPopup(stop.label);
-            stopMarkers.push(m);
-        });
-    }
-
-    function updateDeliveryStatusPanel(data) {
-        document.getElementById('delivery-order-id').textContent = data.order_id;
-        document.getElementById('delivery-status').textContent = data.status;
-        document.getElementById('delivery-eta').textContent = data.eta;
-        document.getElementById('delivery-rider').textContent = data.rider;
-        document.getElementById('delivery-contact').textContent = data.contact;
-        document.getElementById('delivery-last-updated').textContent = data.last_updated;
-    }
-
-    function fetchAndUpdateDelivery() {
-        fetch('/api/delivery-location')
-            .then(res => res.json())
-            .then(data => {
-                updateDeliveryLocation(data.lat, data.lng, 'Delivery Location (' + data.status + ')');
-                updateDriverLocation(data.driver.lat, data.driver.lng);
-                updateRoute(data.route);
-                updateStops(data.stops);
-                updateDeliveryStatusPanel(data);
-            });
-    }
-
-    // Poll every 30 seconds
-    setInterval(fetchAndUpdateDelivery, 30000);
-    // Fetch once on load
-    fetchAndUpdateDelivery();
-    // ... existing code ...
-    </script>
-    <script>
-    // ... existing code ...
-    // Group Orders Map Example
-    var groupOrdersMap, groupOrderMarkers = [];
-    document.addEventListener('DOMContentLoaded', function() {
-        if (document.getElementById('group-orders-map')) {
-            groupOrdersMap = L.map('group-orders-map').setView([19.0760, 72.8777], 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap'
-            }).addTo(groupOrdersMap);
-            // Example group order locations
-            var groupOrders = [
-                {lat: 19.0606, lng: 72.8365, label: 'Order #GO-001: Bandra'},
-                {lat: 19.1197, lng: 72.8468, label: 'Order #GO-002: Andheri'},
-                {lat: 19.0180, lng: 72.8446, label: 'Order #GO-003: Dadar'}
-            ];
-            groupOrderMarkers = groupOrders.map(order =>
-                L.marker([order.lat, order.lng]).addTo(groupOrdersMap).bindPopup(order.label)
-            );
-            var bounds = L.latLngBounds(groupOrders.map(o => [o.lat, o.lng]));
-            groupOrdersMap.fitBounds(bounds);
-        }
-    });
-    // ... existing code ...
-    </script>
     
     <!-- Chatbot Integration -->
     <div id="chatbot-container" class="chatbot-container">
@@ -3639,6 +3504,7 @@
             <button class="lang-btn" data-lang="hi">हिं</button>
             <button class="lang-btn" data-lang="bn">বাং</button>
             <button class="lang-btn" data-lang="ta">தமிழ்</button>
+            <button class="lang-btn" data-lang="mr">मराठी</button>
         </div>
 
         <!-- Typing Indicator -->

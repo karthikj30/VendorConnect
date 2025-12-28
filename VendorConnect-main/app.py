@@ -12,6 +12,106 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import string
 
+# Action label localization helper (Marathi)
+MR_ACTION_LABELS = {
+    'find-suppliers': 'पुरवठादार शोधा',
+    'place-order': 'ऑर्डर करा',
+    'track-delivery': 'डिलिव्हरी ट्रॅक करा',
+    'price-alerts': 'किंमत अलर्ट',
+    'market-trends': 'बाजारातील प्रवृत्ती',
+    'supplier-tips': 'पुरवठादार टिप्स',
+    'pricing-strategy': 'किंमत धोरण',
+    'customer-service': 'ग्राहक सेवा',
+    'inventory-management': 'इन्व्हेंटरी व्यवस्थापन',
+    'seasonal-planning': 'हंगामी नियोजन',
+    'price-analysis': 'किंमत विश्लेषण',
+    'demand-forecast': 'मागणी अंदाज',
+    'seasonal-trends': 'हंगामी प्रवृत्ती',
+    'competitor-analysis': 'स्पर्धक विश्लेषण',
+    'supply-chain-insights': 'पुरवठा साखळी अंतर्दृष्टी',
+    'customer-preferences': 'ग्राहक पसंती',
+    'live-chat': 'लाइव्ह चॅट सुरू करा',
+    'phone-support': 'फोन सपोर्ट',
+    'email-support': 'ईमेल सपोर्ट',
+    'faq': 'FAQ पहा',
+    'video-tutorials': 'व्हिडिओ ट्युटोरियल',
+    'community-forum': 'कम्युनिटी फोरम',
+    'technical-support': 'तांत्रिक सहाय्य',
+    'business-consultation': 'व्यवसाय सल्लामसलत',
+    'view-supplier-details': 'पुरवठादार तपशील पहा',
+    'compare-suppliers': 'पुरवठादार तुलना करा',
+    'contact-supplier': 'पुरवठादाराशी संपर्क करा',
+    'supplier-performance': 'कामगिरी विश्लेषण',
+    'negotiate-prices': 'किंमतींची चर्चा करा',
+    'backup-suppliers': 'बॅकअप पुरवठादार शोधा',
+    'seasonal-analysis': 'हंगामी विश्लेषण',
+    'supplier-reviews': 'रिव्ह्यू वाचा',
+    'get-directions': 'मार्ग मिळवा',
+    'call-supplier': 'पुरवठादाराला कॉल करा',
+    'view-on-map': 'नकाशावर पहा',
+    'set-location': 'माझे ठिकाण सेट करा',
+    'read-reviews': 'रिव्ह्यू वाचा',
+    'view-details': 'तपशील पहा',
+    'add-to-favorites': 'आवडत्यांमध्ये जोडा',
+    'compare-prices': 'किंमतींची तुलना करा',
+    'set-price-alert': 'किंमत अलर्ट सेट करा',
+    'bulk-discount': 'मोठ्या सवलती',
+    'negotiate-price': 'किंमत चर्चा करा',
+    'select-category': 'श्रेणी निवडा',
+    'view-all-categories': 'सर्व श्रेणी पहा',
+    'mixed-order': 'मिश्रित ऑर्डर',
+    'seasonal-products': 'हंगामी उत्पादने',
+    'track-current': 'सध्याची डिलिव्हरी ट्रॅक करा',
+    'delivery-history': 'डिलिव्हरी इतिहास',
+    'delivery-settings': 'डिलिव्हरी सेटिंग्ज',
+    'contact-driver': 'ड्रायव्हरशी संपर्क करा',
+    'urgent-delivery': 'तातडीची डिलिव्हरी',
+    'report-delay': 'विलंब नोंदवा',
+    'schedule-delivery': 'डिलिव्हरी शेड्यूल करा',
+    'change-address': 'पत्ता बदला',
+    'current-prices': 'सध्याचे भाव',
+    'set-alerts': 'अलर्ट सेट करा',
+    'price-comparison': 'किंमत तुलना',
+    'price-trends': 'किंमतीचे ट्रेंड',
+    'market-analysis': 'बाजार विश्लेषण',
+    'bulk-pricing': 'मोठ्या ऑर्डरचे दर',
+    'price-history': 'किंमत इतिहास',
+    'browse-products': 'उत्पादने ब्राउझ करा',
+    'search-products': 'उत्पादने शोधा',
+    'product-details': 'उत्पादन तपशील',
+    'add-to-cart': 'कार्टमध्ये जोडा',
+    'business-analytics': 'व्यवसाय विश्लेषण',
+    'best-practices': 'सर्वोत्तम पद्धती',
+    'growth-strategies': 'वाढीच्या रणनीती',
+    'networking': 'नेटवर्किंग',
+    'resources': 'संसाधने',
+    'consultation': 'तज्ज्ञ सल्ला',
+    'related-topics': 'संबंधित विषय',
+    'start-over': 'पुन्हा सुरू करा',
+    'create-group-order': 'ग्रुप ऑर्डर तयार करा',
+    'view-orders': 'ऑर्डर पहा',
+    'urgent-order': 'तातडीचा ऑर्डर',
+    'bulk-order': 'मोठा ऑर्डर',
+    'price-check': 'किंमती तपासा',
+    'stock-check': 'स्टॉक तपासा',
+    'login': 'लॉग इन',
+    'register': 'नोंदणी',
+    'view-profile': 'प्रोफाइल पहा',
+    'edit-profile': 'प्रोफाइल संपादित करा',
+    'order-history': 'ऑर्डर इतिहास',
+    'settings': 'सेटिंग्ज',
+    'account-settings': 'अकाउंट सेटिंग्ज',
+    'contact-support': 'सपोर्टशी संपर्क करा'
+}
+
+def localize_action_label(language, action_key, default_label):
+    if language == 'mr':
+        return MR_ACTION_LABELS.get(action_key, default_label)
+    return default_label
+
+def make_actions(language, pairs):
+    return [{'action': k, 'label': localize_action_label(language, k, v)} for (k, v) in pairs if k and v]
+
 # Load environment variables from .env file if it exists
 try:
     from dotenv import load_dotenv
@@ -1374,7 +1474,8 @@ def get_business_tips_response(language, vendor, context):
         'en': "Here are some valuable business tips for your success:",
         'hi': "यहाँ आपकी सफलता के लिए कुछ मूल्यवान व्यावसायिक सुझाव हैं:",
         'bn': "আপনার সাফল্যের জন্য এখানে কিছু মূল্যবান ব্যবসায়িক টিপস রয়েছে:",
-        'ta': "உங்கள் வெற்றிக்கு இங்கே சில மதிப்புமிக்க வணிக குறிப்புகள் உள்ளன:"
+        'ta': "உங்கள் வெற்றிக்கு இங்கே சில மதிப்புமிக்க வணிக குறிப்புகள் உள்ளன:",
+        'mr': "तुमच्या यशासाठी काही मौल्यवान व्यवसाय टिप्स येथे आहेत:"
     }
     
     tips = {
@@ -1399,6 +1500,17 @@ def get_business_tips_response(language, vendor, context):
             "• संचालन को सुव्यवस्थित करने के लिए तकनीक का उपयोग करें",
             "• मौसमी भिन्नताओं की योजना बनाएं",
             "• मजबूत ब्रांड प्रतिष्ठा बनाएं"
+        ],
+        'mr': [
+            "💡 व्यवसाय यश टिप्स:",
+            "• पुरवठादारांसोबत चांगले संबंध ठेवा",
+            "• बाजारातील प्रवृत्ती नियमितपणे पाहा",
+            "• इन्व्हेंटरी स्तरावर लक्ष ठेवा",
+            "• स्पर्धात्मक किंमत द्या",
+            "• ग्राहक समाधानावर लक्ष केंद्रित करा",
+            "• ऑपरेशन्स सुलभ करण्यासाठी तंत्रज्ञान वापरा",
+            "• हंगामी बदलांसाठी योजना करा",
+            "• मजबूत ब्रँड प्रतिष्ठा निर्माण करा"
         ]
     }
     
@@ -1453,14 +1565,14 @@ def get_business_tips_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + tips.get(language, tips['en'])
         },
         'context': {'intent': 'business_tips'},
-        'actions': [
-            {'action': 'market-trends', 'label': 'Market Trends'},
-            {'action': 'supplier-tips', 'label': 'Supplier Tips'},
-            {'action': 'pricing-strategy', 'label': 'Pricing Strategy'},
-            {'action': 'customer-service', 'label': 'Customer Service'},
-            {'action': 'inventory-management', 'label': 'Inventory Management'},
-            {'action': 'seasonal-planning', 'label': 'Seasonal Planning'}
-        ]
+        'actions': make_actions(language, [
+            ('market-trends', 'Market Trends'),
+            ('supplier-tips', 'Supplier Tips'),
+            ('pricing-strategy', 'Pricing Strategy'),
+            ('customer-service', 'Customer Service'),
+            ('inventory-management', 'Inventory Management'),
+            ('seasonal-planning', 'Seasonal Planning')
+        ])
     }
 
 def get_market_trends_response(language, vendor, context):
@@ -1469,7 +1581,8 @@ def get_market_trends_response(language, vendor, context):
         'en': "Here are the latest market trends and insights:",
         'hi': "यहाँ नवीनतम बाजार रुझान और अंतर्दृष्टि हैं:",
         'bn': "এখানে সর্বশেষ বাজার প্রবণতা এবং অন্তর্দৃষ্টি রয়েছে:",
-        'ta': "இங்கே சமீபத்திய சந்தை போக்குகள் மற்றும் நுண்ணறிவு உள்ளன:"
+        'ta': "இங்கே சமீபத்திய சந்தை போக்குகள் மற்றும் நுண்ணறிவு உள்ளன:",
+        'mr': "येथे नवीनतम बाजारातील प्रवृत्ती आणि अंतर्दृष्टी आहेत:"
     }
     
     trends = {
@@ -1503,14 +1616,14 @@ def get_market_trends_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + trends.get(language, trends['en'])
         },
         'context': {'intent': 'market_trends'},
-        'actions': [
-            {'action': 'price-analysis', 'label': 'Price Analysis'},
-            {'action': 'demand-forecast', 'label': 'Demand Forecast'},
-            {'action': 'seasonal-trends', 'label': 'Seasonal Trends'},
-            {'action': 'competitor-analysis', 'label': 'Competitor Analysis'},
-            {'action': 'supply-chain-insights', 'label': 'Supply Chain Insights'},
-            {'action': 'customer-preferences', 'label': 'Customer Preferences'}
-        ]
+        'actions': make_actions(language, [
+            ('price-analysis', 'Price Analysis'),
+            ('demand-forecast', 'Demand Forecast'),
+            ('seasonal-trends', 'Seasonal Trends'),
+            ('competitor-analysis', 'Competitor Analysis'),
+            ('supply-chain-insights', 'Supply Chain Insights'),
+            ('customer-preferences', 'Customer Preferences')
+        ])
     }
 
 def get_support_response(language, vendor, context):
@@ -1519,7 +1632,8 @@ def get_support_response(language, vendor, context):
         'en': "I'm here to help! Here's how you can get support:",
         'hi': "मैं मदद के लिए यहाँ हूँ! यहाँ आप सहायता कैसे प्राप्त कर सकते हैं:",
         'bn': "আমি সাহায্যের জন্য এখানে আছি! এখানে আপনি কীভাবে সহায়তা পেতে পারেন:",
-        'ta': "நான் உதவிக்காக இங்கே இருக்கிறேன்! இங்கே நீங்கள் எவ்வாறு ஆதரவு பெறலாம்:"
+        'ta': "நான் உதவிக்காக இங்கே இருக்கிறேன்! இங்கே நீங்கள் எவ்வாறு ஆதரவு பெறலாம்:",
+        'mr': "मी मदतीसाठी येथे आहे! तुम्ही सहाय्य कसे मिळवू शकता:"
     }
     
     support_options = {
@@ -1544,6 +1658,17 @@ def get_support_response(language, vendor, context):
             "• कम्युनिटी फोरम: अन्य विक्रेताओं से जुड़ें",
             "• तकनीकी सहायता: ऐप समस्याओं के लिए",
             "• व्यावसायिक परामर्श: विशेषज्ञ सलाह"
+        ],
+        'mr': [
+            "📞 सहाय्य पर्याय:",
+            "• लाइव्ह चॅट: 24/7 उपलब्ध",
+            "• फोन सहाय्य: +91-9876543210",
+            "• ईमेल: support@vendorconnect.com",
+            "• FAQ: सामान्य प्रश्नांचे उत्तरे",
+            "• व्हिडिओ ट्युटोरियल: चरण-दर-चरण मार्गदर्शिका",
+            "• कम्युनिटी फोरम: इतर विक्रेत्यांशी जोडा",
+            "• तांत्रिक सहाय्य: अॅप समस्यांसाठी",
+            "• व्यवसाय सल्ला: तज्ञांची सल्ला"
         ]
     }
     
@@ -1553,16 +1678,16 @@ def get_support_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + support_options.get(language, support_options['en'])
         },
         'context': {'intent': 'support'},
-        'actions': [
-            {'action': 'live-chat', 'label': 'Start Live Chat'},
-            {'action': 'phone-support', 'label': 'Call Support'},
-            {'action': 'email-support', 'label': 'Email Support'},
-            {'action': 'faq', 'label': 'View FAQ'},
-            {'action': 'video-tutorials', 'label': 'Video Tutorials'},
-            {'action': 'community-forum', 'label': 'Community Forum'},
-            {'action': 'technical-support', 'label': 'Technical Support'},
-            {'action': 'business-consultation', 'label': 'Business Consultation'}
-        ]
+        'actions': make_actions(language, [
+            ('live-chat', 'Start Live Chat'),
+            ('phone-support', 'Call Support'),
+            ('email-support', 'Email Support'),
+            ('faq', 'View FAQ'),
+            ('video-tutorials', 'Video Tutorials'),
+            ('community-forum', 'Community Forum'),
+            ('technical-support', 'Technical Support'),
+            ('business-consultation', 'Business Consultation')
+        ])
     }
 
 def process_chatbot_message(message, language, context, vendor):
@@ -1580,7 +1705,8 @@ def process_chatbot_message(message, language, context, vendor):
         'en': ['hello', 'hi', 'hey', 'namaste', 'good morning', 'good afternoon', 'good evening', 'greetings', 'welcome'],
         'hi': ['नमस्ते', 'हैलो', 'हाय', 'सुप्रभात', 'शुभ संध्या', 'स्वागत', 'नमस्कार'],
         'bn': ['নমস্কার', 'হ্যালো', 'হাই', 'সুপ্রভাত', 'শুভ সন্ধ্যা', 'স্বাগতম', 'নমস্কার'],
-        'ta': ['வணக்கம்', 'ஹலோ', 'ஹாய்', 'காலை வணக்கம்', 'மாலை வணக்கம்', 'வரவேற்கிறோம்', 'வணக்கம்']
+        'ta': ['வணக்கம்', 'ஹலோ', 'ஹாய்', 'காலை வணக்கம்', 'மாலை வணக்கம்', 'வரவேற்கிறோம்', 'வணக்கம்'],
+        'mr': ['नमस्कार', 'हॅलो', 'हाय', 'शुभ सकाळ', 'शुभ संध्या', 'स्वागत']
     }
     
     # Check for greetings (with context awareness)
@@ -1713,7 +1839,10 @@ def get_greeting_response(language, vendor, conversation_count=0):
                   "আমি আপনাকে সরবরাহকারী খুঁজে পেতে, অর্ডার দিতে, ডেলিভারি ট্র্যাক করতে এবং আরও অনেক কিছুতে সাহায্য করতে পারি। আজ আমি আপনাকে কীভাবে সাহায্য করতে পারি?",
             'ta': f"வணக்கம்! VendorConnect-க்கு வரவேற்கிறோம்। உங்கள் வணிகத் தேவைகளுக்கு உதவ நான் உங்கள் தனிப்பட்ட உதவியாளர் இங்கே இருக்கிறேன்। " +
                   (f"நீங்கள் {vendor.name} ({vendor.business_type}) என லாக் இன் ஆகியிருக்கிறீர்கள் என்று பார்க்கிறேன்। " if vendor else "") +
-                  "நான் உங்களுக்கு சப்ளையர்களைக் கண்டுபிடிக்க, ஆர்டர்களை வைக்க, டெலிவரிகளைக் கண்காணிக்க மற்றும் பலவற்றில் உதவ முடியும்। இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?"
+                "நான் உங்களுக்கு சப்ளையர்களைக் கண்டுபிடிக்க, ஆர்டர்களை வைக்க, டெலிவரிகளைக் கண்காணிக்க மற்றும் பலவற்றில் உதவ முடியும்। இன்று நான் உங்களுக்கு எவ்வாறு உதவ முடியும்?",
+            'mr': f"नमस्कार! VendorConnect मध्ये आपले स्वागत आहे. मी तुमच्या व्यावसायिक गरजांसाठी मदत करणारा वैयक्तिक सहाय्यक आहे. " +
+                (f"मी पाहतोय की तुम्ही {vendor.name} ({vendor.business_type}) म्हणून लॉग इन आहात. " if vendor else "") +
+                "मी तुम्हाला पुरवठादार शोधणे, ऑर्डर देणे, डिलिव्हरी ट्रॅक करणे आणि आणखी बर्‍याच गोष्टींमध्ये मदत करू शकतो. आज मी तुम्हाला कशात मदत करू?"
         }
     else:
         greeting_templates = {
@@ -1724,7 +1853,9 @@ def get_greeting_response(language, vendor, conversation_count=0):
             'bn': f"ফিরে স্বাগতম! " + (f"আপনাকে আবার দেখে ভালো লাগল, {vendor.name}। " if vendor else "") +
                   "আমি আপনার ব্যবসায়িক প্রয়োজনে সাহায্য করতে এখানে আছি। আজ আপনি কী করতে চান?",
             'ta': f"மீண்டும் வரவேற்கிறோம்! " + (f"உங்களை மீண்டும் பார்த்து மகிழ்ச்சி, {vendor.name}। " if vendor else "") +
-                  "நான் உங்கள் வணிகத் தேவைகளுக்கு உதவுவதைத் தொடர இங்கே இருக்கிறேன்। இன்று நீங்கள் என்ன செய்ய விரும்புகிறீர்கள்?"
+                "நான் உங்கள் வணிகத் தேவைகளுக்கு உதவுவதைத் தொடர இங்கே இருக்கிறேன்। இன்று நீங்கள் என்ன செய்ய விரும்புகிறீர்கள்?",
+            'mr': f"पुन्हा स्वागत! " + (f"तुम्हाला पुन्हा भेटून आनंद झाला, {vendor.name}. " if vendor else "") +
+                "मी तुमच्या व्यावसायिक गरजांसाठी मदत करण्यासाठी येथे आहे. आज तुम्हाला काय करायचे आहे?"
         }
     
     # Add business-specific suggestions
@@ -1733,13 +1864,15 @@ def get_greeting_response(language, vendor, conversation_count=0):
             'en': "Since you're in the ice cream business, I can help you find suppliers for dairy products, flavors, and equipment.",
             'hi': "चूंकि आप आइसक्रीम के व्यवसाय में हैं, मैं आपको डेयरी उत्पादों, स्वादों और उपकरणों के आपूर्तिकर्ता खोजने में मदद कर सकता हूँ।",
             'bn': "যেহেতু আপনি আইসক্রিম ব্যবসায় আছেন, আমি আপনাকে দুগ্ধজাত পণ্য, স্বাদ এবং সরঞ্জামের সরবরাহকারী খুঁজে পেতে সাহায্য করতে পারি।",
-            'ta': "நீங்கள் ஐஸ்கிரீம் வணிகத்தில் இருப்பதால், நான் உங்களுக்கு பால் பொருட்கள், சுவைகள் மற்றும் உபகரணங்களுக்கான சப்ளையர்களைக் கண்டுபிடிக்க உதவ முடியும்।"
+            'ta': "நீங்கள் ஐஸ்கிரீம் வணிகத்தில் இருப்பதால், நான் உங்களுக்கு பால் பொருட்கள், சுவைகள் மற்றும் உபகரணங்களுக்கான சப்ளையர்களைக் கண்டுபிடிக்க உதவ முடியும்।",
+            'mr': "तुम्ही आइसक्रीम व्यवसायात असल्यामुळे, मी तुम्हाला डेअरी उत्पादने, फ्लेवर्स आणि उपकरणांसाठी पुरवठादार शोधण्यात मदत करू शकतो."
         },
         'chaat': {
             'en': "For your chaat business, I can help you source fresh vegetables, spices, and traditional ingredients.",
             'hi': "आपके चाट व्यवसाय के लिए, मैं आपको ताजी सब्जियां, मसाले और पारंपरिक सामग्री खोजने में मदद कर सकता हूँ।",
             'bn': "আপনার চাট ব্যবসার জন্য, আমি আপনাকে তাজা সবজি, মশলা এবং ঐতিহ্যবাহী উপাদান খুঁজে পেতে সাহায্য করতে পারি।",
-            'ta': "உங்கள் சாட் வணிகத்திற்கு, நான் உங்களுக்கு புதிய காய்கறிகள், மசாலாப் பொருட்கள் மற்றும் பாரம்பரிய பொருட்களைக் கண்டுபிடிக்க உதவ முடியும்।"
+            'ta': "உங்கள் சாட் வணிகத்திற்கு, நான் உங்களுக்கு புதிய காய்கறிகள், மசாலாப் பொருட்கள் மற்றும் பாரம்பரிய பொருட்களைக் கண்டுபிடிக்க உதவ முடியும்।",
+            'mr': "तुमच्या चाट व्यवसायासाठी, मी तुम्हाला ताजी भाजीपाला, मसाले आणि पारंपरिक घटक मिळवून देण्यात मदत करू शकतो."
         }
     }
     
@@ -1753,14 +1886,14 @@ def get_greeting_response(language, vendor, conversation_count=0):
     return {
         'message': base_response,
         'context': {'intent': 'greeting', 'message_count': conversation_count + 1},
-        'actions': [
-            {'action': 'find-suppliers', 'label': 'Find Suppliers'},
-            {'action': 'place-order', 'label': 'Place Order'},
-            {'action': 'track-delivery', 'label': 'Track Delivery'},
-            {'action': 'price-alerts', 'label': 'Price Alerts'},
-            {'action': 'business-tips', 'label': 'Business Tips'},
-            {'action': 'market-trends', 'label': 'Market Trends'}
-        ]
+        'actions': make_actions(language, [
+            ('find-suppliers', 'Find Suppliers'),
+            ('place-order', 'Place Order'),
+            ('track-delivery', 'Track Delivery'),
+            ('price-alerts', 'Price Alerts'),
+            ('business-tips', 'Business Tips'),
+            ('market-trends', 'Market Trends')
+        ])
     }
 
 def get_enhanced_supplier_response(language, vendor, message, context):
@@ -1798,7 +1931,8 @@ def get_comprehensive_supplier_response(language, vendor, context):
         'en': "I've analyzed the market and found the best suppliers for your business needs. Here's my detailed recommendation:",
         'hi': "मैंने बाजार का विश्लेषण किया है और आपकी व्यावसायिक जरूरतों के लिए सबसे अच्छे आपूर्तिकर्ता पाए हैं। यहाँ मेरी विस्तृत सिफारिश है:",
         'bn': "আমি বাজার বিশ্লেষণ করেছি এবং আপনার ব্যবসায়িক প্রয়োজনের জন্য সেরা সরবরাহকারী খুঁজে পেয়েছি। এখানে আমার বিস্তারিত সুপারিশ:",
-        'ta': "நான் சந்தையை பகுப்பாய்வு செய்து உங்கள் வணிகத் தேவைகளுக்கு சிறந்த சப்ளையர்களைக் கண்டறிந்தேன்। இங்கே எனது விரிவான பரிந்துரை:"
+        'ta': "நான் சந்தையை பகுப்பாய்வு செய்து உங்கள் வணிகத் தேவைகளுக்கு சிறந்த சப்ளையர்களைக் கண்டறிந்தேன்। இங்கே எனது விரிவான பரிந்துரை:",
+        'mr': "मी बाजाराचे विश्लेषण करून तुमच्या व्यवसायाच्या गरजांसाठी सर्वोत्तम पुरवठादार शोधले आहेत. माझी सविस्तर शिफारस येथे आहे:"
     }
     
     # Get comprehensive supplier data
@@ -1827,6 +1961,13 @@ def get_comprehensive_supplier_response(language, vendor, context):
             f"• सत्यापित आपूर्तिकर्ता: {verified_count} ({verified_count/total_suppliers*100:.1f}%)",
             f"• औसत रेटिंग: {avg_rating:.1f}/5",
             f"• बाजार कवरेज: {verified_count} स्थान"
+        ],
+        'mr': [
+            "📊 बाजाराचा आढावा:",
+            f"• एकूण पुरवठादार: {total_suppliers}",
+            f"• सत्यापित पुरवठादार: {verified_count} ({verified_count/total_suppliers*100:.1f}%)",
+            f"• सरासरी रेटिंग: {avg_rating:.1f}/5",
+            f"• बाजार कव्हरेज: {verified_count} ठिकाणे"
         ]
     }
     
@@ -1932,16 +2073,16 @@ def get_comprehensive_supplier_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + supplier_info
         },
         'context': {'intent': 'suppliers', 'search_type': 'comprehensive', 'analysis': True},
-        'actions': [
-            {'action': 'view-supplier-details', 'label': 'View Supplier Details'},
-            {'action': 'compare-suppliers', 'label': 'Compare Suppliers'},
-            {'action': 'contact-supplier', 'label': 'Contact Supplier'},
-            {'action': 'supplier-performance', 'label': 'Performance Analysis'},
-            {'action': 'negotiate-prices', 'label': 'Negotiate Prices'},
-            {'action': 'backup-suppliers', 'label': 'Find Backup Suppliers'},
-            {'action': 'seasonal-analysis', 'label': 'Seasonal Analysis'},
-            {'action': 'supplier-reviews', 'label': 'Read Reviews'}
-        ]
+        'actions': make_actions(language, [
+            ('view-supplier-details', 'View Supplier Details'),
+            ('compare-suppliers', 'Compare Suppliers'),
+            ('contact-supplier', 'Contact Supplier'),
+            ('supplier-performance', 'Performance Analysis'),
+            ('negotiate-prices', 'Negotiate Prices'),
+            ('backup-suppliers', 'Find Backup Suppliers'),
+            ('seasonal-analysis', 'Seasonal Analysis'),
+            ('supplier-reviews', 'Read Reviews')
+        ])
     }
 
 def get_location_based_response(language, vendor, context):
@@ -1950,7 +2091,8 @@ def get_location_based_response(language, vendor, context):
         'en': "I'll help you find suppliers near your location. Here are the closest verified suppliers:",
         'hi': "मैं आपको आपके स्थान के पास आपूर्तिकर्ता खोजने में मदद करूंगा। यहाँ सबसे नजदीकी सत्यापित आपूर्तिकर्ता हैं:",
         'bn': "আমি আপনাকে আপনার অবস্থানের কাছাকাছি সরবরাহকারী খুঁজে পেতে সাহায্য করব। এখানে সবচেয়ে কাছের যাচাইকৃত সরবরাহকারী:",
-        'ta': "உங்கள் இடத்திற்கு அருகில் சப்ளையர்களைக் கண்டுபிடிக்க உதவுவேன்। இங்கே மிக நெருக்கமான சரிபார்க்கப்பட்ட சப்ளையர்கள்:"
+        'ta': "உங்கள் இடத்திற்கு அருகில் சப்ளையர்களைக் கண்டுபிடிக்க உதவுவேன்। இங்கே மிக நெருக்கமான சரிபார்க்கப்பட்ட சப்ளையர்கள்:",
+        'mr': "मी तुमच्या ठिकाणाजवळ पुरवठादार शोधण्यात मदत करीन. इथे सर्वात जवळचे सत्यापित पुरवठादार आहेत:"
     }
     
     # Get suppliers (in a real app, you'd filter by actual location)
@@ -1968,12 +2110,12 @@ def get_location_based_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + supplier_list
         },
         'context': {'intent': 'suppliers', 'search_type': 'location'},
-        'actions': [
-            {'action': 'get-directions', 'label': 'Get Directions'},
-            {'action': 'call-supplier', 'label': 'Call Supplier'},
-            {'action': 'view-on-map', 'label': 'View on Map'},
-            {'action': 'set-location', 'label': 'Set My Location'}
-        ]
+        'actions': make_actions(language, [
+            ('get-directions', 'Get Directions'),
+            ('call-supplier', 'Call Supplier'),
+            ('view-on-map', 'View on Map'),
+            ('set-location', 'Set My Location')
+        ])
     }
 
 def get_rating_based_response(language, vendor, context):
@@ -1982,7 +2124,8 @@ def get_rating_based_response(language, vendor, context):
         'en': "Here are the top-rated suppliers based on vendor feedback:",
         'hi': "यहाँ वेंडर फीडबैक के आधार पर सबसे अधिक रेटेड आपूर्तिकर्ता हैं:",
         'bn': "এখানে বিক্রেতা প্রতিক্রিয়ার ভিত্তিতে সর্বোচ্চ রেটেড সরবরাহকারী:",
-        'ta': "விற்பனையாளர் கருத்துகளின் அடிப்படையில் மிக உயர்ந்த மதிப்பீடு பெற்ற சப்ளையர்கள்:"
+        'ta': "விற்பனையாளர் கருத்துகளின் அடிப்படையில் மிக உயர்ந்த மதிப்பீடு பெற்ற சப்ளையர்கள்:",
+        'mr': "विक्रेता अभिप्रायाच्या आधारावर सर्वोच्च रेटिंग असलेले पुरवठादार येथे आहेत:"
     }
     
     # Get top-rated suppliers
@@ -2001,12 +2144,12 @@ def get_rating_based_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + supplier_list
         },
         'context': {'intent': 'suppliers', 'search_type': 'rating'},
-        'actions': [
-            {'action': 'read-reviews', 'label': 'Read Reviews'},
-            {'action': 'contact-supplier', 'label': 'Contact Supplier'},
-            {'action': 'view-details', 'label': 'View Details'},
-            {'action': 'add-to-favorites', 'label': 'Add to Favorites'}
-        ]
+        'actions': make_actions(language, [
+            ('read-reviews', 'Read Reviews'),
+            ('contact-supplier', 'Contact Supplier'),
+            ('view-details', 'View Details'),
+            ('add-to-favorites', 'Add to Favorites')
+        ])
     }
 
 def get_price_comparison_response(language, vendor, context):
@@ -2015,7 +2158,8 @@ def get_price_comparison_response(language, vendor, context):
         'en': "I'll help you find suppliers with the best prices. Here's a price comparison:",
         'hi': "मैं आपको सबसे अच्छी कीमतों वाले आपूर्तिकर्ता खोजने में मदद करूंगा। यहाँ कीमत तुलना है:",
         'bn': "আমি আপনাকে সেরা মূল্যের সরবরাহকারী খুঁজে পেতে সাহায্য করব। এখানে মূল্য তুলনা:",
-        'ta': "சிறந்த விலைகளுடன் சப்ளையர்களைக் கண்டுபிடிக்க உதவுவேன்। இங்கே விலை ஒப்பீடு:"
+        'ta': "சிறந்த விலைகளுடன் சப்ளையர்களைக் கண்டுபிடிக்க உதவுவேன்। இங்கே விலை ஒப்பீடு:",
+        'mr': "मी तुम्हाला सर्वोत्तम किंमती असलेले पुरवठादार शोधण्यात मदत करीन. येथे किंमत तुलना आहे:"
     }
     
     # Get sample products for price comparison
@@ -2047,7 +2191,8 @@ def get_category_based_response(language, vendor, context):
         'en': "I can help you find suppliers by product category. What type of products do you need?",
         'hi': "मैं आपको उत्पाद श्रेणी के अनुसार आपूर्तिकर्ता खोजने में मदद कर सकता हूँ। आपको किस प्रकार के उत्पाद चाहिए?",
         'bn': "আমি আপনাকে পণ্যের বিভাগ অনুযায়ী সরবরাহকারী খুঁজে পেতে সাহায্য করতে পারি। আপনার কী ধরনের পণ্য প্রয়োজন?",
-        'ta': "நான் உங்களுக்கு தயாரிப்பு வகையின் அடிப்படையில் சப்ளையர்களைக் கண்டுபிடிக்க உதவ முடியும்। உங்களுக்கு என்ன வகையான தயாரிப்புகள் தேவை?"
+        'ta': "நான் உங்களுக்கு தயாரிப்பு வகையின் அடிப்படையில் சப்ளையர்களைக் கண்டுபிடிக்க உதவ முடியும்। உங்களுக்கு என்ன வகையான தயாரிப்புகள் தேவை?",
+        'mr': "मी उत्पादन श्रेणीप्रमाणे पुरवठादार शोधण्यात तुमची मदत करू शकतो. तुम्हाला कोणत्या प्रकारची उत्पादने हवी आहेत?"
     }
     
     # Get available categories
@@ -2060,12 +2205,12 @@ def get_category_based_response(language, vendor, context):
             'items': [responses.get(language, responses['en'])] + [f"• {cat}" for cat in category_list]
         },
         'context': {'intent': 'suppliers', 'search_type': 'category'},
-        'actions': [
-            {'action': 'select-category', 'label': 'Select Category'},
-            {'action': 'view-all-categories', 'label': 'View All Categories'},
-            {'action': 'mixed-order', 'label': 'Mixed Category Order'},
-            {'action': 'seasonal-products', 'label': 'Seasonal Products'}
-        ]
+        'actions': make_actions(language, [
+            ('select-category', 'Select Category'),
+            ('view-all-categories', 'View All Categories'),
+            ('mixed-order', 'Mixed Category Order'),
+            ('seasonal-products', 'Seasonal Products')
+        ])
     }
 
 def get_enhanced_delivery_response(language, vendor, message, context):
@@ -2084,7 +2229,8 @@ def get_enhanced_delivery_response(language, vendor, message, context):
         'en': "I can help you track your deliveries! Here's what I can do:",
         'hi': "मैं आपको अपनी डिलीवरी ट्रैक करने में मदद कर सकता हूँ! यहाँ मैं क्या कर सकता हूँ:",
         'bn': "আমি আপনাকে আপনার ডেলিভারি ট্র্যাক করতে সাহায্য করতে পারি! এখানে আমি যা করতে পারি:",
-        'ta': "நான் உங்கள் டெலிவரிகளைக் கண்காணிக்க உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:"
+        'ta': "நான் உங்கள் டெலிவரிகளைக் கண்காணிக்க உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:",
+        'mr': "मी तुमच्या डिलिव्हरी ट्रॅक करण्यात मदत करू शकतो! मी काय करू शकतो ते येथे आहे:"
     }
     
     delivery_info = [responses.get(language, responses['en'])]
@@ -2100,7 +2246,8 @@ def get_enhanced_delivery_response(language, vendor, message, context):
             'en': "\n🚨 URGENT DELIVERY SUPPORT:",
             'hi': "\n🚨 तत्काल डिलीवरी सहायता:",
             'bn': "\n🚨 জরুরি ডেলিভারি সহায়তা:",
-            'ta': "\n🚨 அவசர டெலிவரி ஆதரவு:"
+            'ta': "\n🚨 அவசர டெலிவரி ஆதரவு:",
+            'mr': "\n🚨 तातडीच्या डिलिव्हरीसाठी सहाय्य:"
         }
         delivery_info.append(urgent_info.get(language, urgent_info['en']))
         delivery_info.append("• Priority tracking enabled")
@@ -2112,7 +2259,8 @@ def get_enhanced_delivery_response(language, vendor, message, context):
             'en': "\n⚠️ DELAY DETECTED:",
             'hi': "\n⚠️ देरी का पता चला:",
             'bn': "\n⚠️ বিলম্ব সনাক্ত:",
-            'ta': "\n⚠️ தாமதம் கண்டறியப்பட்டது:"
+            'ta': "\n⚠️ தாமதம் கண்டறியப்பட்டது:",
+            'mr': "\n⚠️ विलंब आढळला:"
         }
         delivery_info.append(delay_info.get(language, delay_info['en']))
         delivery_info.append("• Investigating the delay")
@@ -2140,6 +2288,16 @@ def get_enhanced_delivery_response(language, vendor, message, context):
             "• भविष्य की डिलीवरी शेड्यूल करें",
             "• डिलीवरी पता बदलें",
             "• डिलीवरी समय स्लॉट अनुरोध करें"
+        ],
+        'mr': [
+            "\n📋 डिलिव्हरी पर्याय:",
+            "• सध्याच्या डिलिव्हरी ट्रॅक करा",
+            "• डिलिव्हरी इतिहास पाहा",
+            "• डिलिव्हरी सूचना मिळवा",
+            "• डिलिव्हरी पार्टनरशी संपर्क करा",
+            "• भविष्यातील डिलिव्हरी शेड्यूल करा",
+            "• डिलिव्हरी पत्ता बदला",
+            "• डिलिव्हरी वेळ स्लॉट विनंती करा"
         ]
     }
     
@@ -2151,16 +2309,16 @@ def get_enhanced_delivery_response(language, vendor, message, context):
             'items': delivery_info
         },
         'context': {'intent': 'delivery', 'urgency': is_urgent, 'has_delay': has_delay},
-        'actions': [
-            {'action': 'track-current', 'label': 'Track Current Delivery'},
-            {'action': 'delivery-history', 'label': 'Delivery History'},
-            {'action': 'delivery-settings', 'label': 'Delivery Settings'},
-            {'action': 'contact-driver', 'label': 'Contact Driver'},
-            {'action': 'urgent-delivery', 'label': 'Urgent Delivery'} if is_urgent else None,
-            {'action': 'report-delay', 'label': 'Report Delay'} if has_delay else None,
-            {'action': 'schedule-delivery', 'label': 'Schedule Delivery'},
-            {'action': 'change-address', 'label': 'Change Address'}
-        ]
+        'actions': make_actions(language, [
+            ('track-current', 'Track Current Delivery'),
+            ('delivery-history', 'Delivery History'),
+            ('delivery-settings', 'Delivery Settings'),
+            ('contact-driver', 'Contact Driver'),
+            ('urgent-delivery', 'Urgent Delivery') if is_urgent else (None, None),
+            ('report-delay', 'Report Delay') if has_delay else (None, None),
+            ('schedule-delivery', 'Schedule Delivery'),
+            ('change-address', 'Change Address')
+        ])
     }
 
 def get_enhanced_price_response(language, vendor, message, context):
@@ -2179,7 +2337,8 @@ def get_enhanced_price_response(language, vendor, message, context):
         'en': "I can help you with pricing information and market insights! Here's what I found:",
         'hi': "मैं आपको मूल्य निर्धारण जानकारी और बाजार अंतर्दृष्टि में मदद कर सकता हूँ! यहाँ मैंने जो पाया है:",
         'bn': "আমি আপনাকে মূল্য নির্ধারণের তথ্য এবং বাজার অন্তর্দৃষ্টিতে সাহায্য করতে পারি! এখানে আমি যা পেয়েছি:",
-        'ta': "நான் உங்களுக்கு விலை தகவல் மற்றும் சந்தை நுண்ணறிவில் உதவ முடியும்! இங்கே நான் கண்டறிந்தவை:"
+        'ta': "நான் உங்களுக்கு விலை தகவல் மற்றும் சந்தை நுண்ணறிவில் உதவ முடியும்! இங்கே நான் கண்டறிந்தவை:",
+        'mr': "मी किंमत माहिती आणि बाजार अंतर्दृष्टीमध्ये मदत करू शकतो! मी काय शोधले आहे:"
     }
     
     price_info = [responses.get(language, responses['en'])]
@@ -2197,7 +2356,8 @@ def get_enhanced_price_response(language, vendor, message, context):
             'en': "\n📊 PRICE COMPARISON:",
             'hi': "\n📊 मूल्य तुलना:",
             'bn': "\n📊 মূল্য তুলনা:",
-            'ta': "\n📊 விலை ஒப்பீடு:"
+            'ta': "\n📊 விலை ஒப்பீடு:",
+            'mr': "\n📊 किंमत तुलना:"
         }
         price_info.append(comparison_info.get(language, comparison_info['en']))
         price_info.append("• Tomatoes: ₹28-35/kg (Best: Krishna Mandi)")
@@ -2209,7 +2369,8 @@ def get_enhanced_price_response(language, vendor, message, context):
             'en': "\n📈 MARKET TRENDS:",
             'hi': "\n📈 बाजार रुझान:",
             'bn': "\n📈 বাজার প্রবণতা:",
-            'ta': "\n📈 சந்தை போக்குகள்:"
+            'ta': "\n📈 சந்தை போக்குகள்:",
+            'mr': "\n📈 बाजारातील प्रवृत्ती:"
         }
         price_info.append(trend_info.get(language, trend_info['en']))
         price_info.append("• Vegetable prices down 5% this week")
@@ -2221,7 +2382,8 @@ def get_enhanced_price_response(language, vendor, message, context):
             'en': "\n🔔 PRICE ALERTS:",
             'hi': "\n🔔 मूल्य अलर्ट:",
             'bn': "\n🔔 মূল্য অ্যালার্ট:",
-            'ta': "\n🔔 விலை எச்சரிக்கைகள்:"
+            'ta': "\n🔔 விலை எச்சரிக்கைகள்:",
+            'mr': "\n🔔 किंमत अलर्ट:"
         }
         price_info.append(alert_info.get(language, alert_info['en']))
         price_info.append("• Set alerts for specific products")
@@ -2235,13 +2397,15 @@ def get_enhanced_price_response(language, vendor, message, context):
                 'en': "\n🍦 ICE CREAM PRICING TIPS:",
                 'hi': "\n🍦 आइसक्रीम मूल्य निर्धारण सुझाव:",
                 'bn': "\n🍦 আইসক্রিম মূল্য নির্ধারণ টিপস:",
-                'ta': "\n🍦 ஐஸ்கிரீம் விலை நிர்ணய குறிப்புகள்:"
+                'ta': "\n🍦 ஐஸ்கிரீம் விலை நிர்ணய குறிப்புகள்:",
+                'mr': "\n🍦 आइसक्रीम किंमत टिप्स:"
             },
             'chaat': {
                 'en': "\n🌶️ CHAAT PRICING TIPS:",
                 'hi': "\n🌶️ चाट मूल्य निर्धारण सुझाव:",
                 'bn': "\n🌶️ চাট মূল্য নির্ধারণ টিপস:",
-                'ta': "\n🌶️ சாட் விலை நிர்ணய குறிப்புகள்:"
+                'ta': "\n🌶️ சாட் விலை நிர்ணய குறிப்புகள்:",
+                'mr': "\n🌶️ चाट किंमत टिप्स:"
             }
         }
         
@@ -2258,16 +2422,16 @@ def get_enhanced_price_response(language, vendor, message, context):
             'items': price_info
         },
         'context': {'intent': 'pricing', 'comparison': needs_comparison, 'alerts': wants_alerts, 'trends': wants_trends},
-        'actions': [
-            {'action': 'current-prices', 'label': 'Current Prices'},
-            {'action': 'set-alerts', 'label': 'Set Price Alerts'},
-            {'action': 'price-comparison', 'label': 'Compare Prices'},
-            {'action': 'price-trends', 'label': 'Price Trends'},
-            {'action': 'market-analysis', 'label': 'Market Analysis'},
-            {'action': 'bulk-pricing', 'label': 'Bulk Pricing'},
-            {'action': 'negotiate-price', 'label': 'Negotiate Price'},
-            {'action': 'price-history', 'label': 'Price History'}
-        ]
+        'actions': make_actions(language, [
+            ('current-prices', 'Current Prices'),
+            ('set-alerts', 'Set Price Alerts'),
+            ('price-comparison', 'Compare Prices'),
+            ('price-trends', 'Price Trends'),
+            ('market-analysis', 'Market Analysis'),
+            ('bulk-pricing', 'Bulk Pricing'),
+            ('negotiate-price', 'Negotiate Price'),
+            ('price-history', 'Price History')
+        ])
     }
 
 def get_enhanced_help_response(language, vendor, message, context):
@@ -2284,7 +2448,8 @@ def get_enhanced_product_response(language, vendor, message, context):
         'en': "I can help you find the right products for your business! Here's what I recommend:",
         'hi': "मैं आपको आपके व्यवसाय के लिए सही उत्पाद खोजने में मदद कर सकता हूँ! यहाँ मेरी सिफारिश है:",
         'bn': "আমি আপনাকে আপনার ব্যবসার জন্য সঠিক পণ্য খুঁজে পেতে সাহায্য করতে পারি! এখানে আমার সুপারিশ:",
-        'ta': "நான் உங்கள் வணிகத்திற்கு சரியான தயாரிப்புகளைக் கண்டுபிடிக்க உதவ முடியும்! இங்கே எனது பரிந்துரை:"
+        'ta': "நான் உங்கள் வணிகத்திற்கு சரியான தயாரிப்புகளைக் கண்டுபிடிக்க உதவ முடியும்! இங்கே எனது பரிந்துரை:",
+        'mr': "मी तुमच्या व्यवसायासाठी योग्य उत्पादने शोधण्यात मदत करू शकतो! माझी शिफारस येथे आहे:"
     }
     
     # Get products based on vendor's business type
@@ -2306,12 +2471,12 @@ def get_enhanced_product_response(language, vendor, message, context):
             'items': [responses.get(language, responses['en'])] + product_list
         },
         'context': {'intent': 'products'},
-        'actions': [
-            {'action': 'browse-products', 'label': 'Browse Products'},
-            {'action': 'search-products', 'label': 'Search Products'},
-            {'action': 'product-details', 'label': 'Product Details'},
-            {'action': 'add-to-cart', 'label': 'Add to Cart'}
-        ]
+        'actions': make_actions(language, [
+            ('browse-products', 'Browse Products'),
+            ('search-products', 'Search Products'),
+            ('product-details', 'Product Details'),
+            ('add-to-cart', 'Add to Cart')
+        ])
     }
 
 def get_enhanced_business_response(language, vendor, message, context):
@@ -2320,7 +2485,8 @@ def get_enhanced_business_response(language, vendor, message, context):
         'en': "I can help you with business insights and tips! Here's what I can offer:",
         'hi': "मैं आपको व्यावसायिक अंतर्दृष्टि और सुझावों में मदद कर सकता हूँ! यहाँ मैं क्या प्रदान कर सकता हूँ:",
         'bn': "আমি আপনাকে ব্যবসায়িক অন্তর্দৃষ্টি এবং টিপসে সাহায্য করতে পারি! এখানে আমি কী অফার করতে পারি:",
-        'ta': "நான் உங்களுக்கு வணிக நுண்ணறிவு மற்றும் குறிப்புகளில் உதவ முடியும்! இங்கே நான் என்ன வழங்க முடியும்:"
+        'ta': "நான் உங்களுக்கு வணிக நுண்ணறிவு மற்றும் குறிப்புகளில் உதவ முடியும்! இங்கே நான் என்ன வழங்க முடியும்:",
+        'mr': "मी व्यवसाय अंतर्दृष्ट्या आणि टिप्समध्ये मदत करू शकतो! मी काय देऊ शकतो ते येथे आहे:"
     }
     
     business_tips = {
@@ -2343,6 +2509,16 @@ def get_enhanced_business_response(language, vendor, message, context):
             "📚 शैक्षिक संसाधन",
             "🛠️ व्यावसायिक उपकरण और संसाधन",
             "📞 विशेषज्ञ परामर्श"
+        ],
+        'mr': [
+            "📊 व्यवसाय विश्लेषण आणि अंतर्दृष्टी",
+            "🎯 बाजारातील प्रवृत्ती आणि संधी",
+            "💡 उद्योगातील सर्वोत्तम पद्धती",
+            "📈 वाढीच्या रणनीती",
+            "🤝 नेटवर्किंग संधी",
+            "📚 शैक्षणिक संसाधने",
+            "🛠️ व्यवसाय साधने आणि संसाधने",
+            "📞 तज्ज्ञ सल्लामसलत"
         ]
     }
     
@@ -2352,15 +2528,15 @@ def get_enhanced_business_response(language, vendor, message, context):
             'items': [responses.get(language, responses['en'])] + business_tips.get(language, business_tips['en'])
         },
         'context': {'intent': 'business'},
-        'actions': [
-            {'action': 'business-analytics', 'label': 'Business Analytics'},
-            {'action': 'market-trends', 'label': 'Market Trends'},
-            {'action': 'best-practices', 'label': 'Best Practices'},
-            {'action': 'growth-strategies', 'label': 'Growth Strategies'},
-            {'action': 'networking', 'label': 'Networking'},
-            {'action': 'resources', 'label': 'Resources'},
-            {'action': 'consultation', 'label': 'Expert Consultation'}
-        ]
+        'actions': make_actions(language, [
+            ('business-analytics', 'Business Analytics'),
+            ('market-trends', 'Market Trends'),
+            ('best-practices', 'Best Practices'),
+            ('growth-strategies', 'Growth Strategies'),
+            ('networking', 'Networking'),
+            ('resources', 'Resources'),
+            ('consultation', 'Expert Consultation')
+        ])
     }
 
 def get_contextual_response(previous_intent, language, vendor, context):
@@ -2369,17 +2545,18 @@ def get_contextual_response(previous_intent, language, vendor, context):
         'en': f"I understand you're continuing our discussion about {previous_intent}. Let me help you further:",
         'hi': f"मैं समझता हूँ कि आप {previous_intent} के बारे में हमारी चर्चा जारी रख रहे हैं। मैं आपकी आगे मदद करूंगा:",
         'bn': f"আমি বুঝতে পারছি যে আপনি {previous_intent} সম্পর্কে আমাদের আলোচনা চালিয়ে যাচ্ছেন। আমি আপনাকে আরও সাহায্য করব:",
-        'ta': f"நீங்கள் {previous_intent} பற்றி எங்கள் விவாதத்தைத் தொடர்கிறீர்கள் என்பதை நான் புரிகிறேன்। நான் உங்களுக்கு மேலும் உதவுவேன்:"
+        'ta': f"நீங்கள் {previous_intent} பற்றி எங்கள் விவாதத்தைத் தொடர்கிறீர்கள் என்பதை நான் புரிகிறேன்। நான் உங்களுக்கு மேலும் உதவுவேன்:",
+        'mr': f"मला समजते की तुम्ही {previous_intent} बद्दलची चर्चा पुढे चालू ठेवत आहात. मी आणखी मदत करतो:"
     }
     
     return {
         'message': responses.get(language, responses['en']),
         'context': {'intent': previous_intent, 'follow_up': True},
-        'actions': [
-            {'action': f'{previous_intent}-details', 'label': f'More {previous_intent.title()}'},
-            {'action': 'related-topics', 'label': 'Related Topics'},
-            {'action': 'start-over', 'label': 'Start Over'}
-        ]
+        'actions': make_actions(language, [
+            (f'{previous_intent}-details', f'More {previous_intent.title()}'),
+            ('related-topics', 'Related Topics'),
+            ('start-over', 'Start Over')
+        ])
     }
 
 def get_enhanced_order_response(language, vendor, message, context):
@@ -2398,7 +2575,8 @@ def get_enhanced_order_response(language, vendor, message, context):
         'en': "I can help you place an order! Let me guide you through the process:",
         'hi': "मैं आपको ऑर्डर देने में मदद कर सकता हूँ! मैं आपको प्रक्रिया के माध्यम से मार्गदर्शन करूंगा:",
         'bn': "আমি আপনাকে অর্ডার দিতে সাহায্য করতে পারি! আমি আপনাকে প্রক্রিয়ার মাধ্যমে গাইড করব:",
-        'ta': "நான் உங்களுக்கு ஆர்டர் செய்ய உதவ முடியும்! நான் உங்களை செயல்முறை வழியாக வழிநடத்துவேன்:"
+        'ta': "நான் உங்களுக்கு ஆர்டர் செய்ய உதவ முடியும்! நான் உங்களை செயல்முறை வழியாக வழிநடத்துவேன்:",
+        'mr': "मी तुम्हाला ऑर्डर देण्यात मदत करू शकतो! मी तुम्हाला प्रक्रियेत मार्गदर्शन करतो:"
     }
     
     order_info = [responses.get(language, responses['en'])]
@@ -2409,7 +2587,8 @@ def get_enhanced_order_response(language, vendor, message, context):
             'en': "\n🚨 URGENT ORDER DETECTED:",
             'hi': "\n🚨 तत्काल ऑर्डर का पता चला:",
             'bn': "\n🚨 জরুরি অর্ডার সনাক্ত:",
-            'ta': "\n🚨 அவசர ஆர்டர் கண்டறியப்பட்டது:"
+            'ta': "\n🚨 அவசர ஆர்டர் கண்டறியப்பட்டது:",
+            'mr': "\n🚨 तातडीचा ऑर्डर आढळला:"
         }
         order_info.append(urgent_info.get(language, urgent_info['en']))
         order_info.append("• Same-day delivery available")
@@ -2422,7 +2601,8 @@ def get_enhanced_order_response(language, vendor, message, context):
             'en': "\n📦 BULK ORDER BENEFITS:",
             'hi': "\n📦 बल्क ऑर्डर लाभ:",
             'bn': "\n📦 বাল্ক অর্ডার সুবিধা:",
-            'ta': "\n📦 மொத்த ஆர்டர் நன்மைகள்:"
+            'ta': "\n📦 மொத்த ஆர்டர் நன்மைகள்:",
+            'mr': "\n📦 मोठ्या ऑर्डरचे फायदे:"
         }
         order_info.append(bulk_info.get(language, bulk_info['en']))
         order_info.append("• Up to 15% discount on bulk orders")
@@ -2469,6 +2649,14 @@ def get_enhanced_order_response(language, vendor, message, context):
             "• மொத்த தள்ளுபடிக்கு குழு ஆர்டர் உருவாக்குங்கள்",
             "• உங்கள் ஆர்டர் வரலாற்றைப் பாருங்கள்",
             "• தற்போதைய ஆர்டர்களைக் கண்காணிக்கவும்"
+        ],
+        'mr': [
+            "\n📋 ऑर्डर पर्याय:",
+            "• श्रेणीनुसार उत्पादने ब्राउझ करा",
+            "• विशिष्ट आयटम शोधा",
+            "• मोठ्या सवलतींसाठी ग्रुप ऑर्डर तयार करा",
+            "• तुमचा ऑर्डर इतिहास पाहा",
+            "• सध्याचे ऑर्डर ट्रॅक करा"
         ]
     }
     
@@ -2504,16 +2692,16 @@ def get_enhanced_order_response(language, vendor, message, context):
             'items': order_info
         },
         'context': {'intent': 'orders', 'urgency': is_urgent, 'bulk': is_bulk},
-        'actions': [
-            {'action': 'browse-products', 'label': 'Browse Products'},
-            {'action': 'search-products', 'label': 'Search Products'},
-            {'action': 'create-group-order', 'label': 'Create Group Order'},
-            {'action': 'view-orders', 'label': 'View Orders'},
-            {'action': 'urgent-order', 'label': 'Urgent Order'} if is_urgent else None,
-            {'action': 'bulk-order', 'label': 'Bulk Order'} if is_bulk else None,
-            {'action': 'price-check', 'label': 'Check Prices'},
-            {'action': 'stock-check', 'label': 'Check Stock'}
-        ]
+        'actions': make_actions(language, [
+            ('browse-products', 'Browse Products'),
+            ('search-products', 'Search Products'),
+            ('create-group-order', 'Create Group Order'),
+            ('view-orders', 'View Orders'),
+            ('urgent-order', 'Urgent Order') if is_urgent else (None, None),
+            ('bulk-order', 'Bulk Order') if is_bulk else (None, None),
+            ('price-check', 'Check Prices'),
+            ('stock-check', 'Check Stock')
+        ])
     }
 
 def get_delivery_response(language, vendor):
@@ -2522,7 +2710,8 @@ def get_delivery_response(language, vendor):
         'en': "I can help you track your delivery! Here's what I can do:",
         'hi': "मैं आपको अपनी डिलीवरी ट्रैक करने में मदद कर सकता हूँ! यहाँ मैं क्या कर सकता हूँ:",
         'bn': "আমি আপনাকে আপনার ডেলিভারি ট্র্যাক করতে সাহায্য করতে পারি! এখানে আমি যা করতে পারি:",
-        'ta': "நான் உங்கள் டெலிவரியைக் கண்காணிக்க உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:"
+        'ta': "நான் உங்கள் டெலிவரியைக் கண்காணிக்க உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:",
+        'mr': "मी तुमची डिलिव्हरी ट्रॅक करण्यात मदत करू शकतो! मी काय करू शकतो ते येथे आहे:"
     }
     
     delivery_options = {
@@ -2549,6 +2738,12 @@ def get_delivery_response(language, vendor):
             "டெலிவரி வரலாற்றைப் பாருங்கள்",
             "டெலிவரி அறிவிப்புகளைப் பெறுங்கள்",
             "டெலிவரி பங்குதாரருடன் தொடர்பு கொள்ளுங்கள்"
+        ],
+        'mr': [
+            "तुमची सध्याची डिलिव्हरी ट्रॅक करा",
+            "डिलिव्हरी इतिहास पाहा",
+            "डिलिव्हरी नोटिफिकेशन्स मिळवा",
+            "डिलिव्हरी पार्टनरशी संपर्क करा"
         ]
     }
     
@@ -2558,11 +2753,11 @@ def get_delivery_response(language, vendor):
             'items': [responses.get(language, responses['en'])] + delivery_options.get(language, delivery_options['en'])
         },
         'context': {'intent': 'delivery'},
-        'actions': [
-            {'action': 'track-current', 'label': 'Track Current Delivery'},
-            {'action': 'delivery-history', 'label': 'Delivery History'},
-            {'action': 'delivery-settings', 'label': 'Delivery Settings'}
-        ]
+        'actions': make_actions(language, [
+            ('track-current', 'Track Current Delivery'),
+            ('delivery-history', 'Delivery History'),
+            ('delivery-settings', 'Delivery Settings')
+        ])
     }
 
 def get_price_response(language, vendor):
@@ -2571,7 +2766,8 @@ def get_price_response(language, vendor):
         'en': "I can help you with pricing information! Here's what I can do:",
         'hi': "मैं आपको मूल्य निर्धारण जानकारी में मदद कर सकता हूँ! यहाँ मैं क्या कर सकता हूँ:",
         'bn': "আমি আপনাকে মূল্য নির্ধারণের তথ্যে সাহায্য করতে পারি! এখানে আমি যা করতে পারি:",
-        'ta': "நான் உங்களுக்கு விலை தகவலில் உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:"
+        'ta': "நான் உங்களுக்கு விலை தகவலில் உதவ முடியும்! இங்கே நான் என்ன செய்ய முடியும்:",
+        'mr': "मी किंमत माहितीत मदत करू शकतो! मी काय करू शकतो ते येथे आहे:"
     }
     
     price_options = {
@@ -2598,6 +2794,12 @@ def get_price_response(language, vendor):
             "விலை எச்சரிக்கைகளை அமைக்கவும்",
             "சப்ளையர்களிடையே விலைகளை ஒப்பிடுங்கள்",
             "விலை போக்குகளைப் பாருங்கள்"
+        ],
+        'mr': [
+            "सध्याचे बाजार भाव दाखवा",
+            "किंमत अलर्ट सेट करा",
+            "पुरवठादारांमध्ये किंमतींची तुलना करा",
+            "किंमतींचे ट्रेंड पाहा"
         ]
     }
     
@@ -2607,12 +2809,12 @@ def get_price_response(language, vendor):
             'items': [responses.get(language, responses['en'])] + price_options.get(language, price_options['en'])
         },
         'context': {'intent': 'pricing'},
-        'actions': [
-            {'action': 'current-prices', 'label': 'Current Prices'},
-            {'action': 'set-alerts', 'label': 'Set Price Alerts'},
-            {'action': 'price-comparison', 'label': 'Compare Prices'},
-            {'action': 'price-trends', 'label': 'Price Trends'}
-        ]
+        'actions': make_actions(language, [
+            ('current-prices', 'Current Prices'),
+            ('set-alerts', 'Set Price Alerts'),
+            ('price-comparison', 'Compare Prices'),
+            ('price-trends', 'Price Trends')
+        ])
     }
 
 def get_help_response(language, vendor):
@@ -2621,7 +2823,8 @@ def get_help_response(language, vendor):
         'en': "I'm here to help! Here are the main things I can assist you with:",
         'hi': "मैं मदद के लिए यहाँ हूँ! यहाँ मुख्य चीजें हैं जिनमें मैं आपकी मदद कर सकता हूँ:",
         'bn': "আমি সাহায্যের জন্য এখানে আছি! এখানে প্রধান বিষয়গুলি রয়েছে যাতে আমি আপনাকে সাহায্য করতে পারি:",
-        'ta': "நான் உதவிக்காக இங்கே இருக்கிறேன்! இங்கே முக்கிய விஷயங்கள் உள்ளன, அதில் நான் உங்களுக்கு உதவ முடியும்:"
+        'ta': "நான் உதவிக்காக இங்கே இருக்கிறேன்! இங்கே முக்கிய விஷயங்கள் உள்ளன, அதில் நான் உங்களுக்கு உதவ முடியும்:",
+        'mr': "मी मदतीसाठी येथे आहे! मी तुम्हाला ज्या मुख्य गोष्टींमध्ये मदत करू शकतो त्या येथे आहेत:"
     }
     
     help_topics = {
@@ -2656,6 +2859,14 @@ def get_help_response(language, vendor):
             "விலை எச்சரிக்கைகள் மற்றும் அறிவிப்புகளை நிர்வகித்தல்",
             "கணக்கு அமைப்புகள் மற்றும் சுயவிவர நிர்வாகம்",
             "ஆதரவு பெறுதல் மற்றும் பிரச்சினைகளைத் தீர்ப்பது"
+        ],
+        'mr': [
+            "पुरवठादार शोधणे आणि त्यांच्याशी जोडणे",
+            "वैयक्तिक आणि समूह ऑर्डर देणे",
+            "डिलिव्हरी आणि शिपमेंट ट्रॅक करणे",
+            "किंमत अलर्ट आणि नोटिफिकेशन्स व्यवस्थापित करणे",
+            "अकाउंट सेटिंग्स आणि प्रोफाइल व्यवस्थापन",
+            "सहाय्य मिळवणे आणि समस्या सोडवणे"
         ]
     }
     
@@ -2665,12 +2876,12 @@ def get_help_response(language, vendor):
             'items': [responses.get(language, responses['en'])] + help_topics.get(language, help_topics['en'])
         },
         'context': {'intent': 'help'},
-        'actions': [
-            {'action': 'contact-support', 'label': 'Contact Support'},
-            {'action': 'faq', 'label': 'View FAQ'},
-            {'action': 'tutorial', 'label': 'Watch Tutorial'},
-            {'action': 'feedback', 'label': 'Send Feedback'}
-        ]
+        'actions': make_actions(language, [
+            ('contact-support', 'Contact Support'),
+            ('faq', 'View FAQ'),
+            ('tutorial', 'Watch Tutorial'),
+            ('feedback', 'Send Feedback')
+        ])
     }
 
 def get_account_response(language, vendor):
@@ -2680,23 +2891,25 @@ def get_account_response(language, vendor):
             'en': "You need to log in to access your account features. Would you like to log in?",
             'hi': "अपने खाता फीचर्स तक पहुँचने के लिए आपको लॉग इन करना होगा। क्या आप लॉग इन करना चाहते हैं?",
             'bn': "আপনার অ্যাকাউন্ট ফিচার অ্যাক্সেস করতে আপনাকে লগ ইন করতে হবে। আপনি কি লগ ইন করতে চান?",
-            'ta': "உங்கள் கணக்கு அம்சங்களை அணுக நீங்கள் உள்நுழைய வேண்டும்। நீங்கள் உள்நுழைய விரும்புகிறீர்களா?"
+            'ta': "உங்கள் கணக்கு அம்சங்களை அணுக நீங்கள் உள்நுழைய வேண்டும்। நீங்கள் உள்நுழைய விரும்புகிறீர்களா?",
+            'mr': "तुमच्या खात्याची वैशिष्ट्ये वापरण्यासाठी तुम्हाला लॉग इन करणे आवश्यक आहे. तुम्हाला लॉग इन करायचे आहे का?"
         }
         
         return {
             'message': responses.get(language, responses['en']),
             'context': {'intent': 'account', 'requires_login': True},
-            'actions': [
-                {'action': 'login', 'label': 'Log In'},
-                {'action': 'register', 'label': 'Register'}
-            ]
+            'actions': make_actions(language, [
+                ('login', 'Log In'),
+                ('register', 'Register')
+            ])
         }
     
     responses = {
         'en': f"Welcome back, {vendor.name}! Here's your account overview:",
         'hi': f"वापस स्वागत है, {vendor.name}! यहाँ आपका खाता अवलोकन है:",
         'bn': f"ফিরে স্বাগতম, {vendor.name}! এখানে আপনার অ্যাকাউন্ট ওভারভিউ:",
-        'ta': f"மீண்டும் வரவேற்கிறோம், {vendor.name}! இங்கே உங்கள் கணக்கு கண்ணோட்டம்:"
+        'ta': f"மீண்டும் வரவேற்கிறோம், {vendor.name}! இங்கே உங்கள் கணக்கு கண்ணோட்டம்:",
+        'mr': f"पुन्हा स्वागत आहे, {vendor.name}! येथे तुमच्या खात्याचा आढावा आहे:"
     }
     
     account_info = {
@@ -2735,6 +2948,15 @@ def get_account_response(language, vendor):
             "சுயவிவர தகவலைப் புதுப்பிக்கவும்",
             "கடவுச்சொல்லை மாற்றவும்",
             "அறிவிப்புகளை நிர்வகிக்கவும்"
+        ],
+        'mr': [
+            f"व्यवसाय प्रकार: {vendor.business_type.title()}",
+            f"स्थान: {vendor.location}",
+            f"फोन: {vendor.phone}",
+            "तुमचा ऑर्डर इतिहास पहा",
+            "प्रोफाइल माहिती अपडेट करा",
+            "पासवर्ड बदला",
+            "नोटिफिकेशन्स व्यवस्थापित करा"
         ]
     }
     
@@ -2744,12 +2966,12 @@ def get_account_response(language, vendor):
             'items': [responses.get(language, responses['en'])] + account_info.get(language, account_info['en'])
         },
         'context': {'intent': 'account', 'vendor_id': vendor.id},
-        'actions': [
-            {'action': 'view-profile', 'label': 'View Profile'},
-            {'action': 'edit-profile', 'label': 'Edit Profile'},
-            {'action': 'order-history', 'label': 'Order History'},
-            {'action': 'settings', 'label': 'Settings'}
-        ]
+        'actions': make_actions(language, [
+            ('view-profile', 'View Profile'),
+            ('edit-profile', 'Edit Profile'),
+            ('order-history', 'Order History'),
+            ('settings', 'Settings')
+        ])
     }
 
 def get_intelligent_default_response(language, vendor, message, context):
@@ -2776,7 +2998,8 @@ def get_intelligent_default_response(language, vendor, message, context):
             'en': f"I can see you're interested in {', '.join(keywords_found)}. Let me help you with that:",
             'hi': f"मैं देख सकता हूँ कि आप {', '.join(keywords_found)} में रुचि रखते हैं। मैं आपकी मदद करूंगा:",
             'bn': f"আমি দেখতে পাচ্ছি যে আপনি {', '.join(keywords_found)} নিয়ে আগ্রহী। আমি আপনাকে সাহায্য করব:",
-            'ta': f"நீங்கள் {', '.join(keywords_found)} பற்றி ஆர்வமாக இருப்பதை நான் பார்க்கிறேன்। நான் உங்களுக்கு உதவுவேன்:"
+            'ta': f"நீங்கள் {', '.join(keywords_found)} பற்றி ஆர்வமாக இருப்பதை நான் பார்க்கிறேன்। நான் உங்களுக்கு உதவுவேன்:",
+            'mr': f"मी पाहतोय की तुम्हाला {', '.join(keywords_found)} मध्ये रस आहे. मी त्यात तुमची मदत करतो:"
         }
         
         base_message = responses.get(language, responses['en'])
@@ -2841,7 +3064,8 @@ def get_intelligent_default_response(language, vendor, message, context):
         'en': "I'm here to help you with your business needs! Here are some things I can assist you with:",
         'hi': "मैं आपकी व्यावसायिक जरूरतों में आपकी मदद करने के लिए यहाँ हूँ! यहाँ कुछ चीजें हैं जिनमें मैं आपकी मदद कर सकता हूँ:",
         'bn': "আমি আপনার ব্যবসায়িক প্রয়োজনে সাহায্য করতে এখানে আছি! এখানে কিছু বিষয় রয়েছে যাতে আমি আপনাকে সাহায্য করতে পারি:",
-        'ta': "உங்கள் வணிகத் தேவைகளுக்கு உதவ நான் இங்கே இருக்கிறேன்! இங்கே சில விஷயங்கள் உள்ளன, அதில் நான் உங்களுக்கு உதவ முடியும்:"
+        'ta': "உங்கள் வணிகத் தேவைகளுக்கு உதவ நான் இங்கே இருக்கிறேன்! இங்கே சில விஷயங்கள் உள்ளன, அதில் நான் உங்களுக்கு உதவ முடியும்:",
+        'mr': "मी तुमच्या व्यावसायिक गरजांसाठी मदत करण्यासाठी येथे आहे! मी ज्या गोष्टींमध्ये मदत करू शकतो त्या येथे आहेत:"
     }
     
     general_options = {
@@ -2884,6 +3108,16 @@ def get_intelligent_default_response(language, vendor, message, context):
             "📞 ஆதரவு பெறுதல் மற்றும் பிரச்சினைகளைத் தீர்ப்பது",
             "📊 வணிக பகுப்பாய்வு மற்றும் நுண்ணறிவு",
             "🎯 சந்தை போக்குகள் மற்றும் வாய்ப்புகள்"
+        ],
+        'mr': [
+            "🔍 पुरवठादार शोधणे आणि त्यांच्याशी जोडणे",
+            "🛒 वैयक्तिक आणि समूह ऑर्डर देणे",
+            "📦 डिलिव्हरी आणि शिपमेंट ट्रॅक करणे",
+            "💰 किंमत अलर्ट आणि नोटिफिकेशन्स व्यवस्थापित करणे",
+            "👤 अकाउंट सेटिंग्स आणि प्रोफाइल व्यवस्थापन",
+            "📞 सहाय्य मिळवणे आणि समस्या सोडवणे",
+            "📊 व्यवसाय विश्लेषण आणि अंतर्दृष्टी",
+            "🎯 बाजारातील प्रवृत्ती आणि संधी"
         ]
     }
     
@@ -2893,7 +3127,8 @@ def get_intelligent_default_response(language, vendor, message, context):
             'en': f"\n\n👋 Hi {vendor.name}! Since you're in the {vendor.business_type} business, here are some personalized suggestions:",
             'hi': f"\n\n👋 नमस्ते {vendor.name}! चूंकि आप {vendor.business_type} व्यवसाय में हैं, यहाँ कुछ व्यक्तिगत सुझाव हैं:",
             'bn': f"\n\n👋 হাই {vendor.name}! যেহেতু আপনি {vendor.business_type} ব্যবসায় আছেন, এখানে কিছু ব্যক্তিগত পরামর্শ:",
-            'ta': f"\n\n👋 வணக்கம் {vendor.name}! நீங்கள் {vendor.business_type} வணிகத்தில் இருப்பதால், இங்கே சில தனிப்பட்ட பரிந்துரைகள்:"
+            'ta': f"\n\n👋 வணக்கம் {vendor.name}! நீங்கள் {vendor.business_type} வணிகத்தில் இருப்பதால், இங்கே சில தனிப்பட்ட பரிந்துரைகள்:",
+            'mr': f"\n\n👋 हाय {vendor.name}! तुम्ही {vendor.business_type} व्यवसायात असल्यामुळे, येथे काही वैयक्तिक सूचना आहेत:"
         }
         
         business_specific_tips = {
@@ -2907,6 +3142,11 @@ def get_intelligent_default_response(language, vendor, message, context):
                     "• गुणवत्ता के लिए डेयरी आपूर्तिकर्ता रेटिंग जांचें",
                     "• नए स्वादों के लिए मौसमी फल ऑर्डर करें",
                     "• तापमान-संवेदनशील डिलीवरी की निगरानी करें"
+                ],
+                'mr': [
+                    "• गुणवत्ता सुनिश्चित करण्यासाठी डेअरी पुरवठादारांचे रेटिंग तपासा",
+                    "• नवीन फ्लेवर्ससाठी हंगामी फळांची ऑर्डर करा",
+                    "• तापमान-संवेदनशील डिलिव्हरीचे निरीक्षण करा"
                 ]
             },
             'chaat': {
@@ -2919,6 +3159,11 @@ def get_intelligent_default_response(language, vendor, message, context):
                     "• दैनिक ताजी सब्जियां सोर्स करें",
                     "• प्रामाणिक मसाला आपूर्तिकर्ता खोजें",
                     "• शाम के पीक घंटों की योजना बनाएं"
+                ],
+                'mr': [
+                    "• दररोज ताजी भाजीपाला सोर्स करा",
+                    "• पारंपरिक मसाल्यांचे पुरवठादार शोधा",
+                    "• संध्याकाळच्या पीक तासांसाठी योजना करा"
                 ]
             }
         }
@@ -2936,16 +3181,16 @@ def get_intelligent_default_response(language, vendor, message, context):
             'items': [responses.get(language, responses['en'])] + general_options.get(language, general_options['en'])
         },
         'context': {'intent': 'unclear', 'general_help': True},
-        'actions': [
-            {'action': 'find-suppliers', 'label': 'Find Suppliers'},
-            {'action': 'place-order', 'label': 'Place Order'},
-            {'action': 'track-delivery', 'label': 'Track Delivery'},
-            {'action': 'price-alerts', 'label': 'Price Alerts'},
-            {'action': 'account-settings', 'label': 'Account Settings'},
-            {'action': 'contact-support', 'label': 'Contact Support'},
-            {'action': 'business-analytics', 'label': 'Business Analytics'},
-            {'action': 'market-trends', 'label': 'Market Trends'}
-        ]
+        'actions': make_actions(language, [
+            ('find-suppliers', 'Find Suppliers'),
+            ('place-order', 'Place Order'),
+            ('track-delivery', 'Track Delivery'),
+            ('price-alerts', 'Price Alerts'),
+            ('account-settings', 'Account Settings'),
+            ('contact-support', 'Contact Support'),
+            ('business-analytics', 'Business Analytics'),
+            ('market-trends', 'Market Trends')
+        ])
     }
 
 @app.route('/chatbot')

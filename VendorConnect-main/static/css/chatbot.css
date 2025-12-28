@@ -1,5 +1,11 @@
 /* VendorConnect Chatbot Styles */
 
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap');
+
+* {
+    font-family: 'Poppins', 'Noto Sans', 'Noto Sans Devanagari', sans-serif;
+}
+
 /* Chatbot Container */
 .chatbot-container {
     position: fixed;
@@ -16,6 +22,7 @@
     transform: translateY(100%);
     transition: transform 0.3s ease;
     overflow: hidden;
+    font-family: 'Poppins', 'Noto Sans', 'Noto Sans Devanagari', sans-serif;
 }
 
 /* Ensure proper height distribution */
@@ -358,12 +365,16 @@
     border: 2px solid #e9ecef;
     border-radius: 18px;
     padding: 6px 12px;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     color: #495057;
     min-width: 45px;
+    font-family: 'Noto Sans Devanagari', 'Noto Sans', 'Poppins', sans-serif;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 .lang-btn.active,

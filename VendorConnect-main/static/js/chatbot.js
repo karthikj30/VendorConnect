@@ -18,6 +18,11 @@ class VendorConnectChatbot {
         this.setupEventListeners();
         this.loadConversationHistory();
         this.setupLanguageSupport();
+        this.updateUIText();
+        this.updateQuickActionLabels();
+        document.querySelectorAll('.lang-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.querySelector(`[data-lang="${this.currentLanguage}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
     }
 
     setupElements() {
@@ -72,7 +77,11 @@ class VendorConnectChatbot {
                     findSuppliers: 'Find Suppliers',
                     placeOrder: 'Place Order',
                     trackDelivery: 'Track Delivery',
-                    priceAlerts: 'Price Alerts'
+                    priceAlerts: 'Price Alerts',
+                    businessTips: 'Business Tips',
+                    accountHelp: 'Account Help',
+                    marketTrends: 'Market Trends',
+                    contactSupport: 'Contact Support'
                 }
             },
             hi: {
@@ -84,7 +93,11 @@ class VendorConnectChatbot {
                     findSuppliers: 'आपूर्तिकर्ता खोजें',
                     placeOrder: 'ऑर्डर दें',
                     trackDelivery: 'डिलीवरी ट्रैक करें',
-                    priceAlerts: 'मूल्य अलर्ट'
+                    priceAlerts: 'मूल्य अलर्ट',
+                    businessTips: 'व्यवसाय टिप्स',
+                    accountHelp: 'खाता सहायता',
+                    marketTrends: 'बाज़ार रुझान',
+                    contactSupport: 'सहायता से संपर्क करें'
                 }
             },
             bn: {
@@ -96,7 +109,11 @@ class VendorConnectChatbot {
                     findSuppliers: 'সরবরাহকারী খুঁজুন',
                     placeOrder: 'অর্ডার দিন',
                     trackDelivery: 'ডেলিভারি ট্র্যাক করুন',
-                    priceAlerts: 'মূল্য সতর্কতা'
+                    priceAlerts: 'মূল্য সতর্কতা',
+                    businessTips: 'ব্যবসায়িক টিপস',
+                    accountHelp: 'অ্যাকাউন্ট সহায়তা',
+                    marketTrends: 'বাজার প্রবণতা',
+                    contactSupport: 'সহায়তার সাথে যোগাযোগ করুন'
                 }
             },
             ta: {
@@ -108,7 +125,28 @@ class VendorConnectChatbot {
                     findSuppliers: 'சப்ளையர்களைக் கண்டறியவும்',
                     placeOrder: 'ஆர்டர் செய்யவும்',
                     trackDelivery: 'டெலிவரியைக் கண்காணிக்கவும்',
-                    priceAlerts: 'விலை எச்சரிக்கைகள்'
+                    priceAlerts: 'விலை எச்சரிக்கைகள்',
+                    businessTips: 'வணிக குறிப்புகள்',
+                    accountHelp: 'கணக்கு உதவி',
+                    marketTrends: 'சந்தை போக்குகள்',
+                    contactSupport: 'ஆதரவை தொடர்பு கொள்ள'
+                }
+            }
+            ,
+            mr: {
+                placeholder: 'इथे आपला संदेश टाइप करा...',
+                typing: 'सहायक टाइप करत आहे...',
+                voiceError: 'व्हॉइस इनपुट अयशस्वी. कृपया पुन्हा प्रयत्न करा.',
+                processing: 'आपला विनंती प्रक्रिया करत आहे...',
+                quickActions: {
+                    findSuppliers: 'पुरवठादार शोधा',
+                    placeOrder: 'ऑर्डर करा',
+                    trackDelivery: 'डिलिव्हरी ट्रॅक करा',
+                    priceAlerts: 'किंमत अलर्ट',
+                    businessTips: 'व्यवसाय टिप्स',
+                    accountHelp: 'अकाउंट मदत',
+                    marketTrends: 'बाजारातील प्रवृत्ती',
+                    contactSupport: 'सपोर्टशी संपर्क करा'
                 }
             }
         };
@@ -293,7 +331,7 @@ class VendorConnectChatbot {
             this.recognition.lang = this.getLanguageCode(lang);
         }
         
-        // Update UI text
+        // Update UI text and quick action labels
         this.updateUIText();
         
         // Send language change to backend
@@ -305,7 +343,8 @@ class VendorConnectChatbot {
             'en': 'en-US',
             'hi': 'hi-IN',
             'bn': 'bn-IN',
-            'ta': 'ta-IN'
+            'ta': 'ta-IN',
+            'mr': 'mr-IN'
         };
         return codes[lang] || 'en-US';
     }
@@ -313,6 +352,34 @@ class VendorConnectChatbot {
     updateUIText() {
         const t = this.translations[this.currentLanguage];
         this.typingIndicator.querySelector('.typing-text').textContent = t.typing;
+        this.updateQuickActionLabels();
+    }
+
+    updateQuickActionLabels() {
+        const t = this.translations[this.currentLanguage];
+        if (t && t.quickActions) {
+            const actionMap = {
+                'find-suppliers': 'findSuppliers',
+                'place-order': 'placeOrder',
+                'track-delivery': 'trackDelivery',
+                'price-alerts': 'priceAlerts',
+                'business-tips': 'businessTips',
+                'account-help': 'accountHelp',
+                'market-trends': 'marketTrends',
+                'contact-support': 'contactSupport'
+            };
+            
+            document.querySelectorAll('.quick-action-btn').forEach(btn => {
+                const action = btn.dataset.action;
+                const key = actionMap[action];
+                if (key && t.quickActions[key]) {
+                    const span = btn.querySelector('span');
+                    if (span) {
+                        span.textContent = t.quickActions[key];
+                    }
+                }
+            });
+        }
     }
 
     showTypingIndicator() {
