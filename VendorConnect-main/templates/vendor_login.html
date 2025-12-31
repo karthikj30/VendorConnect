@@ -70,6 +70,54 @@
             border-color: #667eea;
         }
 
+        /* Input with icon (eye) */
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon input {
+            padding-right: 42px; /* space for the icon */
+        }
+
+        .toggle-password {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.04);
+            border: none;
+            cursor: pointer;
+            color: #667eea;
+            padding: 6px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1; /* visible by default */
+            transition: transform 120ms ease, opacity 120ms ease;
+            pointer-events: auto;
+            border-radius: 6px;
+        }
+
+        .toggle-password:hover,
+        .toggle-password:active,
+        .toggle-password:focus,
+        .toggle-password.visible {
+            opacity: 1;
+            transform: translateY(-50%) scale(1.03);
+        }
+
+        .toggle-password:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.18);
+        }
+
+        .dark-mode .toggle-password {
+            color: #ffd700;
+            opacity: 1;
+            background: rgba(255,215,0,0.06);
+        }
+
         .btn {
             width: 100%;
             padding: 12px;
@@ -291,7 +339,10 @@
             
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="Enter your password">
+                <div class="input-with-icon">
+                    <input type="password" id="password" name="password" required placeholder="Enter your password">
+                    <button type="button" class="toggle-password" data-target="password" aria-label="Toggle password visibility" aria-pressed="false"><i class="fas fa-eye"></i></button>
+                </div>
             </div>
             
             <div class="form-group" style="text-align: right; margin-bottom: 1rem;">
@@ -404,6 +455,60 @@
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('loginBtn').disabled = false;
             }
+        });
+
+        // Toggle password visibility only while the icon is pressed (press-and-hold)
+        document.querySelectorAll('.toggle-password').forEach(btn => {
+            const targetId = btn.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (!input) return;
+
+            const show = () => {
+                input.type = 'text';
+                btn.classList.add('visible');
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                btn.setAttribute('aria-pressed', 'true');
+            };
+
+            const hide = () => {
+                input.type = 'password';
+                btn.classList.remove('visible');
+                btn.innerHTML = '<i class="fas fa-eye"></i>';
+                btn.setAttribute('aria-pressed', 'false');
+            };
+
+            // Pointer events (mouse and stylus)
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // keep focus on input
+                show();
+            });
+            btn.addEventListener('pointerup', hide);
+            btn.addEventListener('pointercancel', hide);
+            btn.addEventListener('pointerleave', hide);
+
+            // Touch events (some older browsers)
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); show(); }, { passive: false });
+            btn.addEventListener('touchend', hide);
+            btn.addEventListener('touchcancel', hide);
+
+            // Keyboard accessibility: hold Space or Enter to show while pressed
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    show();
+                }
+            });
+            btn.addEventListener('keyup', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    hide();
+                }
+            });
+
+            // Hide on blur or any focus change
+            btn.addEventListener('blur', hide);
+
+            // Ensure it's hidden state is set
+            hide();
         });
 
         // Phone number formatting

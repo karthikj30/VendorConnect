@@ -74,6 +74,55 @@
             transition: border-color 0.3s;
         }
 
+        /* Input with icon (eye) */
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon input {
+            padding-right: 42px; /* space for the icon */
+        }
+
+        .toggle-password {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.04);
+            border: none;
+            cursor: pointer;
+            color: #667eea;
+            padding: 6px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1; /* visible by default */
+            transition: transform 120ms ease, opacity 120ms ease;
+            pointer-events: auto;
+            border-radius: 6px;
+        }
+
+        /* hover / active / focus visual feedback */
+        .toggle-password:hover,
+        .toggle-password:active,
+        .toggle-password:focus,
+        .toggle-password.visible {
+            opacity: 1;
+            transform: translateY(-50%) scale(1.03);
+        }
+
+        .toggle-password:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.18);
+        }
+
+        .dark-mode .toggle-password {
+            color: #ffd700;
+            opacity: 1;
+            background: rgba(255,215,0,0.06);
+        }
+
         .form-group input:focus, .form-group select:focus {
             outline: none;
             border-color: #667eea;
@@ -305,22 +354,33 @@
                     <option value="other">Other</option>
                 </select>
             </div>
+
+            <div class="form-group full-width" id="other_business_group" style="display: none;">
+                <label for="other_business">Please specify your stall</label>
+                <input type="text" id="other_business" name="other_business" placeholder="e.g., Pav Bhaji Stall">
+            </div> 
             
             <div class="form-group">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" required placeholder="Create a strong password">
+                <div class="input-with-icon">
+                    <input type="password" id="password" name="password" required placeholder="Create a strong password" aria-describedby="passwordRequirements">
+                    <button type="button" class="toggle-password" data-target="password" aria-label="Toggle password visibility" aria-pressed="false"><i class="fas fa-eye"></i></button>
+                </div>
                 <div class="password-requirements" id="passwordRequirements">
                     <div class="requirement unmet" id="length">At least 8 characters</div>
                     <div class="requirement unmet" id="uppercase">At least 1 uppercase letter</div>
                     <div class="requirement unmet" id="lowercase">At least 1 lowercase letter</div>
                     <div class="requirement unmet" id="number">At least 1 number</div>
                 </div>
-            </div>
+            </div> 
             
             <div class="form-group">
                 <label for="confirm_password">Confirm Password</label>
-                <input type="password" id="confirm_password" name="confirm_password" required placeholder="Confirm your password">
-            </div>
+                <div class="input-with-icon">
+                    <input type="password" id="confirm_password" name="confirm_password" required placeholder="Confirm your password">
+                    <button type="button" class="toggle-password" data-target="confirm_password" aria-label="Toggle password visibility" aria-pressed="false"><i class="fas fa-eye"></i></button>
+                </div>
+            </div> 
             
             <button type="submit" class="btn" id="registerBtn">
                 <span id="registerText">Create Account</span>
@@ -392,6 +452,7 @@
             const email = document.getElementById('email').value;
             const location = document.getElementById('location').value;
             const businessType = document.getElementById('business_type').value;
+            const otherBusiness = document.getElementById('other_business') ? document.getElementById('other_business').value.trim() : '';
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
             
@@ -404,6 +465,12 @@
             
             if (!validatePasswordConfirmation()) {
                 document.getElementById('errorAlert').textContent = 'Passwords do not match.';
+                document.getElementById('errorAlert').style.display = 'block';
+                return;
+            }
+
+            if (businessType === 'other' && !otherBusiness) {
+                document.getElementById('errorAlert').textContent = 'Please specify your stall type.';
                 document.getElementById('errorAlert').style.display = 'block';
                 return;
             }
@@ -429,6 +496,7 @@
                         email: email,
                         location: location,
                         business_type: businessType,
+                        other_business: businessType === 'other' ? otherBusiness : '',
                         password: password
                     })
                 });
@@ -458,6 +526,60 @@
             }
         });
 
+        // Toggle password visibility only while the icon is pressed (press-and-hold)
+        document.querySelectorAll('.toggle-password').forEach(btn => {
+            const targetId = btn.getAttribute('data-target');
+            const input = document.getElementById(targetId);
+            if (!input) return;
+
+            const show = () => {
+                input.type = 'text';
+                btn.classList.add('visible');
+                btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+                btn.setAttribute('aria-pressed', 'true');
+            };
+
+            const hide = () => {
+                input.type = 'password';
+                btn.classList.remove('visible');
+                btn.innerHTML = '<i class="fas fa-eye"></i>';
+                btn.setAttribute('aria-pressed', 'false');
+            };
+
+            // Pointer events (mouse and stylus)
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault(); // keep focus on input
+                show();
+            });
+            btn.addEventListener('pointerup', hide);
+            btn.addEventListener('pointercancel', hide);
+            btn.addEventListener('pointerleave', hide);
+
+            // Touch events (some older browsers)
+            btn.addEventListener('touchstart', (e) => { e.preventDefault(); show(); }, { passive: false });
+            btn.addEventListener('touchend', hide);
+            btn.addEventListener('touchcancel', hide);
+
+            // Keyboard accessibility: hold Space or Enter to show while pressed
+            btn.addEventListener('keydown', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    show();
+                }
+            });
+            btn.addEventListener('keyup', (e) => {
+                if (e.key === ' ' || e.key === 'Enter') {
+                    hide();
+                }
+            });
+
+            // Hide on blur or any focus change
+            btn.addEventListener('blur', hide);
+
+            // Ensure it's hidden by default
+            hide();
+        });
+
         // Phone number formatting
         document.getElementById('phone').addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
@@ -466,6 +588,34 @@
             }
             e.target.value = value;
         });
+
+        // Show 'Other' stall input when Business Type = other
+        const businessSelect = document.getElementById('business_type');
+        const otherGroup = document.getElementById('other_business_group');
+        const otherInput = document.getElementById('other_business');
+
+        if (businessSelect) {
+            businessSelect.addEventListener('change', function() {
+                if (this.value === 'other') {
+                    otherGroup.style.display = 'block';
+                    if (otherInput) {
+                        otherInput.setAttribute('required', 'required');
+                        otherInput.focus();
+                    }
+                } else {
+                    otherGroup.style.display = 'none';
+                    if (otherInput) {
+                        otherInput.removeAttribute('required');
+                    }
+                }
+            });
+
+            // Initialize on load in case of persisted value
+            if (businessSelect.value === 'other') {
+                otherGroup.style.display = 'block';
+                if (otherInput) otherInput.setAttribute('required', 'required');
+            }
+        }
     </script>
     <script>
 // Dark mode toggle logic
