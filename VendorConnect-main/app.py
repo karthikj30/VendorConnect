@@ -11,6 +11,11 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import string
+import secrets
+import jwt
+from datetime import timezone
+from authlib.integrations.flask_client import OAuth
+import logging
 
 # Action label localization helper (Marathi)
 MR_ACTION_LABELS = {
@@ -132,6 +137,11 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 app = Flask(__name__, instance_path=os.path.join(basedir, '../instance'))
 app.config['SECRET_KEY'] = 'vendorconnect_secret_key_2024'
 
+# Configure logging
+log_level = logging.DEBUG if os.environ.get('FLASK_DEBUG') in ('1', 'true', 'True') or os.environ.get('DEBUG') in ('1', 'true', 'True') else logging.INFO
+logging.basicConfig(level=log_level)
+app.logger.setLevel(log_level)
+
 # Ensure the instance directory exists (required for SQLite file creation)
 os.makedirs(app.instance_path, exist_ok=True)
 
@@ -159,6 +169,117 @@ except ImportError:
 
 db = SQLAlchemy(app)
 CORS(app)
+
+# Google OAuth client ID (set via environment variable `GOOGLE_CLIENT_ID`)
+app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID', '')
+app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+# Redirect URI for OAuth callbacks (set to your deployed callback or localhost for testing)
+app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/vendor/login/google/callback')
+
+# JWT configuration
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.environ.get('SECRET_KEY', 'change-me-jwt-secret'))
+app.config['JWT_ALGORITHM'] = 'HS256'
+app.config['JWT_EXP_DELTA_SECONDS'] = int(os.environ.get('JWT_EXP_DELTA_SECONDS', 60*60*24))
+
+# Try to load Google client credentials from a local JSON file if env vars are not set
+def _load_google_client_from_file():
+    if app.config.get('GOOGLE_CLIENT_ID') and app.config.get('GOOGLE_CLIENT_SECRET'):
+        return
+    # First, check if GOOGLE_CLIENT_SECRET env var contains the JSON credentials
+    raw_secret_env = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+    if raw_secret_env and raw_secret_env.strip().startswith('{'):
+        try:
+            data = json.loads(raw_secret_env)
+            creds = data.get('web') or data.get('installed') or data
+            cid = creds.get('client_id')
+            csec = creds.get('client_secret')
+            if cid:
+                app.config['GOOGLE_CLIENT_ID'] = cid
+            if csec:
+                app.config['GOOGLE_CLIENT_SECRET'] = csec
+            if cid or csec:
+                app.logger.info('Loaded Google client credentials from GOOGLE_CLIENT_SECRET env JSON')
+                return
+        except Exception as e:
+            app.logger.exception('Failed to parse GOOGLE_CLIENT_SECRET env as JSON:')
+
+    possible_files = ['client_secret.json', 'client_secrets.json', 'google_client_secret.json']
+    for fname in possible_files:
+        try:
+            with open(os.path.join(basedir, fname), 'r') as f:
+                data = json.load(f)
+                # support both {"web": {...}} and root object
+                creds = data.get('web') or data.get('installed') or data
+                cid = creds.get('client_id')
+                csec = creds.get('client_secret')
+                if cid:
+                    app.config['GOOGLE_CLIENT_ID'] = cid
+                if csec:
+                    app.config['GOOGLE_CLIENT_SECRET'] = csec
+                if cid or csec:
+                    app.logger.info('Loaded Google client credentials from %s', fname)
+                    return
+        except FileNotFoundError:
+            continue
+        except Exception as e:
+            app.logger.exception('Error reading google client file %s', fname)
+            continue
+
+_load_google_client_from_file()
+
+# Register Authlib OAuth client for Google
+oauth = OAuth(app)
+
+def ensure_oauth_registered(force=False):
+    """Ensure the Google OAuth client is registered with Authlib.
+
+    This validates that `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are present
+    and are strings. If missing, it logs a helpful message. Calling this before
+    `authorize_redirect` prevents the "missing client_id" error.
+    """
+    clients = getattr(oauth, 'clients', None) or getattr(oauth, '_clients', None)
+    registered = False
+    if clients:
+        registered = 'google' in clients
+
+    client_id = app.config.get('GOOGLE_CLIENT_ID')
+    client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+
+    # Validate presence and types
+    if not client_id or not isinstance(client_id, str) or not client_id.strip():
+        app.logger.error('Google OAuth client_id is missing or empty. Set GOOGLE_CLIENT_ID env var before starting the app.')
+        return False
+    if not client_secret or not isinstance(client_secret, str) or not client_secret.strip():
+        app.logger.error('Google OAuth client_secret is missing or empty. Set GOOGLE_CLIENT_SECRET env var (plain secret or JSON) before starting the app.')
+        return False
+
+    # If not registered yet, or forced re-registration, register now
+    if not registered or force:
+        try:
+            # Remove any existing registration
+            try:
+                if registered:
+                    try:
+                        del oauth._clients['google']
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+            oauth.register(
+                name='google',
+                client_id=client_id,
+                client_secret=client_secret,
+                server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+                client_kwargs={'scope': 'openid email profile'}
+            )
+            app.logger.info('Registered Authlib Google client with client_id: %s', client_id)
+            return True
+        except Exception as e:
+            app.logger.exception('Error registering Google OAuth client:')
+            return False
+
+    return True
 
 # Email helper functions
 def send_otp_email(email, otp):
@@ -654,22 +775,115 @@ def vendor_register():
         
         return jsonify({'success': True, 'message': 'Registration successful'})
     
-    return render_template('vendor_register.html')
+    return render_template('vendor_register.html', GOOGLE_CLIENT_ID=app.config.get('GOOGLE_CLIENT_ID'))
 
-@app.route('/vendor/dashboard')
-def vendor_dashboard():
-    if 'vendor_id' not in session:
-        return redirect(url_for('vendor_login'))
-    
-    vendor = Vendor.query.get(session['vendor_id'])
-    return render_template('vendor_dashboard.html', vendor=vendor)
 
-@app.route('/vendor/forgot-password', methods=['POST'])
-def forgot_password():
-    """Send OTP to user's email for password reset"""
-    data = request.get_json()
-    email = data.get('email')
-    
+@app.route('/vendor/login/google', methods=['GET'])
+def vendor_login_google():
+    """Start OAuth2 Authorization using Authlib (redirect to Google)."""
+    # Allow optional `next` parameter to redirect after auth
+    next_url = request.args.get('next')
+    if next_url:
+        session['oauth_next'] = next_url
+
+    # Ensure OAuth client is registered and properly configured
+    ok = ensure_oauth_registered()
+    if not ok:
+                # Build a small diagnostic page (do not reveal secrets)
+                cid = app.config.get('GOOGLE_CLIENT_ID')
+                secret = app.config.get('GOOGLE_CLIENT_SECRET')
+                cid_display = cid if cid else '<missing>'
+                secret_present = 'yes' if secret else 'no'
+                app.logger.error('Google OAuth registration failed. client_id present=%s, secret present=%s', bool(cid), bool(secret))
+                html = f"""
+                <h3>Google OAuth not configured properly</h3>
+                <p>Missing or invalid OAuth configuration. Please ensure the environment variables are set and restart the app.</p>
+                <ul>
+                    <li>GOOGLE_CLIENT_ID: {cid_display}</li>
+                    <li>GOOGLE_CLIENT_SECRET present: {secret_present}</li>
+                </ul>
+                <p>Set them exactly (no extra quotes) and restart the server. Example:</p>
+                <pre>export GOOGLE_CLIENT_ID=your-client-id\nexport GOOGLE_CLIENT_SECRET=your-client-secret\npython app.py runserver</pre>
+                """
+                return html, 500
+
+    redirect_uri = url_for('vendor_login_google_callback', _external=True)
+    try:
+        return oauth.google.authorize_redirect(redirect_uri)
+    except Exception as e:
+        app.logger.exception('authorize_redirect error:')
+        return 'Failed to initiate Google OAuth', 500
+
+
+@app.route('/vendor/login/google/callback')
+def vendor_login_google_callback():
+    """Handle OAuth2 callback from Google using Authlib, create or reuse vendor, set session/JWT."""
+    try:
+        token = oauth.google.authorize_access_token()
+    except Exception as e:
+        app.logger.exception('Authlib authorize_access_token error:')
+        return 'Authorization failed', 400
+
+    # Get user info from userinfo endpoint
+    try:
+        resp = oauth.google.get('userinfo')
+        resp.raise_for_status()
+        info = resp.json()
+    except Exception as e:
+        app.logger.exception('Failed fetching userinfo:')
+        return 'Failed to fetch user info', 500
+
+    email = info.get('email')
+    name = info.get('name') or info.get('given_name') or ''
+
+    if not email:
+        return 'Google account has no email', 400
+
+    # Reuse existing vendor if present
+    vendor = Vendor.query.filter_by(email=email).first()
+    if vendor:
+        session['vendor_id'] = vendor.id
+        # Issue JWT
+        payload = {
+            'vendor_id': vendor.id,
+            'email': vendor.email,
+            'exp': datetime.now(timezone.utc) + timedelta(seconds=app.config.get('JWT_EXP_DELTA_SECONDS'))
+        }
+        token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm=app.config['JWT_ALGORITHM'])
+        redirect_to = session.pop('oauth_next', url_for('vendor_dashboard'))
+        resp = redirect(redirect_to)
+        resp.set_cookie('access_token', token, httponly=True, samesite='Lax')
+        return resp
+
+    # Create new vendor (avoid duplicate phone by using a generated placeholder)
+    placeholder_phone = 'g' + secrets.token_hex(6)
+    # Ensure uniqueness
+    while Vendor.query.filter_by(phone=placeholder_phone).first():
+        placeholder_phone = 'g' + secrets.token_hex(6)
+
+    random_pw = secrets.token_urlsafe(16)
+    vendor = Vendor(
+        name=name or email.split('@')[0],
+        phone=placeholder_phone,
+        email=email,
+        location='',
+        business_type='other',
+        password_hash=generate_password_hash(random_pw)
+    )
+    db.session.add(vendor)
+    db.session.commit()
+
+    session['vendor_id'] = vendor.id
+    payload = {
+        'vendor_id': vendor.id,
+        'email': vendor.email,
+        'exp': datetime.now(timezone.utc) + timedelta(seconds=app.config.get('JWT_EXP_DELTA_SECONDS'))
+    }
+    token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm=app.config['JWT_ALGORITHM'])
+    redirect_to = session.pop('oauth_next', url_for('vendor_dashboard'))
+    resp = redirect(redirect_to)
+    resp.set_cookie('access_token', token, httponly=True, samesite='Lax')
+    return resp
     if not email:
         return jsonify({'success': False, 'message': 'Email is required'})
     
