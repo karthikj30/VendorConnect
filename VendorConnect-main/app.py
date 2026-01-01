@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from sqlalchemy import text
 import json
 import random
 from datetime import datetime, timedelta
@@ -390,6 +391,9 @@ class Supplier(db.Model):
     verification_status = db.Column(db.Boolean, default=False)
     hygiene_rating = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Added authentication fields so suppliers can sign up / login
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    password_hash = db.Column(db.String(200), nullable=True)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -399,6 +403,25 @@ class Product(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
     stock_available = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default='kg')
+
+class DeliveryAgent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(15), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    location = db.Column(db.String(200), nullable=True)
+    password_hash = db.Column(db.String(200), nullable=True)
+    vehicle_info = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Customer(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(15), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=True)
+    location = db.Column(db.String(200), nullable=True)
+    password_hash = db.Column(db.String(200), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -735,13 +758,38 @@ def vendor_login():
         data = request.get_json()
         phone = data.get('phone')
         password = data.get('password')
-        
-        vendor = Vendor.query.filter_by(phone=phone).first()
-        if vendor and check_password_hash(vendor.password_hash, password):
-            session['vendor_id'] = vendor.id
-            return jsonify({'success': True, 'message': 'Login successful'})
-        else:
-            return jsonify({'success': False, 'message': 'Invalid credentials'})
+        role = data.get('role', 'Vendor')
+
+        # Normalize role string
+        role = (role or 'Vendor').strip().lower()
+
+        # Authenticate based on role
+        if role == 'vendor':
+            user = Vendor.query.filter_by(phone=phone).first()
+            if user and check_password_hash(user.password_hash, password):
+                session.clear()
+                session['vendor_id'] = user.id
+                return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('vendor_dashboard')})
+        elif role == 'supplier':
+            user = Supplier.query.filter_by(phone=phone).first()
+            if user and user.password_hash and check_password_hash(user.password_hash, password):
+                session.clear()
+                session['supplier_id'] = user.id
+                return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('supplier_dashboard')})
+        elif role in ('delivery', 'delivery agent', 'delivery_agent'):
+            user = DeliveryAgent.query.filter_by(phone=phone).first()
+            if user and user.password_hash and check_password_hash(user.password_hash, password):
+                session.clear()
+                session['delivery_id'] = user.id
+                return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('delivery_dashboard')})
+        elif role == 'customer':
+            user = Customer.query.filter_by(phone=phone).first()
+            if user and user.password_hash and check_password_hash(user.password_hash, password):
+                session.clear()
+                session['customer_id'] = user.id
+                return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('customer_dashboard')})
+
+        return jsonify({'success': False, 'message': 'Invalid credentials'})
     
     return render_template('vendor_login.html')
 
@@ -749,30 +797,70 @@ def vendor_login():
 def vendor_register():
     if request.method == 'POST':
         data = request.get_json()
-        
-        # Check if vendor already exists with phone or email
-        existing_vendor_phone = Vendor.query.filter_by(phone=data.get('phone')).first()
-        existing_vendor_email = Vendor.query.filter_by(email=data.get('email')).first()
-        
-        if existing_vendor_phone:
-            return jsonify({'success': False, 'message': 'Vendor already registered with this phone number'})
-        
-        if existing_vendor_email:
-            return jsonify({'success': False, 'message': 'Vendor already registered with this email address'})
-        
-        # Create new vendor
-        vendor = Vendor(
-            name=data.get('name'),
-            phone=data.get('phone'),
-            email=data.get('email'),
-            location=data.get('location'),
-            business_type=data.get('business_type'),
-            password_hash=generate_password_hash(data.get('password'))
-        )
-        
-        db.session.add(vendor)
+        role = (data.get('role') or 'Vendor').strip().lower()
+        name = data.get('name')
+        phone = data.get('phone')
+        email = data.get('email')
+        location = data.get('location')
+        password = data.get('password')
+        business_type = data.get('business_type') or 'other'
+
+        # Basic validation
+        if not name or not phone or not password:
+            return jsonify({'success': False, 'message': 'Name, phone and password are required'})
+
+        # Prevent duplicates across relevant tables by phone/email
+        if Vendor.query.filter_by(phone=phone).first() or Supplier.query.filter_by(phone=phone).first() or DeliveryAgent.query.filter_by(phone=phone).first() or Customer.query.filter_by(phone=phone).first():
+            return jsonify({'success': False, 'message': 'An account with this phone number already exists'})
+
+        if email and (Vendor.query.filter_by(email=email).first() or Supplier.query.filter_by(email=email).first() or DeliveryAgent.query.filter_by(email=email).first() or Customer.query.filter_by(email=email).first()):
+            return jsonify({'success': False, 'message': 'An account with this email already exists'})
+
+        pw_hash = generate_password_hash(password)
+
+        if role == 'vendor':
+            vendor = Vendor(
+                name=name,
+                phone=phone,
+                email=email or '',
+                location=location or '',
+                business_type=business_type,
+                password_hash=pw_hash
+            )
+            db.session.add(vendor)
+        elif role == 'supplier':
+            supplier = Supplier(
+                name=name,
+                phone=phone,
+                email=email,
+                location=location or '',
+                password_hash=pw_hash,
+                verification_status=False
+            )
+            db.session.add(supplier)
+        elif role in ('delivery', 'delivery agent', 'delivery_agent'):
+            da = DeliveryAgent(
+                name=name,
+                phone=phone,
+                email=email,
+                location=location or '',
+                password_hash=pw_hash,
+                vehicle_info=data.get('vehicle_info', '')
+            )
+            db.session.add(da)
+        elif role == 'customer':
+            cust = Customer(
+                name=name,
+                phone=phone,
+                email=email,
+                location=location or '',
+                password_hash=pw_hash
+            )
+            db.session.add(cust)
+        else:
+            return jsonify({'success': False, 'message': 'Unknown role'})
+
         db.session.commit()
-        
         return jsonify({'success': True, 'message': 'Registration successful'})
     
     return render_template('vendor_register.html', GOOGLE_CLIENT_ID=app.config.get('GOOGLE_CLIENT_ID'))
@@ -807,7 +895,19 @@ def vendor_login_google():
                 """
                 return html, 500
 
-    redirect_uri = url_for('vendor_login_google_callback', _external=True)
+    # Use explicit configured redirect URI when provided to avoid redirect_uri_mismatch
+    # (Google requires an exact match between the redirect_uri sent in the auth
+    # request and one of the "Authorized redirect URIs" configured in the
+    # Google Cloud Console). If a deployment or reverse proxy changes the
+    # externally-visible host/scheme, url_for(...) may produce a value that is
+    # not registered in the console which causes Error 400: redirect_uri_mismatch.
+    redirect_uri_from_config = app.config.get('GOOGLE_REDIRECT_URI')
+    default_redirect = url_for('vendor_login_google_callback', _external=True)
+
+    # Prefer an explicit config value when present and non-empty. Log both so
+    # it's easy to inspect what the app is sending to Google.
+    redirect_uri = redirect_uri_from_config if redirect_uri_from_config else default_redirect
+    app.logger.info('Initiating Google OAuth; redirect_uri=%s (url_for produced: %s)', redirect_uri, default_redirect)
     try:
         return oauth.google.authorize_redirect(redirect_uri)
     except Exception as e:
@@ -1572,6 +1672,34 @@ def debug_products():
 def logout():
     session.clear()
     return redirect(url_for('index'))
+
+
+@app.route('/vendor/dashboard')
+def vendor_dashboard():
+    if 'vendor_id' not in session:
+        return redirect(url_for('vendor_login'))
+    return render_template('vendor_dashboard.html')
+
+
+@app.route('/supplier/dashboard')
+def supplier_dashboard():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    return render_template('supplier_dashboard.html')
+
+
+@app.route('/delivery/dashboard')
+def delivery_dashboard():
+    if 'delivery_id' not in session:
+        return redirect(url_for('vendor_login'))
+    return render_template('delivery_dashboard.html')
+
+
+@app.route('/customer/dashboard')
+def customer_dashboard():
+    if 'customer_id' not in session:
+        return redirect(url_for('vendor_login'))
+    return render_template('customer_dashboard.html')
 
 # Chatbot API endpoints
 @app.route('/api/chatbot/message', methods=['POST'])
@@ -3122,10 +3250,40 @@ def chatbot_page():
 
 if __name__ == '__main__':
     with app.app_context():
+        # Create any missing tables (won't modify existing columns)
         db.create_all()
+
+        # If the DB existed before we added the `email` and `password_hash` fields
+        # to Supplier, querying Supplier will fail. Detect and add those columns
+        # at runtime for SQLite using ALTER TABLE ADD COLUMN.
+        try:
+            info = db.session.execute(text("PRAGMA table_info('supplier')")).fetchall()
+            cols = [row[1] for row in info]
+            altered = False
+            if 'email' not in cols:
+                db.session.execute(text("ALTER TABLE supplier ADD COLUMN email VARCHAR(120)"))
+                altered = True
+            if 'password_hash' not in cols:
+                db.session.execute(text("ALTER TABLE supplier ADD COLUMN password_hash VARCHAR(200)"))
+                altered = True
+            if altered:
+                db.session.commit()
+                app.logger.info('Updated supplier table with new columns')
+        except Exception as e:
+            app.logger.exception('Error ensuring supplier columns:')
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+
         # Only create sample data if database is empty
-        if not Supplier.query.first():
-            create_sample_data()
+        try:
+            if not Supplier.query.first():
+                create_sample_data()
+        except Exception:
+            # If Supplier table still not queryable, skip sample data creation
+            app.logger.exception('Skipping sample data creation due to DB schema issue')
+
         create_sample_orders()
         create_sample_vendors()
     

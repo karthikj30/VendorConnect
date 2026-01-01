@@ -327,11 +327,21 @@
         </div>
         
         <form class="login-form" id="loginForm">
-            <h2>Vendor Login</h2>
+            <h2>Login</h2>
             
             <div class="alert alert-error" id="errorAlert"></div>
             <div class="alert alert-success" id="successAlert"></div>
             
+            <div class="form-group">
+                <label for="role">Login As</label>
+                <select id="role" name="role" required>
+                    <option value="Vendor">Vendor</option>
+                    <option value="Supplier">Supplier</option>
+                    <option value="Delivery Agent">Delivery Agent</option>
+                    <option value="Customer">Customer</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label for="phone">Phone Number</label>
                 <input type="tel" id="phone" name="phone" required placeholder="Enter your phone number">
@@ -408,6 +418,7 @@
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
+            const role = document.getElementById('role').value;
             const phone = document.getElementById('phone').value;
             const password = document.getElementById('password').value;
             
@@ -427,6 +438,7 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
+                        role: role,
                         phone: phone,
                         password: password
                     })
@@ -437,11 +449,11 @@
                 if (data.success) {
                     document.getElementById('successAlert').textContent = data.message;
                     document.getElementById('successAlert').style.display = 'block';
-                    
-                    // Redirect to dashboard after a short delay
+                    // Redirect to dashboard after a short delay. Use server-provided redirect if available.
+                    const redirectTo = data.redirect || '/vendor/dashboard';
                     setTimeout(() => {
-                        window.location.href = '/vendor/dashboard';
-                    }, 1000);
+                        window.location.href = redirectTo;
+                    }, 800);
                 } else {
                     document.getElementById('errorAlert').textContent = data.message;
                     document.getElementById('errorAlert').style.display = 'block';

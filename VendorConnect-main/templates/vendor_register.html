@@ -313,12 +313,21 @@
         </div>
         
         <form class="register-form" id="registerForm">
-            <h2>Vendor Registration</h2>
+            <h2>User Registration</h2>
             
             <div class="alert alert-error" id="errorAlert"></div>
             <div class="alert alert-success" id="successAlert"></div>
             
             <div class="form-row">
+                <div class="form-group full-width">
+                    <label for="role">Register As</label>
+                    <select id="role" name="role" required>
+                        <option value="Vendor">Vendor</option>
+                        <option value="Supplier">Supplier</option>
+                        <option value="Delivery Agent">Delivery Agent</option>
+                        <option value="Customer">Customer</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label for="name">Full Name</label>
                     <input type="text" id="name" name="name" required placeholder="Enter your full name">
@@ -359,6 +368,11 @@
                 <label for="other_business">Please specify your stall</label>
                 <input type="text" id="other_business" name="other_business" placeholder="e.g., Pav Bhaji Stall">
             </div> 
+            
+            <div class="form-group" id="vehicle_info_group" style="display:none;">
+                <label for="vehicle_info">Vehicle Info (for Delivery Agents)</label>
+                <input type="text" id="vehicle_info" name="vehicle_info" placeholder="e.g., Bike - KA01AB1234">
+            </div>
             
             <div class="form-group">
                 <label for="password">Password</label>
@@ -455,8 +469,10 @@
             const phone = document.getElementById('phone').value;
             const email = document.getElementById('email').value;
             const location = document.getElementById('location').value;
+            const role = document.getElementById('role').value;
             const businessType = document.getElementById('business_type').value;
             const otherBusiness = document.getElementById('other_business') ? document.getElementById('other_business').value.trim() : '';
+            const vehicleInfo = document.getElementById('vehicle_info') ? document.getElementById('vehicle_info').value.trim() : '';
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
             
@@ -473,7 +489,7 @@
                 return;
             }
 
-            if (businessType === 'other' && !otherBusiness) {
+            if (role === 'Vendor' && businessType === 'other' && !otherBusiness) {
                 document.getElementById('errorAlert').textContent = 'Please specify your stall type.';
                 document.getElementById('errorAlert').style.display = 'block';
                 return;
@@ -495,14 +511,16 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        name: name,
-                        phone: phone,
-                        email: email,
-                        location: location,
-                        business_type: businessType,
-                        other_business: businessType === 'other' ? otherBusiness : '',
-                        password: password
-                    })
+                            role: role,
+                            name: name,
+                            phone: phone,
+                            email: email,
+                            location: location,
+                            business_type: businessType,
+                            other_business: businessType === 'other' ? otherBusiness : '',
+                            vehicle_info: vehicleInfo,
+                            password: password
+                        })
                 });
                 
                 const data = await response.json();
@@ -597,6 +615,28 @@
         const businessSelect = document.getElementById('business_type');
         const otherGroup = document.getElementById('other_business_group');
         const otherInput = document.getElementById('other_business');
+        const roleSelect = document.getElementById('role');
+        const vehicleGroup = document.getElementById('vehicle_info_group');
+
+        // Show/hide vehicle info when Delivery Agent selected
+        function updateRoleUI() {
+            const r = roleSelect.value;
+            if (r === 'Delivery Agent') {
+                vehicleGroup.style.display = 'block';
+            } else {
+                vehicleGroup.style.display = 'none';
+            }
+
+            // business type only required for Vendors
+            if (r === 'Vendor') {
+                businessSelect.setAttribute('required', 'required');
+            } else {
+                businessSelect.removeAttribute('required');
+            }
+        }
+
+        roleSelect.addEventListener('change', updateRoleUI);
+        updateRoleUI();
 
         if (businessSelect) {
             businessSelect.addEventListener('change', function() {
