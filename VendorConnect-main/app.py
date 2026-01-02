@@ -1587,6 +1587,29 @@ def vendor_promotions():
         app.logger.error(f'Error retrieving promotions: {str(e)}', exc_info=True)
         return jsonify({'success': False, 'message': f'Failed to retrieve promotions: {str(e)}'}), 500
 
+@app.route('/api/vendor/promotions/<int:promo_id>', methods=['DELETE'])
+def delete_vendor_promotion(promo_id):
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    vendor = Vendor.query.get(session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
+
+    promo = Promotion.query.get(promo_id)
+    if not promo or promo.vendor_id != vendor.id:
+        return jsonify({'success': False, 'message': 'Promotion not found'}), 404
+
+    try:
+        db.session.delete(promo)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Promotion deleted'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error deleting promotion: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'Failed to delete promotion: {str(e)}'}), 500
+
 @app.route('/api/promotions/public', methods=['GET'])
 def get_public_promotions():
     promos = Promotion.query.filter_by(is_active=True).order_by(Promotion.created_at.desc()).all()

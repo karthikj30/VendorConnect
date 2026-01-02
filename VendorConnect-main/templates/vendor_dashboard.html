@@ -2565,8 +2565,33 @@
                         <span style="color:#27ae60;font-weight:600;">Payable: ₹${Number(p.monthly_charge).toFixed(2)}</span>
                     </div>
                     <div class="product-supplier" style="color:#888; font-size:13px;">Created ${new Date(p.created_at).toLocaleDateString()}</div>
+                    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <a href="${p.video_url}" target="_blank" rel="noopener" class="btn btn-secondary" style="padding:6px 10px; font-size:13px;">Open Video</a>
+                        <button class="btn btn-danger" style="padding:6px 10px; font-size:13px;" onclick="deletePromotion(${p.id})">Delete</button>
+                    </div>
                 </div>
             `).join('');
+        }
+
+        async function deletePromotion(id) {
+            if (!confirm('Delete this promotion?')) return;
+            try {
+                const res = await fetch(`/api/vendor/promotions/${id}`, { method: 'DELETE' });
+                if (res.status === 401) {
+                    alert('Session expired. Please login again.');
+                    window.location.href = '/vendor/login';
+                    return;
+                }
+                const data = await res.json();
+                if (!res.ok || !data.success) {
+                    throw new Error(data.message || 'Failed to delete promotion');
+                }
+                promotions = promotions.filter(p => p.id !== id);
+                renderPromotions();
+            } catch (err) {
+                console.error('Delete promotion failed', err);
+                alert(err.message || 'Could not delete promotion');
+            }
         }
 
         async function submitPromotion(event) {
