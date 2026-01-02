@@ -142,6 +142,122 @@
             margin-bottom: 20px;
         }
 
+        .ads-section {
+            background: linear-gradient(135deg, #fff4f4 0%, #fff 100%);
+            border: 1px solid #ffe0e0;
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 28px;
+            box-shadow: 0 6px 18px rgba(255, 107, 107, 0.12);
+        }
+
+        .ads-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .ads-eyebrow {
+            font-size: 13px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #ff6b6b;
+            font-weight: 700;
+        }
+
+        .ads-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #d8436f;
+            margin-top: 4px;
+        }
+
+        .ads-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .ad-card {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            border: 1px solid #ffe0e0;
+            box-shadow: 0 10px 25px rgba(255, 107, 107, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .ad-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ad-title {
+            font-weight: 700;
+            color: #333;
+            font-size: 18px;
+        }
+
+        .ad-vendor {
+            color: #777;
+            font-size: 14px;
+        }
+
+        .ad-description {
+            color: #555;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .ad-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            color: #ff6b6b;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .ad-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .ad-button {
+            border: none;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 8px 18px rgba(255, 107, 107, 0.25);
+        }
+
+        .ad-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(255, 107, 107, 0.35);
+        }
+
+        .ads-empty {
+            text-align: center;
+            color: #888;
+            padding: 18px;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px dashed #ffd6d6;
+        }
+
         /* Vendors Grid */
         .vendors-grid {
             display: grid;
@@ -168,6 +284,8 @@
             width: 100%;
             height: 200px;
             background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            background-size: cover;
+            background-position: center;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -917,16 +1035,29 @@
 
     <!-- Main Container -->
     <div class="main-container">
+        <div class="ads-section">
+            <div class="ads-header">
+                <div>
+                    <div class="ads-eyebrow">Sponsored</div>
+                    <div class="ads-title">Promotions near you</div>
+                </div>
+                <div class="ad-meta" id="adsMeta"></div>
+            </div>
+            <div class="ads-grid" id="adsGrid">
+                <div class="ads-empty">Loading promotions...</div>
+            </div>
+        </div>
+
         <h2 class="section-title">Top Restaurants Near You</h2>
-        <div class="category-filters" id="categoryFilters">
-            <button onclick="filterCategory('all')">All</button>
-            <button onclick="filterCategory('ice_cream')">Ice Cream</button>
-            <button onclick="filterCategory('chaat')">Chaat</button>
-            <button onclick="filterCategory('dosa')">Dosa</button>
-            <button onclick="filterCategory('samosa')">Samosa</button>
-            <button onclick="filterCategory('vada_pav')">Vada Pav</button>
-            <button onclick="filterCategory('tea')">Tea</button>
-            <button onclick="filterCategory('juice')">Juice</button>
+        <div class="category-filter" id="categoryFilters">
+            <button class="category-btn active" data-category="all" onclick="filterCategory('all', this)">🌟 All</button>
+            <button class="category-btn" data-category="ice_cream" onclick="filterCategory('ice_cream', this)">🍦 Ice Cream</button>
+            <button class="category-btn" data-category="chaat" onclick="filterCategory('chaat', this)">🌶️ Chaat</button>
+            <button class="category-btn" data-category="dosa" onclick="filterCategory('dosa', this)">🥞 Dosa</button>
+            <button class="category-btn" data-category="samosa" onclick="filterCategory('samosa', this)">🥟 Samosa</button>
+            <button class="category-btn" data-category="vada_pav" onclick="filterCategory('vada_pav', this)">🥪 Vada Pav</button>
+            <button class="category-btn" data-category="tea" onclick="filterCategory('tea', this)">🍵 Tea</button>
+            <button class="category-btn" data-category="juice" onclick="filterCategory('juice', this)">🧃 Juice</button>
         </div>
         <div class="vendors-grid" id="vendorsGrid"></div>
     </div>
@@ -1124,17 +1255,28 @@
         let selectedPayment = 'cod';
         let vendors = [];
         let allMenuItems = [];
+          let promotions = [];
 
         let currentCategory = 'all';
 
-        function filterCategory(category) {
+        function filterCategory(category, el) {
             currentCategory = category;
+            const btns = document.querySelectorAll('#categoryFilters .category-btn');
+            btns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === category);
+            });
             renderVendors();
         }
 
         /* =======================
            HELPERS
         ======================= */
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str == null ? '' : String(str);
+            return div.innerHTML;
+        }
+
         function getBusinessIcon(type) {
             return {
                 ice_cream: '🍦',
@@ -1173,6 +1315,86 @@
         }
 
         /* =======================
+           LOAD PROMOTIONS
+        ======================= */
+        async function loadPromotions() {
+            try {
+                const res = await fetch('/api/promotions/public');
+                if (!res.ok) {
+                    throw new Error('Failed to load promotions');
+                }
+                promotions = await res.json();
+                renderPromotions();
+            } catch (err) {
+                console.error(err);
+                const grid = document.getElementById('adsGrid');
+                if (grid) {
+                    grid.innerHTML = '<div class="ads-empty">Unable to load promotions right now.</div>';
+                }
+            }
+        }
+
+        /* =======================
+           RENDER PROMOTIONS
+        ======================= */
+        function renderPromotions() {
+            const grid = document.getElementById('adsGrid');
+            const meta = document.getElementById('adsMeta');
+            if (!grid) return;
+
+            if (meta) {
+                const liveCount = promotions.length;
+                meta.textContent = liveCount ? `${liveCount} live ads` : 'No live ads';
+            }
+
+            if (!promotions.length) {
+                grid.innerHTML = '<div class="ads-empty">No promotions are live right now. Check back soon.</div>';
+                return;
+            }
+
+            grid.innerHTML = promotions.map(promo => {
+                const price = Number(promo.price_per_click);
+                const priceLabel = Number.isFinite(price) ? `₹${price.toFixed(2)} per click` : 'Sponsored';
+                const location = [promo.vendor_name, promo.vendor_location].filter(Boolean).join(' • ');
+                const clicks = typeof promo.total_clicks === 'number' ? promo.total_clicks : 0;
+
+                return `
+                    <div class="ad-card">
+                        <div class="ad-card-header">
+                            <div>
+                                <div class="ads-eyebrow">${priceLabel}</div>
+                                <div class="ad-title">${escapeHtml(promo.title || 'Promotion')}</div>
+                                <div class="ad-vendor">${escapeHtml(location || 'Partner promotion')}</div>
+                            </div>
+                            <div class="ad-meta">${clicks} clicks</div>
+                        </div>
+                        <div class="ad-description">${escapeHtml(promo.description || 'Watch the promo to learn more.')}</div>
+                        <div class="ad-actions">
+                            <button class="ad-button" onclick="handlePromotionClick(${promo.id})">
+                                <i class="fas fa-play"></i> Watch Ad
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function handlePromotionClick(id) {
+            const promo = promotions.find(p => p.id === id);
+            if (!promo) return;
+
+            promo.total_clicks = (promo.total_clicks || 0) + 1;
+            renderPromotions();
+
+            fetch(`/api/promotion/${id}/click`, { method: 'POST' })
+                .catch(err => console.error('Failed to record promotion click', err));
+
+            if (promo.video_url) {
+                window.open(promo.video_url, '_blank', 'noopener');
+            }
+        }
+
+        /* =======================
            LOAD VENDORS
         ======================= */
         async function loadVendors() {
@@ -1189,6 +1411,8 @@
                             name: item.vendor_name || 'Vendor',
                             location: item.vendor_location || 'Location TBD',
                             icon: getBusinessIcon(item.vendor_business_type),
+                            logo: item.vendor_logo ? `/static/${item.vendor_logo}` : '',
+                            hero_image: item.vendor_hero_image ? `/static/${item.vendor_hero_image}` : '',
                             cuisine: getCuisine(item.vendor_business_type),
                             rating: (4 + Math.random()).toFixed(1),
                             time: '30–40 mins',
@@ -1202,7 +1426,8 @@
                         name: item.name,
                         price: item.price,
                         desc: item.description || 'Fresh & delicious',
-                        icon: getItemIcon(item.name)
+                        icon: getItemIcon(item.name),
+                        image: item.image || ''
                     });
                 });
 
@@ -1231,8 +1456,8 @@
 
                 grid.innerHTML = displayVendors.map(v => `
         <div class="vendor-card" onclick="openVendorModal(${v.id})">
-            <div class="vendor-image">
-                <div style="font-size:60px">${v.icon}</div>
+            <div class="vendor-image" style="${v.hero_image ? `background-image:url('${v.hero_image}');background-size:cover;background-position:center;` : ''}">
+                ${v.logo ? `<img src="${v.logo}" alt="${v.name} logo" style="width:90px;height:90px;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.15);background:#fff;">` : `<div style="font-size:60px">${v.icon}</div>`}
             </div>
             <div class="vendor-info">
                 <div class="vendor-name">${v.name}</div>
@@ -1252,7 +1477,23 @@
             const v = vendors.find(x => x.id === id);
 
             document.getElementById('modalVendorName').textContent = v.name;
-            document.getElementById('modalVendorIcon').textContent = v.icon;
+
+            const modalIcon = document.getElementById('modalVendorIcon');
+            const modalHeader = document.querySelector('#vendorModal .modal-header');
+
+            if (v.hero_image) {
+                modalHeader.style.backgroundImage = `url('${v.hero_image}')`;
+                modalHeader.style.backgroundSize = 'cover';
+                modalHeader.style.backgroundPosition = 'center';
+            } else {
+                modalHeader.style.backgroundImage = '';
+            }
+
+            if (v.logo) {
+                modalIcon.innerHTML = `<img src="${v.logo}" alt="${v.name} logo" style="width:90px;height:90px;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.15);background:#fff;">`;
+            } else {
+                modalIcon.textContent = v.icon;
+            }
 
             document.getElementById('menuSection').innerHTML = v.menu.map(item => {
                 const cartItem = cart.find(c => c.name === item.name);
@@ -1260,7 +1501,9 @@
 
                 return `
                     <div class="menu-item">
-                        <div class="menu-item-image">${item.icon}</div>
+                        <div class="menu-item-image" style="${item.image ? 'background:none;padding:0;' : ''}">
+                            ${item.image ? `<img src="/static/${item.image}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" onerror="this.style.display='none';this.parentElement.style.background='linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)';this.parentElement.innerHTML='${item.icon}';">` : item.icon}
+                        </div>
                         <div class="menu-item-info">
                             <div class="menu-item-name">${item.name}</div>
                             <div class="menu-item-description">${item.desc}</div>
@@ -1471,7 +1714,10 @@
         /* =======================
            INIT
         ======================= */
-        document.addEventListener('DOMContentLoaded', loadVendors);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVendors();
+            loadPromotions();
+        });
     </script>
 </body>
 

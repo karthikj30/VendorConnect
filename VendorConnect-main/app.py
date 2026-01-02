@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from sqlalchemy import text
@@ -7,6 +7,7 @@ import random
 from datetime import datetime, timedelta
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -17,6 +18,9 @@ import jwt
 from datetime import timezone
 from authlib.integrations.flask_client import OAuth
 import logging
+
+# Shared image configuration
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 # Action label localization helper (Marathi)
 MR_ACTION_LABELS = {
@@ -425,7 +429,18 @@ class Vendor(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     location = db.Column(db.String(200), nullable=False)
     business_type = db.Column(db.String(100), nullable=False)
+    logo = db.Column(db.String(300), nullable=True)
+    hero_image = db.Column(db.String(300), nullable=True)
+    promo_due = db.Column(db.Float, default=0.0)
     password_hash = db.Column(db.String(200), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Admin(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(200), nullable=True)
+    balance = db.Column(db.Float, default=0.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Supplier(db.Model):
@@ -456,6 +471,7 @@ class MenuItem(db.Model):
     name = db.Column(db.String(120), nullable=False)
     price = db.Column(db.Float, nullable=False)
     description = db.Column(db.String(255), nullable=True)
+    image = db.Column(db.String(300), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class DeliveryAgent(db.Model):
@@ -1284,6 +1300,55 @@ def get_products():
     
     return jsonify(products_data)
 
+def is_allowed_image(filename: str) -> bool:
+    return bool(filename) and '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_vendor_image(file_obj, vendor_id, kind: str):
+    if not file_obj or not file_obj.filename:
+        return None
+
+    if not is_allowed_image(file_obj.filename):
+        return None
+
+    upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'vendor')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    safe_filename = secure_filename(file_obj.filename)
+    filename = f"{vendor_id}_{kind}_{timestamp}_{safe_filename}"
+    abs_path = os.path.join(upload_dir, filename)
+    file_obj.save(abs_path)
+    return f"uploads/vendor/{filename}"
+
+
+def get_admin_account():
+    admin = Admin.query.first()
+    if admin:
+        return admin
+
+    admin = Admin(
+        name='Platform Admin',
+        email='admin@vendorconnect.com',
+        password_hash=None,
+        balance=0.0
+    )
+    db.session.add(admin)
+    db.session.commit()
+    return admin
+
+
+def remove_static_file(relative_path: str):
+    if not relative_path:
+        return
+    try:
+        file_path = os.path.join(app.root_path, 'static', relative_path)
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    except Exception as exc:
+        print(f"Error removing file {relative_path}: {exc}")
+
+
 @app.route('/api/vendor/menu', methods=['GET', 'POST'])
 def vendor_menu():
     if 'vendor_id' not in session:
@@ -1295,10 +1360,11 @@ def vendor_menu():
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
 
     if request.method == 'POST':
-        data = request.get_json() or {}
-        name = (data.get('name') or '').strip()
-        description = (data.get('description') or '').strip()
-        price_raw = data.get('price')
+        # Handle multipart/form-data for image upload
+        name = (request.form.get('name') or '').strip()
+        description = (request.form.get('description') or '').strip()
+        price_raw = request.form.get('price')
+        image_file = request.files.get('image')
 
         if not name:
             return jsonify({'success': False, 'message': 'Menu item name is required.'}), 400
@@ -1308,11 +1374,26 @@ def vendor_menu():
         except (TypeError, ValueError):
             return jsonify({'success': False, 'message': 'Price must be a number.'}), 400
 
+        # Handle image upload
+        image_filename = None
+        if image_file and image_file.filename:
+            if is_allowed_image(image_file.filename):
+                upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'menu')
+                os.makedirs(upload_dir, exist_ok=True)
+
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                safe_filename = secure_filename(image_file.filename)
+                unique_name = f"{vendor.id}_{timestamp}_{safe_filename}"
+                image_path = os.path.join(upload_dir, unique_name)
+                image_file.save(image_path)
+                image_filename = f"uploads/menu/{unique_name}"
+
         new_item = MenuItem(
             vendor_id=vendor.id,
             name=name,
             price=price,
-            description=description
+            description=description,
+            image=image_filename
         )
         db.session.add(new_item)
         db.session.commit()
@@ -1327,12 +1408,92 @@ def vendor_menu():
             'name': item.name,
             'price': item.price,
             'description': item.description or '',
+            'image': item.image or '',
             'created_at': item.created_at.isoformat()
         } for item in items
     ])
 
+@app.route('/api/vendor/brand', methods=['POST'])
+def update_vendor_brand():
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    vendor = Vendor.query.get(session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
+
+    logo_file = request.files.get('logo')
+    hero_file = request.files.get('hero_image')
+    updated = False
+
+    # Upload logo
+    if logo_file and logo_file.filename:
+        logo_path = save_vendor_image(logo_file, vendor.id, 'logo')
+        if not logo_path:
+            return jsonify({'success': False, 'message': 'Logo must be an image (png, jpg, jpeg, gif, webp).'}), 400
+        if vendor.logo:
+            remove_static_file(vendor.logo)
+        vendor.logo = logo_path
+        updated = True
+
+    # Upload hero/cover image
+    if hero_file and hero_file.filename:
+        hero_path = save_vendor_image(hero_file, vendor.id, 'hero')
+        if not hero_path:
+            return jsonify({'success': False, 'message': 'Hero image must be an image (png, jpg, jpeg, gif, webp).'}), 400
+        if vendor.hero_image:
+            remove_static_file(vendor.hero_image)
+        vendor.hero_image = hero_path
+        updated = True
+
+    if updated:
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Brand images updated.',
+            'logo': vendor.logo or '',
+            'hero_image': vendor.hero_image or ''
+        })
+
+    return jsonify({'success': False, 'message': 'Please select a logo or hero image to upload.'}), 400
+
 # Add this updated route to your app.py file
 # Replace the existing /api/menu route with this one
+
+@app.route('/api/vendor/menu/<int:item_id>', methods=['DELETE'])
+def delete_menu_item(item_id):
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    vendor = Vendor.query.get(session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
+
+    # Find the menu item
+    item = MenuItem.query.get(item_id)
+    if not item:
+        return jsonify({'success': False, 'message': 'Menu item not found.'}), 404
+
+    # Verify the item belongs to this vendor
+    if item.vendor_id != vendor.id:
+        return jsonify({'success': False, 'message': 'Unauthorized.'}), 403
+
+    # Delete the image file if it exists
+    if item.image:
+        try:
+            image_path = os.path.join(app.root_path, 'static', item.image)
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        except Exception as e:
+            print(f"Error deleting image file: {e}")
+
+    # Delete the menu item
+    db.session.delete(item)
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Menu item deleted successfully.'})
 
 @app.route('/api/menu')
 def all_menus():
@@ -1349,10 +1510,13 @@ def all_menus():
                 'name': item.name,
                 'price': item.price,
                 'description': item.description or '',
+                'image': item.image or '',
                 'vendor_id': item.vendor_id,
                 'vendor_name': vendor.name,  # Restaurant/Stall name
                 'vendor_location': vendor.location,
                 'vendor_business_type': vendor.business_type,
+                'vendor_logo': vendor.logo or '',
+                'vendor_hero_image': vendor.hero_image or '',
                 'created_at': item.created_at.isoformat()
             })
     return jsonify(response)
@@ -1449,6 +1613,8 @@ def record_promotion_click(promo_id):
     if not promo:
         return jsonify({'success': False, 'message': 'Promotion not found'}), 404
 
+    vendor = Vendor.query.get(promo.vendor_id)
+
     customer_id = session.get('customer_id')
     click = PromotionClick(
         promotion_id=promo_id,
@@ -1456,6 +1622,15 @@ def record_promotion_click(promo_id):
     )
     db.session.add(click)
     promo.total_clicks += 1
+
+    # Credit platform admin for the promotion click
+    admin = get_admin_account()
+    admin.balance = (admin.balance or 0) + (promo.price_per_click or 0)
+
+    # Charge vendor for this click
+    if vendor:
+        vendor.promo_due = (vendor.promo_due or 0) + (promo.price_per_click or 0)
+
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Click recorded'})
