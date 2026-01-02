@@ -66,30 +66,7 @@
             border-color: #ff6b6b;
         }
 
-        .search-icon {
-            position: absolute;
-            right: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #999;
-        }
-
-        .header-icons {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .icon-btn {
-            position: relative;
-            background: none;
-            border: none;
-            font-size: 22px;
-            cursor: pointer;
-            color: #333;
-            transition: transform 0.2s;
-        }
-
+        .ad-actions { display: none; }
         .icon-btn:hover {
             transform: scale(1.1);
         }
@@ -176,7 +153,7 @@
 
         .ads-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            grid-template-columns: 1fr;
             gap: 14px;
         }
 
@@ -1042,13 +1019,8 @@
                     <div class="ads-title">Promotions near you</div>
                 </div>
                 <div class="ad-meta" id="adsMeta"></div>
-                <button class="ad-button" onclick="playRandomAd()">
-                    <i class="fas fa-random"></i> Play a random ad
-                </button>
             </div>
-            <div class="ads-grid" id="adsGrid">
-                <div class="ads-empty">Loading promotions...</div>
-            </div>
+            <div class="ads-grid" id="adsGrid"></div>
         </div>
 
         <h2 class="section-title">Top Restaurants Near You</h2>
@@ -1259,6 +1231,8 @@
         let vendors = [];
         let allMenuItems = [];
           let promotions = [];
+        let currentAd = null;
+        let adInterval = null;
 
         let currentCategory = 'all';
 
@@ -1328,6 +1302,7 @@
                 }
                 promotions = await res.json();
                 renderPromotions();
+                startAdLoop();
             } catch (err) {
                 console.error(err);
                 const grid = document.getElementById('adsGrid');
@@ -1352,34 +1327,32 @@
 
             if (!promotions.length) {
                 grid.innerHTML = '<div class="ads-empty">No promotions are live right now. Check back soon.</div>';
+                currentAd = null;
                 return;
             }
 
-            grid.innerHTML = promotions.map(promo => {
-                const price = Number(promo.price_per_click);
-                const priceLabel = Number.isFinite(price) ? `₹${price.toFixed(2)} per click` : 'Sponsored';
-                const location = [promo.vendor_name, promo.vendor_location].filter(Boolean).join(' • ');
-                const clicks = typeof promo.total_clicks === 'number' ? promo.total_clicks : 0;
+            if (!currentAd) {
+                currentAd = promotions[0];
+            }
 
-                return `
-                    <div class="ad-card">
-                        <div class="ad-card-header">
-                            <div>
-                                <div class="ads-eyebrow">${priceLabel}</div>
-                                <div class="ad-title">${escapeHtml(promo.title || 'Promotion')}</div>
-                                <div class="ad-vendor">${escapeHtml(location || 'Partner promotion')}</div>
-                            </div>
-                            <div class="ad-meta">${clicks} clicks</div>
+            const price = Number(currentAd.price_per_click);
+            const priceLabel = Number.isFinite(price) ? `₹${price.toFixed(2)} per click` : 'Sponsored';
+            const location = [currentAd.vendor_name, currentAd.vendor_location].filter(Boolean).join(' • ');
+            const clicks = typeof currentAd.total_clicks === 'number' ? currentAd.total_clicks : 0;
+
+            grid.innerHTML = `
+                <div class="ad-card">
+                    <div class="ad-card-header">
+                        <div>
+                            <div class="ads-eyebrow">${priceLabel} • Now playing</div>
+                            <div class="ad-title">${escapeHtml(currentAd.title || 'Promotion')}</div>
+                            <div class="ad-vendor">${escapeHtml(location || 'Partner promotion')}</div>
                         </div>
-                        <div class="ad-description">${escapeHtml(promo.description || 'Watch the promo to learn more.')}</div>
-                        <div class="ad-actions">
-                            <button class="ad-button" onclick="handlePromotionClick(${promo.id})">
-                                <i class="fas fa-play"></i> Watch Ad
-                            </button>
-                        </div>
+                        <div class="ad-meta">${clicks} clicks</div>
                     </div>
-                `;
-            }).join('');
+                    <div class="ad-description">${escapeHtml(currentAd.description || 'Promo is playing now.')}</div>
+                </div>
+            `;
         }
 
         function handlePromotionClick(id) {
@@ -1391,10 +1364,6 @@
 
             fetch(`/api/promotion/${id}/click`, { method: 'POST' })
                 .catch(err => console.error('Failed to record promotion click', err));
-
-            if (promo.video_url) {
-                window.open(promo.video_url, '_blank', 'noopener');
-            }
         }
 
         function weightedPick(items, weightFn) {
@@ -1412,15 +1381,27 @@
             return items[items.length - 1];
         }
 
-        function playRandomAd() {
+        function playNextAd() {
             if (!promotions.length) {
-                alert('No ads are live right now.');
+                currentAd = null;
+                renderPromotions();
                 return;
             }
-            const chosen = weightedPick(promotions, p => p.price_per_click || 1);
-            if (chosen) {
-                handlePromotionClick(chosen.id);
+            const chosen = weightedPick(promotions, p => p.price_per_click || 1) || promotions[0];
+            currentAd = chosen;
+            handlePromotionClick(chosen.id);
+        }
+
+        function startAdLoop() {
+            if (adInterval) {
+                clearInterval(adInterval);
             }
+            if (!promotions.length) {
+                renderPromotions();
+                return;
+            }
+            playNextAd();
+            adInterval = setInterval(playNextAd, 12000);
         }
 
         /* =======================
