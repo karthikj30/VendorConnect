@@ -504,23 +504,29 @@
             document.getElementById('errorAlert').style.display = 'none';
             document.getElementById('successAlert').style.display = 'none';
             
+            const payload = {
+                role: role,
+                name: name,
+                phone: phone,
+                email: email,
+                location: location,
+                password: password
+            };
+            if (role === 'Vendor') {
+                payload.business_type = businessType;
+                payload.other_business = businessType === 'other' ? otherBusiness : '';
+            }
+            if (role === 'Delivery Agent') {
+                payload.vehicle_info = vehicleInfo;
+            }
+
             try {
                 const response = await fetch('/vendor/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                            role: role,
-                            name: name,
-                            phone: phone,
-                            email: email,
-                            location: location,
-                            business_type: businessType,
-                            other_business: businessType === 'other' ? otherBusiness : '',
-                            vehicle_info: vehicleInfo,
-                            password: password
-                        })
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await response.json();
@@ -613,6 +619,7 @@
 
         // Show 'Other' stall input when Business Type = other
         const businessSelect = document.getElementById('business_type');
+        const businessGroup = businessSelect ? businessSelect.closest('.form-group') : null;
         const otherGroup = document.getElementById('other_business_group');
         const otherInput = document.getElementById('other_business');
         const roleSelect = document.getElementById('role');
@@ -627,11 +634,16 @@
                 vehicleGroup.style.display = 'none';
             }
 
-            // business type only required for Vendors
+            // business type only visible/required for Vendors
             if (r === 'Vendor') {
+                if (businessGroup) businessGroup.style.display = 'block';
                 businessSelect.setAttribute('required', 'required');
             } else {
+                if (businessGroup) businessGroup.style.display = 'none';
                 businessSelect.removeAttribute('required');
+                businessSelect.value = '';
+                if (otherGroup) otherGroup.style.display = 'none';
+                if (otherInput) otherInput.removeAttribute('required');
             }
         }
 

@@ -231,6 +231,52 @@ _load_google_client_from_file()
 # Register Authlib OAuth client for Google
 oauth = OAuth(app)
 
+# Error handlers - return JSON for API errors
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors by returning JSON for API calls"""
+    if request.content_type and 'application/json' in request.content_type or request.path.startswith('/api'):
+        return jsonify({'success': False, 'error': 'Not found', 'message': 'The requested resource was not found'}), 404
+    return render_template('index.html'), 404
+
+@app.errorhandler(401)
+def unauthorized_error(error):
+    """Handle 401 errors by returning JSON for API calls"""
+    if request.content_type and 'application/json' in request.content_type or request.path.startswith('/api'):
+        return jsonify({'success': False, 'error': 'Unauthorized', 'message': 'Please login first'}), 401
+    return redirect(url_for('vendor_login')), 401
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors by returning JSON for API calls"""
+    db.session.rollback()
+    app.logger.error(f'Internal server error: {error}')
+    if request.content_type and 'application/json' in request.content_type or request.path.startswith('/api'):
+        return jsonify({'success': False, 'error': 'Internal server error', 'message': 'An unexpected error occurred'}), 500
+    return render_template('index.html'), 500
+
+@app.errorhandler(400)
+def bad_request_error(error):
+    """Handle 400 errors by returning JSON"""
+    if request.content_type and 'application/json' in request.content_type or request.path.startswith('/api'):
+        return jsonify({'success': False, 'error': 'Bad request', 'message': 'Invalid request data'}), 400
+    return render_template('index.html'), 400
+
+@app.errorhandler(405)
+def method_not_allowed_error(error):
+    """Handle 405 errors by returning JSON"""
+    if request.content_type and 'application/json' in request.content_type or request.path.startswith('/api'):
+        return jsonify({'success': False, 'error': 'Method not allowed', 'message': f'The {request.method} method is not allowed for this endpoint'}), 405
+    return render_template('index.html'), 405
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Handle any unhandled exceptions"""
+    app.logger.error(f'Unhandled exception: {error}', exc_info=True)
+    if request.content_type and 'application/json' in request.content_type or request.path.startswith('/api'):
+        return jsonify({'success': False, 'error': 'Internal server error', 'message': 'An unexpected error occurred. Please check the server logs.'}), 500
+    return render_template('index.html'), 500
+
 def ensure_oauth_registered(force=False):
     """Ensure the Google OAuth client is registered with Authlib.
 
@@ -404,6 +450,14 @@ class Product(db.Model):
     stock_available = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default='kg')
 
+class MenuItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 class DeliveryAgent(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -461,6 +515,24 @@ class OTPVerification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
     is_used = db.Column(db.Boolean, default=False)
+
+class Promotion(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.String(500), nullable=True)
+    video_url = db.Column(db.String(500), nullable=False)
+    price_per_click = db.Column(db.Float, default=5.0)  # 5-10 per click
+    total_clicks = db.Column(db.Integer, default=0)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=True)
+
+class PromotionClick(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    promotion_id = db.Column(db.Integer, db.ForeignKey('promotion.id'), nullable=False)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
+    clicked_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Sample data for demonstration
 def create_sample_data():
@@ -681,6 +753,7 @@ def create_sample_vendors():
         {
             'name': 'Ice Cream Paradise',
             'phone': '9876543201',
+            'email': 'icecream@vendor.com',
             'location': 'Bandra West',
             'business_type': 'ice_cream',
             'password_hash': generate_password_hash('password123')
@@ -688,6 +761,7 @@ def create_sample_vendors():
         {
             'name': 'Chaat Corner',
             'phone': '9876543202',
+            'email': 'chaat@vendor.com',
             'location': 'Andheri East',
             'business_type': 'chaat',
             'password_hash': generate_password_hash('password123')
@@ -695,6 +769,7 @@ def create_sample_vendors():
         {
             'name': 'Dosa House',
             'phone': '9876543203',
+            'email': 'dosa@vendor.com',
             'location': 'Juhu',
             'business_type': 'dosa',
             'password_hash': generate_password_hash('password123')
@@ -702,6 +777,7 @@ def create_sample_vendors():
         {
             'name': 'Samosa King',
             'phone': '9876543204',
+            'email': 'samosa@vendor.com',
             'location': 'Santacruz',
             'business_type': 'samosa',
             'password_hash': generate_password_hash('password123')
@@ -709,6 +785,7 @@ def create_sample_vendors():
         {
             'name': 'Vada Pav Express',
             'phone': '9876543205',
+            'email': 'vadapav@vendor.com',
             'location': 'Mumbai Central',
             'business_type': 'vada_pav',
             'password_hash': generate_password_hash('password123')
@@ -716,6 +793,7 @@ def create_sample_vendors():
         {
             'name': 'Tea Junction',
             'phone': '9876543206',
+            'email': 'tea@vendor.com',
             'location': 'Khar West',
             'business_type': 'tea',
             'password_hash': generate_password_hash('password123')
@@ -723,6 +801,7 @@ def create_sample_vendors():
         {
             'name': 'Fresh Juice Bar',
             'phone': '9876543207',
+            'email': 'juice@vendor.com',
             'location': 'Versova',
             'business_type': 'juice',
             'password_hash': generate_password_hash('password123')
@@ -1120,6 +1199,175 @@ def get_products():
         })
     
     return jsonify(products_data)
+
+@app.route('/api/vendor/menu', methods=['GET', 'POST'])
+def vendor_menu():
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    vendor = Vendor.query.get(session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        name = (data.get('name') or '').strip()
+        description = (data.get('description') or '').strip()
+        price_raw = data.get('price')
+
+        if not name:
+            return jsonify({'success': False, 'message': 'Menu item name is required.'}), 400
+
+        try:
+            price = float(price_raw)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Price must be a number.'}), 400
+
+        new_item = MenuItem(
+            vendor_id=vendor.id,
+            name=name,
+            price=price,
+            description=description
+        )
+        db.session.add(new_item)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Menu item added.', 'item_id': new_item.id})
+
+    # GET
+    items = MenuItem.query.filter_by(vendor_id=vendor.id).order_by(MenuItem.created_at.desc()).all()
+    return jsonify([
+        {
+            'id': item.id,
+            'name': item.name,
+            'price': item.price,
+            'description': item.description or '',
+            'created_at': item.created_at.isoformat()
+        } for item in items
+    ])
+
+@app.route('/api/menu')
+def all_menus():
+    items = MenuItem.query.order_by(MenuItem.created_at.desc()).all()
+    response = []
+    for item in items:
+        vendor = Vendor.query.get(item.vendor_id)
+        response.append({
+            'id': item.id,
+            'name': item.name,
+            'price': item.price,
+            'description': item.description or '',
+            'vendor_id': item.vendor_id,
+            'vendor_name': vendor.name if vendor else 'Unknown Vendor',
+            'vendor_location': vendor.location if vendor else '',
+            'vendor_business_type': vendor.business_type if vendor else '',
+            'created_at': item.created_at.isoformat()
+        })
+    return jsonify(response)
+
+@app.route('/api/vendor/promotions', methods=['GET', 'POST'])
+def vendor_promotions():
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    vendor = Vendor.query.get(session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        title = (data.get('title') or '').strip()
+        description = (data.get('description') or '').strip()
+        video_url = (data.get('video_url') or '').strip()
+        price_per_click = data.get('price_per_click', 5.0)
+
+        if not title:
+            return jsonify({'success': False, 'message': 'Promotion title is required.'}), 400
+        if not video_url:
+            return jsonify({'success': False, 'message': 'Video URL is required.'}), 400
+
+        try:
+            price_per_click = float(price_per_click)
+            if price_per_click < 5 or price_per_click > 10:
+                return jsonify({'success': False, 'message': 'Price per click must be between 5-10.'}), 400
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': 'Price must be a number between 5-10.'}), 400
+
+        try:
+            new_promo = Promotion(
+                vendor_id=vendor.id,
+                title=title,
+                description=description,
+                video_url=video_url,
+                price_per_click=price_per_click,
+                is_active=True
+            )
+            db.session.add(new_promo)
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Promotion created.', 'promo_id': new_promo.id})
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Error creating promotion: {str(e)}', exc_info=True)
+            return jsonify({'success': False, 'message': f'Failed to create promotion: {str(e)}'}), 500
+
+    # GET
+    try:
+        promos = Promotion.query.filter_by(vendor_id=vendor.id).order_by(Promotion.created_at.desc()).all()
+        return jsonify([
+            {
+                'id': p.id,
+                'title': p.title,
+                'description': p.description or '',
+                'video_url': p.video_url,
+                'price_per_click': p.price_per_click,
+                'total_clicks': p.total_clicks,
+                'monthly_charge': p.total_clicks * p.price_per_click,
+                'is_active': p.is_active,
+                'created_at': p.created_at.isoformat()
+            } for p in promos
+        ])
+    except Exception as e:
+        app.logger.error(f'Error retrieving promotions: {str(e)}', exc_info=True)
+        return jsonify({'success': False, 'message': f'Failed to retrieve promotions: {str(e)}'}), 500
+
+@app.route('/api/promotions/public', methods=['GET'])
+def get_public_promotions():
+    promos = Promotion.query.filter_by(is_active=True).order_by(Promotion.created_at.desc()).all()
+    response = []
+    for p in promos:
+        vendor = Vendor.query.get(p.vendor_id)
+        response.append({
+            'id': p.id,
+            'title': p.title,
+            'description': p.description or '',
+            'video_url': p.video_url,
+            'vendor_id': p.vendor_id,
+            'vendor_name': vendor.name if vendor else 'Vendor',
+            'vendor_location': vendor.location if vendor else '',
+            'price_per_click': p.price_per_click,
+            'total_clicks': p.total_clicks,
+            'created_at': p.created_at.isoformat()
+        })
+    return jsonify(response)
+
+@app.route('/api/promotion/<int:promo_id>/click', methods=['POST'])
+def record_promotion_click(promo_id):
+    promo = Promotion.query.get(promo_id)
+    if not promo:
+        return jsonify({'success': False, 'message': 'Promotion not found'}), 404
+
+    customer_id = session.get('customer_id')
+    click = PromotionClick(
+        promotion_id=promo_id,
+        customer_id=customer_id
+    )
+    db.session.add(click)
+    promo.total_clicks += 1
+    db.session.commit()
+
+    return jsonify({'success': True, 'message': 'Click recorded'})
 
 @app.route('/api/group-orders')
 def get_group_orders():
@@ -1678,7 +1926,11 @@ def logout():
 def vendor_dashboard():
     if 'vendor_id' not in session:
         return redirect(url_for('vendor_login'))
-    return render_template('vendor_dashboard.html')
+    vendor = Vendor.query.get(session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return redirect(url_for('vendor_login'))
+    return render_template('vendor_dashboard.html', vendor=vendor)
 
 
 @app.route('/supplier/dashboard')

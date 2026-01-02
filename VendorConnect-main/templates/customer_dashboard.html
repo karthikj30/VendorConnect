@@ -9,8 +9,18 @@
         body{font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;color:#333}
         .container{max-width:1000px;margin:40px auto;padding:20px;background:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
         h1{color:#2c3e50}
-        .actions{display:flex;gap:12px;margin-top:16px}
+        .actions{display:flex;gap:12px;margin-top:16px;flex-wrap:wrap}
         .btn{padding:10px 14px;background:#ff7f50;color:#fff;border-radius:6px;text-decoration:none}
+        .menu-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:16px}
+        .menu-card{border:1px solid #eee;border-radius:10px;padding:14px;box-shadow:0 4px 12px rgba(0,0,0,0.04);background:#fff}
+        .menu-card h3{margin:0 0 6px;font-size:18px;color:#2c3e50}
+        .menu-meta{font-size:13px;color:#777;margin-bottom:6px}
+        .menu-price{font-weight:700;color:#ff7f50;margin-bottom:6px}
+        .empty{color:#777;margin-top:8px}
+        .promo-video{width:100%;max-width:300px;height:auto;border-radius:8px;margin-bottom:10px;background:#000;cursor:pointer;}
+        .promo-card-content{cursor:pointer;transition:transform 0.2s;}
+        .promo-card-content:hover{transform:translateY(-4px);}
+        .promo-meta-info{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#888;margin-top:8px;}
     </style>
 </head>
 <body>
@@ -23,6 +33,137 @@
             <a class="btn" href="#">Profile</a>
             <a class="btn" href="/logout">Logout</a>
         </div>
+
+        <h2 style="margin-top:24px;">Menus from Vendors</h2>
+        <p style="color:#555;margin-top:6px;">See what vendors are serving right now.</p>
+        <div id="menu-feed" class="menu-grid">
+            <div class="empty">Loading menu...</div>
+        </div>
+
+        <h2 style="margin-top:32px;"><i class="fas fa-bullhorn"></i> Promotions & Special Offers</h2>
+        <p style="color:#555;margin-top:6px;">Check out exciting promotional videos from vendors.</p>
+        <div id="promo-feed" class="menu-grid">
+            <div class="empty">No promotions yet. Check back soon!</div>
+        </div>
     </div>
+    <script>
+        // Function to extract YouTube video ID from various YouTube URL formats
+        function getYouTubeVideoId(url) {
+            try {
+                const patterns = [
+                    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+                    /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+                    /youtu\.be\/([^&\n?#]+)/
+                ];
+                
+                for (let pattern of patterns) {
+                    const match = url.match(pattern);
+                    if (match && match[1]) {
+                        return match[1];
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing YouTube URL:', e);
+            }
+            return null;
+        }
+
+        // Function to get video embed HTML
+        function getVideoEmbed(videoUrl, promoId) {
+            const youtubeId = getYouTubeVideoId(videoUrl);
+            
+            if (youtubeId) {
+                // It's a YouTube video
+                return `<iframe 
+                    width="100%" 
+                    height="200" 
+                    src="https://www.youtube.com/embed/${youtubeId}" 
+                    title="Promotion Video" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen
+                    style="border-radius:8px;">
+                </iframe>`;
+            } else {
+                // It's a direct video file (MP4, WebM, etc.)
+                return `<video class="promo-video" controls style="width:100%;height:auto;border-radius:8px;">
+                    <source src="${videoUrl}" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>`;
+            }
+        }
+
+        async function loadMenuFeed(){
+            const container=document.getElementById('menu-feed');
+            try{
+                const res=await fetch('/api/menu');
+                const data=await res.json();
+                if(!Array.isArray(data) || data.length===0){
+                    container.innerHTML='<div class="empty">No menu items yet. Please check back soon.</div>';
+                    return;
+                }
+                container.innerHTML=data.map(item=>`
+                    <div class="menu-card">
+                        <h3>${item.name}</h3>
+                        <div class="menu-price">₹${Number(item.price).toFixed(2)}</div>
+                        <div class="menu-meta">${item.vendor_name || 'Vendor'} • ${item.vendor_location || 'Location TBD'}</div>
+                        <div class="menu-meta">${(item.vendor_business_type || '').replace('_',' ').toUpperCase()}</div>
+                        <p style="margin:6px 0 0; color:#444;">${item.description || 'No description provided.'}</p>
+                    </div>
+                `).join('');
+            }catch(err){
+                console.error('Error loading menu feed',err);
+                container.innerHTML='<div class="empty">Unable to load menu right now.</div>';
+            }
+        }
+
+        async function loadPromoFeed(){
+            const container=document.getElementById('promo-feed');
+            try{
+                const res=await fetch('/api/promotions/public');
+                const data=await res.json();
+                if(!Array.isArray(data) || data.length===0){
+                    container.innerHTML='<div class="empty">No promotions yet. Check back soon!</div>';
+                    return;
+                }
+                container.innerHTML=data.map(promo=>`
+                    <div class="menu-card" onclick="handlePromoClick(${promo.id})">
+                        <div class="promo-card-content">
+                            <h3>${promo.title}</h3>
+                            <div id="video-container-${promo.id}" style="width:100%;border-radius:8px;margin-bottom:10px;background:#000;">
+                                ${getVideoEmbed(promo.video_url, promo.id)}
+                            </div>
+                            <div class="menu-meta">${promo.vendor_name || 'Vendor'} • ${promo.vendor_location || 'Location'}</div>
+                            <p style="margin:6px 0; color:#444;">${promo.description || 'Check out this special offer!'}</p>
+                            <div class="promo-meta-info">
+                                <span>₹${Number(promo.price_per_click).toFixed(2)}/click</span>
+                                <span>${promo.total_clicks} views</span>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }catch(err){
+                console.error('Error loading promo feed',err);
+                container.innerHTML='<div class="empty">Unable to load promotions.</div>';
+            }
+        }
+
+        async function handlePromoClick(promoId) {
+            try{
+                const res=await fetch(`/api/promotion/${promoId}/click`, {method:'POST'});
+                const data=await res.json();
+                if(data.success) {
+                    await loadPromoFeed();
+                }
+            }catch(err){
+                console.error('Error recording click',err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded',function(){
+            loadMenuFeed();
+            loadPromoFeed();
+        });
+    </script>
 </body>
 </html>
