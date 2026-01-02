@@ -1042,6 +1042,9 @@
                     <div class="ads-title">Promotions near you</div>
                 </div>
                 <div class="ad-meta" id="adsMeta"></div>
+                <button class="ad-button" onclick="playRandomAd()">
+                    <i class="fas fa-random"></i> Play a random ad
+                </button>
             </div>
             <div class="ads-grid" id="adsGrid">
                 <div class="ads-empty">Loading promotions...</div>
@@ -1391,6 +1394,32 @@
 
             if (promo.video_url) {
                 window.open(promo.video_url, '_blank', 'noopener');
+            }
+        }
+
+        function weightedPick(items, weightFn) {
+            if (!items.length) return null;
+            const weights = items.map(weightFn).map(w => Math.max(Number(w) || 0, 0));
+            const total = weights.reduce((sum, w) => sum + w, 0);
+            if (total <= 0) {
+                return items[Math.floor(Math.random() * items.length)];
+            }
+            let r = Math.random() * total;
+            for (let i = 0; i < items.length; i++) {
+                r -= weights[i];
+                if (r <= 0) return items[i];
+            }
+            return items[items.length - 1];
+        }
+
+        function playRandomAd() {
+            if (!promotions.length) {
+                alert('No ads are live right now.');
+                return;
+            }
+            const chosen = weightedPick(promotions, p => p.price_per_click || 1);
+            if (chosen) {
+                handlePromotionClick(chosen.id);
             }
         }
 
