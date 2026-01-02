@@ -813,6 +813,90 @@ def create_sample_vendors():
         db.session.add(vendor)
     
     db.session.commit()
+    print("✅ Sample vendors created successfully with business names!")
+
+def create_sample_menu_items():
+    """Create sample menu items for each vendor"""
+    vendors = Vendor.query.all()
+    
+    if not vendors:
+        print("⚠️ No vendors found. Create vendors first.")
+        return
+    
+    # Check if menu items already exist
+    if MenuItem.query.first():
+        print("ℹ️ Menu items already exist")
+        return
+    
+    # Sample menu items by business type
+    menu_templates = {
+        'ice_cream': [
+            ('Vanilla Ice Cream', 50, 'Classic creamy vanilla ice cream'),
+            ('Chocolate Ice Cream', 60, 'Rich chocolate ice cream'),
+            ('Strawberry Ice Cream', 65, 'Fresh strawberry ice cream'),
+            ('Mango Ice Cream', 70, 'Delicious mango ice cream'),
+            ('Kulfi', 40, 'Traditional Indian ice cream'),
+        ],
+        'chaat': [
+            ('Pani Puri', 30, 'Crispy puris with spicy water'),
+            ('Bhel Puri', 40, 'Puffed rice with chutneys'),
+            ('Sev Puri', 35, 'Crispy puris with sev topping'),
+            ('Dahi Puri', 45, 'Puris with yogurt and chutneys'),
+            ('Samosa Chaat', 50, 'Crushed samosa with chutneys'),
+        ],
+        'dosa': [
+            ('Plain Dosa', 40, 'Crispy rice pancake'),
+            ('Masala Dosa', 60, 'Dosa with potato filling'),
+            ('Onion Dosa', 50, 'Dosa with onion topping'),
+            ('Cheese Dosa', 80, 'Dosa with cheese'),
+            ('Mysore Masala Dosa', 70, 'Spicy dosa with potato filling'),
+        ],
+        'samosa': [
+            ('Aloo Samosa', 15, 'Potato stuffed samosa'),
+            ('Punjabi Samosa', 20, 'Spicy Punjabi style samosa'),
+            ('Peas Samosa', 18, 'Green peas samosa'),
+            ('Cheese Samosa', 25, 'Samosa with cheese filling'),
+            ('Mini Samosa', 30, 'Pack of 4 mini samosas'),
+        ],
+        'vada_pav': [
+            ('Classic Vada Pav', 20, 'Mumbai\'s favorite street food'),
+            ('Cheese Vada Pav', 30, 'Vada pav with cheese'),
+            ('Schezwan Vada Pav', 25, 'Spicy schezwan vada pav'),
+            ('Masala Vada Pav', 22, 'Extra spicy vada pav'),
+            ('Paneer Vada Pav', 35, 'Vada pav with paneer'),
+        ],
+        'tea': [
+            ('Masala Chai', 15, 'Traditional spiced tea'),
+            ('Ginger Tea', 12, 'Tea with fresh ginger'),
+            ('Cardamom Tea', 18, 'Tea with cardamom'),
+            ('Lemon Tea', 20, 'Refreshing lemon tea'),
+            ('Cutting Chai', 10, 'Half cup of strong tea'),
+        ],
+        'juice': [
+            ('Orange Juice', 40, 'Fresh orange juice'),
+            ('Watermelon Juice', 35, 'Refreshing watermelon juice'),
+            ('Sugarcane Juice', 30, 'Fresh sugarcane juice'),
+            ('Mixed Fruit Juice', 50, 'Blend of seasonal fruits'),
+            ('Carrot Juice', 45, 'Healthy carrot juice'),
+        ],
+    }
+    
+    for vendor in vendors:
+        business_type = vendor.business_type
+        menu_items = menu_templates.get(business_type, menu_templates['ice_cream'])
+        
+        for item_name, price, description in menu_items:
+            menu_item = MenuItem(
+                vendor_id=vendor.id,
+                name=item_name,
+                price=price,
+                description=description
+            )
+            db.session.add(menu_item)
+    
+    db.session.commit()
+    print("✅ Sample menu items created successfully!")
+
 
 # Business type to product category mapping
 BUSINESS_TYPE_CATEGORIES = {
@@ -1247,23 +1331,30 @@ def vendor_menu():
         } for item in items
     ])
 
+# Add this updated route to your app.py file
+# Replace the existing /api/menu route with this one
+
 @app.route('/api/menu')
 def all_menus():
+    """Return all menu items with vendor restaurant/stall name and business type"""
     items = MenuItem.query.order_by(MenuItem.created_at.desc()).all()
     response = []
     for item in items:
         vendor = Vendor.query.get(item.vendor_id)
-        response.append({
-            'id': item.id,
-            'name': item.name,
-            'price': item.price,
-            'description': item.description or '',
-            'vendor_id': item.vendor_id,
-            'vendor_name': vendor.name if vendor else 'Unknown Vendor',
-            'vendor_location': vendor.location if vendor else '',
-            'vendor_business_type': vendor.business_type if vendor else '',
-            'created_at': item.created_at.isoformat()
-        })
+        if vendor:
+            # Use vendor.name as the restaurant/stall name
+            # This should be the business name, not the owner's personal name
+            response.append({
+                'id': item.id,
+                'name': item.name,
+                'price': item.price,
+                'description': item.description or '',
+                'vendor_id': item.vendor_id,
+                'vendor_name': vendor.name,  # Restaurant/Stall name
+                'vendor_location': vendor.location,
+                'vendor_business_type': vendor.business_type,
+                'created_at': item.created_at.isoformat()
+            })
     return jsonify(response)
 
 @app.route('/api/vendor/promotions', methods=['GET', 'POST'])
@@ -3538,6 +3629,7 @@ if __name__ == '__main__':
 
         create_sample_orders()
         create_sample_vendors()
+        create_sample_menu_items()
     
 if __name__ == '__main__':
     # For production deployment on Render
