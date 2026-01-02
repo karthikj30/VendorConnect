@@ -66,9 +66,48 @@
             border-color: #ff6b6b;
         }
 
-        .ad-actions { display: none; }
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #999;
+        }
+
+        .header-icons {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            position: relative;
+            background: none;
+            border: none;
+            font-size: 22px;
+            cursor: pointer;
+            color: #333;
+            transition: transform 0.2s;
+        }
+
         .icon-btn:hover {
             transform: scale(1.1);
+        }
+
+        .ad-actions { display: none; }
+
+        .ad-button {
+            border: none;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: #fff;
+            padding: 10px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 8px 18px rgba(255, 107, 107, 0.25);
         }
 
         .badge {
@@ -157,6 +196,20 @@
             gap: 14px;
         }
 
+        .ad-video {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .ad-video iframe {
+            width: 100%;
+            height: 100%;
+            aspect-ratio: 16 / 9;
+            border: 0;
+        }
+
         .ad-card {
             background: white;
             border-radius: 14px;
@@ -201,30 +254,7 @@
             font-size: 13px;
         }
 
-        .ad-actions {
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .ad-button {
-            border: none;
-            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
-            color: #fff;
-            padding: 10px 14px;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            box-shadow: 0 8px 18px rgba(255, 107, 107, 0.25);
-        }
-
-        .ad-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(255, 107, 107, 0.35);
-        }
+        .ad-actions { display: none; }
 
         .ads-empty {
             text-align: center;
@@ -1020,7 +1050,9 @@
                 </div>
                 <div class="ad-meta" id="adsMeta"></div>
             </div>
-            <div class="ads-grid" id="adsGrid"></div>
+            <div class="ads-grid" id="adsGrid">
+                <div class="ads-empty">Loading promotions...</div>
+            </div>
         </div>
 
         <h2 class="section-title">Top Restaurants Near You</h2>
@@ -1291,6 +1323,29 @@
             return '🍽️';
         }
 
+        function getVideoEmbedUrl(url) {
+            if (!url) return '';
+            try {
+                const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+                if (ytMatch && ytMatch[1]) {
+                    const origin = encodeURIComponent(window.location.origin);
+                    return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&rel=0&modestbranding=1&playsinline=1&origin=${origin}`;
+                }
+                return url;
+            } catch (e) {
+                return url;
+            }
+        }
+
+        function getVideoWatchUrl(url) {
+            if (!url) return '';
+            const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+            if (ytMatch && ytMatch[1]) {
+                return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
+            }
+            return url;
+        }
+
         /* =======================
            LOAD PROMOTIONS
         ======================= */
@@ -1339,6 +1394,8 @@
             const priceLabel = Number.isFinite(price) ? `₹${price.toFixed(2)} per click` : 'Sponsored';
             const location = [currentAd.vendor_name, currentAd.vendor_location].filter(Boolean).join(' • ');
             const clicks = typeof currentAd.total_clicks === 'number' ? currentAd.total_clicks : 0;
+            const embedUrl = getVideoEmbedUrl(currentAd.video_url);
+            const watchUrl = getVideoWatchUrl(currentAd.video_url);
 
             grid.innerHTML = `
                 <div class="ad-card">
@@ -1350,6 +1407,8 @@
                         </div>
                         <div class="ad-meta">${clicks} clicks</div>
                     </div>
+                    ${embedUrl ? `<div class="ad-video"><iframe src="${embedUrl}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : ''}
+                    ${watchUrl ? `<div style="display:flex;justify-content:flex-end;margin-top:8px;"><a href="${watchUrl}" target="_blank" rel="noopener" class="ad-button" style="text-decoration:none;">Open on YouTube</a></div>` : ''}
                     <div class="ad-description">${escapeHtml(currentAd.description || 'Promo is playing now.')}</div>
                 </div>
             `;
