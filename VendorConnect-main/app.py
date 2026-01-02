@@ -9,6 +9,7 @@ import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
+import uuid
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -141,6 +142,7 @@ basedir = os.path.abspath(os.path.dirname(__file__))
 # Configure Flask app with explicit instance path pointing to the repo-level instance folder
 app = Flask(__name__, instance_path=os.path.join(basedir, '../instance'))
 app.config['SECRET_KEY'] = 'vendorconnect_secret_key_2024'
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max upload size
 
 # Configure logging
 log_level = logging.DEBUG if os.environ.get('FLASK_DEBUG') in ('1', 'true', 'True') or os.environ.get('DEBUG') in ('1', 'true', 'True') else logging.INFO
@@ -1532,16 +1534,54 @@ def vendor_promotions():
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
 
     if request.method == 'POST':
-        data = request.get_json() or {}
-        title = (data.get('title') or '').strip()
-        description = (data.get('description') or '').strip()
-        video_url = (data.get('video_url') or '').strip()
-        price_per_click = data.get('price_per_click', 5.0)
+        # Check if it's a file upload (multipart/form-data) or JSON
+        is_file_upload = 'video_file' in request.files
+        
+        if is_file_upload:
+            # Handle file upload
+            title = request.form.get('title', '').strip()
+            description = request.form.get('description', '').strip()
+            price_per_click = request.form.get('price_per_click', 5.0)
+            video_file = request.files.get('video_file')
+            
+            if not title:
+                return jsonify({'success': False, 'message': 'Promotion title is required.'}), 400
+            if not video_file or video_file.filename == '':
+                return jsonify({'success': False, 'message': 'Video file is required.'}), 400
+            
+            # Validate file extension
+            allowed_extensions = {'mp4', 'webm', 'avi', 'mov', 'mkv', 'flv'}
+            filename = secure_filename(video_file.filename)
+            file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            
+            if file_ext not in allowed_extensions:
+                return jsonify({'success': False, 'message': f'Invalid video format. Allowed: {", ".join(allowed_extensions)}'}), 400
+            
+            # Create unique filename
+            unique_filename = f"{uuid.uuid4().hex}_{filename}"
+            
+            # Ensure upload directory exists
+            upload_dir = os.path.join(app.static_folder, 'uploads', 'promotions')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Save file
+            file_path = os.path.join(upload_dir, unique_filename)
+            video_file.save(file_path)
+            
+            # Store relative path for database
+            video_url = f'/static/uploads/promotions/{unique_filename}'
+        else:
+            # Handle URL-based promotion
+            data = request.get_json() or {}
+            title = (data.get('title') or '').strip()
+            description = (data.get('description') or '').strip()
+            video_url = (data.get('video_url') or '').strip()
+            price_per_click = data.get('price_per_click', 5.0)
 
-        if not title:
-            return jsonify({'success': False, 'message': 'Promotion title is required.'}), 400
-        if not video_url:
-            return jsonify({'success': False, 'message': 'Video URL is required.'}), 400
+            if not title:
+                return jsonify({'success': False, 'message': 'Promotion title is required.'}), 400
+            if not video_url:
+                return jsonify({'success': False, 'message': 'Video URL is required.'}), 400
 
         try:
             price_per_click = float(price_per_click)

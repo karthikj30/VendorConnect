@@ -1325,6 +1325,12 @@
 
         function getVideoEmbedUrl(url) {
             if (!url) return '';
+            
+            // Check if it's a local uploaded file
+            if (url.startsWith('/static/uploads/promotions/')) {
+                return url; // Return the path as-is for local video files
+            }
+            
             try {
                 const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
                 if (ytMatch && ytMatch[1]) {
@@ -1339,11 +1345,21 @@
 
         function getVideoWatchUrl(url) {
             if (!url) return '';
+            
+            // For local uploaded files, return the same path
+            if (url.startsWith('/static/uploads/promotions/')) {
+                return url;
+            }
+            
             const ytMatch = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
             if (ytMatch && ytMatch[1]) {
                 return `https://www.youtube.com/watch?v=${ytMatch[1]}`;
             }
             return url;
+        }
+
+        function isLocalVideo(url) {
+            return url && url.startsWith('/static/uploads/promotions/');
         }
 
         /* =======================
@@ -1396,6 +1412,20 @@
             const clicks = typeof currentAd.total_clicks === 'number' ? currentAd.total_clicks : 0;
             const embedUrl = getVideoEmbedUrl(currentAd.video_url);
             const watchUrl = getVideoWatchUrl(currentAd.video_url);
+            const isLocal = isLocalVideo(currentAd.video_url);
+
+            let videoHtml = '';
+            if (embedUrl) {
+                if (isLocal) {
+                    // Use native video tag for uploaded files
+                    videoHtml = `<div class="ad-video"><video src="${embedUrl}" controls autoplay muted loop style="width:100%;height:100%;object-fit:cover;border-radius:8px;"></video></div>`;
+                } else {
+                    // Use iframe for YouTube and other external videos
+                    videoHtml = `<div class="ad-video"><iframe src="${embedUrl}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`;
+                }
+            }
+
+            const openLinkHtml = watchUrl && !isLocal ? `<div style="display:flex;justify-content:flex-end;margin-top:8px;"><a href="${watchUrl}" target="_blank" rel="noopener" class="ad-button" style="text-decoration:none;">Open on YouTube</a></div>` : '';
 
             grid.innerHTML = `
                 <div class="ad-card">
@@ -1407,8 +1437,8 @@
                         </div>
                         <div class="ad-meta">${clicks} clicks</div>
                     </div>
-                    ${embedUrl ? `<div class="ad-video"><iframe src="${embedUrl}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : ''}
-                    ${watchUrl ? `<div style="display:flex;justify-content:flex-end;margin-top:8px;"><a href="${watchUrl}" target="_blank" rel="noopener" class="ad-button" style="text-decoration:none;">Open on YouTube</a></div>` : ''}
+                    ${videoHtml}
+                    ${openLinkHtml}
                     <div class="ad-description">${escapeHtml(currentAd.description || 'Promo is playing now.')}</div>
                 </div>
             `;
