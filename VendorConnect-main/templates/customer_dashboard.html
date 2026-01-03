@@ -310,6 +310,20 @@
             color: #333;
         }
 
+        .vendor-menu-preview {
+            padding: 0 20px 20px;
+            border-top: 1px solid #eee;
+            margin-top: 10px;
+        }
+
+        .menu-item-preview {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
         /* Modal Styles */
         .modal {
             display: none;
@@ -1014,6 +1028,9 @@
             }
         }
     </style>
+    <script>
+        const customerData = {{ customer_data|tojson }};
+    </script>
 </head>
 
 <body>
@@ -1036,7 +1053,7 @@
                 <i class="fas fa-shopping-cart"></i>
                 <span class="badge" id="cartBadge" style="display:none;">0</span>
             </button>
-            <div class="profile-btn" onclick="toggleProfile()">JD</div>
+            <div class="profile-btn" onclick="toggleProfile()">{{ customer_name }}</div>
         </div>
     </div>
 
@@ -1110,18 +1127,18 @@
     <div class="profile-modal" id="profileModal">
         <div class="profile-section">
             <div class="profile-info">
-                <div class="profile-avatar">JD</div>
+                <div class="profile-avatar" id="profileAvatar">C</div>
                 <div class="profile-details">
-                    <h3>John Doe</h3>
-                    <p>john@email.com</p>
+                    <h3 id="profileName">Customer</h3>
+                    <p id="profileEmail">customer@example.com</p>
+                    <p id="profilePhone">+91 XXXXX XXXXX</p>
+                    <p id="profileAddress">Address not set</p>
                 </div>
             </div>
+            <button class="ad-button" onclick="openEditProfile()" style="margin-top: 15px;">Edit Profile</button>
         </div>
         <div class="profile-menu-item" onclick="alert('My Orders - Feature coming soon!')">
             <i class="fas fa-box"></i> My Orders
-        </div>
-        <div class="profile-menu-item" onclick="alert('Edit Profile - Feature coming soon!')">
-            <i class="fas fa-user-edit"></i> Edit Profile
         </div>
         <div class="profile-menu-item" onclick="alert('Addresses - Feature coming soon!')">
             <i class="fas fa-map-marker-alt"></i> Addresses
@@ -1167,16 +1184,16 @@
                     </h3>
                     <div class="form-group">
                         <label>Full Name</label>
-                        <input type="text" id="customerName" placeholder="Enter your name" value="John Doe">
+                        <input type="text" id="customerName" placeholder="Enter your name" value="">
                     </div>
                     <div class="form-group">
                         <label>Phone Number</label>
-                        <input type="tel" id="customerPhone" placeholder="Enter phone number" value="+91 9876543210">
+                        <input type="tel" id="customerPhone" placeholder="Enter phone number" value="">
                     </div>
                     <div class="form-group">
                         <label>Complete Address</label>
                         <textarea id="customerAddress" rows="3"
-                            placeholder="House No, Building Name, Street, Area">123 Main Street, Andheri West, Mumbai, Maharashtra - 400058</textarea>
+                            placeholder="House No, Building Name, Street, Area"></textarea>
                     </div>
                     <div class="form-group">
                         <label>Landmark (Optional)</label>
@@ -1254,6 +1271,40 @@
         </div>
     </div>
 
+    <!-- Edit Profile Modal -->
+    <div class="checkout-modal" id="editProfileModal">
+        <div class="checkout-content">
+            <div class="checkout-header">
+                <h2>Edit Profile</h2>
+                <button class="close-modal" onclick="closeEditProfile()">&times;</button>
+            </div>
+            <div class="checkout-body">
+                <div class="checkout-section">
+                    <h3 class="checkout-section-title">Personal Information</h3>
+                    <div class="form-group">
+                        <label for="editName">Full Name</label>
+                        <input type="text" id="editName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editEmail">Email</label>
+                        <input type="email" id="editEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editPhone">Phone Number</label>
+                        <input type="tel" id="editPhone" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editAddress">Delivery Address</label>
+                        <textarea id="editAddress" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="checkout-footer">
+                    <button class="place-order-btn" onclick="saveProfile()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         /* =======================
            GLOBAL STATE
@@ -1267,15 +1318,38 @@
         let adInterval = null;
 
         let currentCategory = 'all';
+        let searchQuery = '';
 
         function filterCategory(category, el) {
-            currentCategory = category;
+            const categoryMap = {
+                'icecream': 'ice_cream',
+                'chaat': 'chaat',
+                'dosa': 'dosa',
+                'samosa': 'samosa',
+                'vada_pav': 'vada_pav',
+                'tea': 'tea',
+                'juice': 'juice'
+            };
+            currentCategory = category === 'all' ? 'all' : categoryMap[category] || category;
+            searchQuery = '';
+            document.getElementById('searchInput').value = '';
             const btns = document.querySelectorAll('#categoryFilters .category-btn');
             btns.forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.category === category);
             });
             renderVendors();
         }
+
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchQuery = e.target.value.trim().toLowerCase();
+            currentCategory = 'all';
+            const btns = document.querySelectorAll('#categoryFilters .category-btn');
+            btns.forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.category === 'all');
+            });
+            renderVendors();
+        });
 
         /* =======================
            HELPERS
@@ -1548,6 +1622,14 @@
                     displayVendors = vendors.filter(v => v.business_type === currentCategory);
                 }
 
+                if (searchQuery) {
+                    displayVendors = displayVendors.filter(v => 
+                        v.name.toLowerCase().includes(searchQuery) || 
+                        v.cuisine.toLowerCase().includes(searchQuery) ||
+                        v.business_type.toLowerCase().includes(searchQuery)
+                    );
+                }
+
                 if (!displayVendors.length) {
                     grid.innerHTML = '<p style="text-align:center">No vendors available</p>';
                     return;
@@ -1563,6 +1645,9 @@
                 <div>${v.cuisine}</div>
                 <div>⭐ ${v.rating} • ${v.time}</div>
                 <div>${v.location}</div>
+            </div>
+            <div class="vendor-menu-preview">
+                ${allMenuItems.filter(item => item.vendor_id === v.id).slice(0, 2).map(item => `<div class="menu-item-preview">${item.name} - ₹${item.price}</div>`).join('')}
             </div>
         </div>
     `).join('');
@@ -1615,7 +1700,7 @@
                                         <button onclick="updateQuantity('${item.name}', 1)">+</button>
                                     </div>
                                 ` : `
-                                    <button onclick="addToCart('${item.name}', ${item.price}, '${item.icon}')">
+                                    <button onclick="addToCart('${item.name}', ${item.price}, '${item.icon}', ${item.id})">
                                         Add +
                                     </button>
                                 `}
@@ -1635,12 +1720,12 @@
         /* =======================
            CART LOGIC
         ======================= */
-        function addToCart(name, price, icon) {
+        function addToCart(name, price, icon, id) {
             const item = cart.find(i => i.name === name);
             if (item) {
                 item.qty++;
             } else {
-                cart.push({ name, price, icon, qty: 1 });
+                cart.push({ name, price, icon, qty: 1, id });
             }
             updateCart();
             refreshModal(name);
@@ -1715,6 +1800,13 @@
         }
 
         function toggleProfile() {
+            // Populate profile info
+            document.getElementById('profileAvatar').textContent = customerData.name ? customerData.name[0].toUpperCase() : 'C';
+            document.getElementById('profileName').textContent = customerData.name || 'Customer';
+            document.getElementById('profileEmail').textContent = customerData.email || 'customer@example.com';
+            document.getElementById('profilePhone').textContent = customerData.phone || '+91 XXXXX XXXXX';
+            document.getElementById('profileAddress').textContent = customerData.address || 'Address not set';
+
             document.getElementById('profileModal').classList.toggle('active');
             document.getElementById('notificationsPanel').classList.remove('active');
         }
@@ -1722,6 +1814,65 @@
         function toggleNotifications() {
             document.getElementById('notificationsPanel').classList.toggle('active');
             document.getElementById('profileModal').classList.remove('active');
+        }
+
+        /* =======================
+           EDIT PROFILE
+        ======================= */
+        function openEditProfile() {
+            // Pre-fill edit form with current data
+            document.getElementById('editName').value = customerData.name;
+            document.getElementById('editEmail').value = customerData.email;
+            document.getElementById('editPhone').value = customerData.phone;
+            document.getElementById('editAddress').value = customerData.location;
+
+            document.getElementById('editProfileModal').classList.add('active');
+            document.getElementById('profileModal').classList.remove('active');
+        }
+
+        function closeEditProfile() {
+            document.getElementById('editProfileModal').classList.remove('active');
+        }
+
+        function saveProfile() {
+            const name = document.getElementById('editName').value.trim();
+            const email = document.getElementById('editEmail').value.trim();
+            const phone = document.getElementById('editPhone').value.trim();
+            const address = document.getElementById('editAddress').value.trim();
+
+            if (!name || !email || !phone || !address) {
+                alert('Please fill in all required fields!');
+                return;
+            }
+
+            const profileData = { name, email, phone, address };
+
+            fetch('/api/customer/profile', {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(profileData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update customerData
+                    customerData.name = name;
+                    customerData.email = email;
+                    customerData.phone = phone;
+                    customerData.location = address;
+
+                    alert('Profile updated successfully!');
+                    closeEditProfile();
+                    // Optionally update profile modal display
+                    toggleProfile(); // This will refresh the profile modal
+                } else {
+                    alert('Error updating profile: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating profile.');
+            });
         }
 
         /* =======================
@@ -1754,6 +1905,12 @@
 
             document.getElementById('checkoutModal').classList.add('active');
             document.getElementById('cartSidebar').classList.remove('active');
+
+            // Pre-fill customer details
+            document.getElementById('customerName').value = customerData.name;
+            document.getElementById('customerEmail').value = customerData.email;
+            document.getElementById('customerPhone').value = customerData.phone;
+            document.getElementById('customerAddress').value = customerData.address;
         }
 
         function closeCheckout() {
@@ -1774,28 +1931,61 @@
         /* =======================
            PLACE ORDER
         ======================= */
-        function placeOrder() {
+        async function placeOrder() {
             const name = document.getElementById('customerName').value.trim();
+            const email = document.getElementById('customerEmail').value.trim();
             const phone = document.getElementById('customerPhone').value.trim();
             const address = document.getElementById('customerAddress').value.trim();
 
-            if (!name || !phone || !address) {
+            if (!name || !email || !phone || !address) {
                 alert('Please fill in all required fields!');
                 return;
             }
 
-            const total = document.getElementById('summaryTotal').textContent;
+            // Update customer profile with address if provided
+            if (address) {
+                try {
+                    await fetch('/api/customer/profile', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ address: address })
+                    });
+                } catch (error) {
+                    console.error('Error updating profile:', error);
+                }
+            }
 
-            alert(
-                `Order Placed Successfully! 🎉\n\n` +
-                `Total: ${total}\n` +
-                `Payment: ${selectedPayment.toUpperCase()}\n\n` +
-                `Your order will be delivered soon!`
-            );
+            const total = parseFloat(document.getElementById('summaryTotal').textContent.replace('₹', ''));
 
-            cart.length = 0;
-            updateCart();
-            closeCheckout();
+            const orderData = {
+                name: name,
+                email: email,
+                phone: phone,
+                address: address,
+                items: cart.map(item => ({id: item.id, qty: item.qty})),
+                total: total,
+                payment: selectedPayment
+            };
+
+            try {
+                const response = await fetch('/api/place-order', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(orderData)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    alert('Order Placed Successfully! 🎉\n\nOrder ID: ' + data.order_id + '\nTotal: ₹' + total + '\nPayment: ' + selectedPayment.toUpperCase() + '\n\nYour order will be delivered soon!');
+                    cart.length = 0;
+                    updateCart();
+                    closeCheckout();
+                } else {
+                    alert('Error placing order: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while placing the order.');
+            }
         }
 
         /* =======================
@@ -1807,6 +1997,9 @@
             }
             if (event.target.classList.contains('checkout-modal')) {
                 closeCheckout();
+                if (event.target.id === 'editProfileModal' || event.target.closest('#editProfileModal')) {
+                    closeEditProfile();
+                }
             }
         };
 

@@ -916,6 +916,25 @@ def create_sample_menu_items():
     db.session.commit()
     print("✅ Sample menu items created successfully!")
 
+    # Create sample customers
+    customers_data = [
+        {'name': 'John Doe', 'phone': '9876543210', 'email': 'john@example.com', 'location': 'Mumbai, Maharashtra'},
+        {'name': 'Jane Smith', 'phone': '9876543211', 'email': 'jane@example.com', 'location': 'Delhi, India'},
+    ]
+    
+    for customer_data in customers_data:
+        if not Customer.query.filter_by(email=customer_data['email']).first():
+            customer = Customer(
+                name=customer_data['name'],
+                phone=customer_data['phone'],
+                email=customer_data['email'],
+                location=customer_data['location']
+            )
+            db.session.add(customer)
+    
+    db.session.commit()
+    print("✅ Sample customers created successfully!")
+
 
 # Business type to product category mapping
 BUSINESS_TYPE_CATEGORIES = {
@@ -969,6 +988,8 @@ def vendor_login():
             if user and user.password_hash and check_password_hash(user.password_hash, password):
                 session.clear()
                 session['customer_id'] = user.id
+                session['customer_name'] = user.name
+                session['customer_email'] = user.email
                 return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('customer_dashboard')})
 
         return jsonify({'success': False, 'message': 'Invalid credentials'})
@@ -1283,7 +1304,7 @@ def get_products():
     
     # If vendor is logged in, filter by their business type
     if vendor_id:
-        vendor = Vendor.query.get(vendor_id)
+        vendor = db.session.get(Vendor, vendor_id)
         if vendor and vendor.business_type in BUSINESS_TYPE_CATEGORIES:
             # Get categories relevant to this business type
             relevant_categories = BUSINESS_TYPE_CATEGORIES[vendor.business_type]
@@ -1298,7 +1319,7 @@ def get_products():
     products_data = []
     
     for product in products:
-        supplier = Supplier.query.get(product.supplier_id)
+        supplier = db.session.get(Supplier, product.supplier_id)
         products_data.append({
             'id': product.id,
             'name': product.name,
@@ -1367,7 +1388,7 @@ def vendor_menu():
     if 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'}), 401
 
-    vendor = Vendor.query.get(session['vendor_id'])
+    vendor = db.session.get(Vendor, session['vendor_id'])
     if not vendor:
         session.clear()
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
@@ -1431,7 +1452,7 @@ def update_vendor_brand():
     if 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'}), 401
 
-    vendor = Vendor.query.get(session['vendor_id'])
+    vendor = db.session.get(Vendor, session['vendor_id'])
     if not vendor:
         session.clear()
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
@@ -1479,13 +1500,13 @@ def delete_menu_item(item_id):
     if 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'}), 401
 
-    vendor = Vendor.query.get(session['vendor_id'])
+    vendor = db.session.get(Vendor, session['vendor_id'])
     if not vendor:
         session.clear()
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
 
     # Find the menu item
-    item = MenuItem.query.get(item_id)
+    item = db.session.get(MenuItem, item_id)
     if not item:
         return jsonify({'success': False, 'message': 'Menu item not found.'}), 404
 
@@ -1514,8 +1535,18 @@ def all_menus():
     items = MenuItem.query.order_by(MenuItem.created_at.desc()).all()
     response = []
     for item in items:
-        vendor = Vendor.query.get(item.vendor_id)
+        vendor = db.session.get(Vendor, item.vendor_id)
         if vendor:
+            cuisine_map = {
+                'dosa': 'South Indian',
+                'ice_cream': 'Desserts',
+                'chaat': 'Street Food',
+                'samosa': 'Snacks',
+                'vada_pav': 'Maharashtrian',
+                'tea': 'Beverages',
+                'juice': 'Healthy Drinks'
+            }
+            cuisine = cuisine_map.get(vendor.business_type, 'Multi-Cuisine')
             # Use vendor.name as the restaurant/stall name
             # This should be the business name, not the owner's personal name
             response.append({
@@ -1528,6 +1559,9 @@ def all_menus():
                 'vendor_name': vendor.name,  # Restaurant/Stall name
                 'vendor_location': vendor.location,
                 'vendor_business_type': vendor.business_type,
+                'vendor_cuisine': cuisine,
+                'vendor_rating': 4.5,
+                'vendor_time': '30-40 mins',
                 'vendor_logo': vendor.logo or '',
                 'vendor_hero_image': vendor.hero_image or '',
                 'created_at': item.created_at.isoformat()
@@ -1539,7 +1573,7 @@ def vendor_promotions():
     if 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'}), 401
 
-    vendor = Vendor.query.get(session['vendor_id'])
+    vendor = db.session.get(Vendor, session['vendor_id'])
     if not vendor:
         session.clear()
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
@@ -1643,12 +1677,12 @@ def delete_vendor_promotion(promo_id):
     if 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'}), 401
 
-    vendor = Vendor.query.get(session['vendor_id'])
+    vendor = db.session.get(Vendor, session['vendor_id'])
     if not vendor:
         session.clear()
         return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
 
-    promo = Promotion.query.get(promo_id)
+    promo = db.session.get(Promotion, promo_id)
     if not promo or promo.vendor_id != vendor.id:
         return jsonify({'success': False, 'message': 'Promotion not found'}), 404
 
@@ -1666,7 +1700,7 @@ def get_public_promotions():
     promos = Promotion.query.filter_by(is_active=True).order_by(Promotion.created_at.desc()).all()
     response = []
     for p in promos:
-        vendor = Vendor.query.get(p.vendor_id)
+        vendor = db.session.get(Vendor, p.vendor_id)
         response.append({
             'id': p.id,
             'title': p.title,
@@ -1683,11 +1717,11 @@ def get_public_promotions():
 
 @app.route('/api/promotion/<int:promo_id>/click', methods=['POST'])
 def record_promotion_click(promo_id):
-    promo = Promotion.query.get(promo_id)
+    promo = db.session.get(Promotion, promo_id)
     if not promo:
         return jsonify({'success': False, 'message': 'Promotion not found'}), 404
 
-    vendor = Vendor.query.get(promo.vendor_id)
+    vendor = db.session.get(Vendor, promo.vendor_id)
 
     customer_id = session.get('customer_id')
     click = PromotionClick(
@@ -1715,7 +1749,7 @@ def get_group_orders():
     group_orders_data = []
     
     for group_order in group_orders:
-        product = Product.query.get(group_order.product_id)
+        product = db.session.get(Product, group_order.product_id)
         participants_count = GroupOrderParticipant.query.filter_by(group_order_id=group_order.id).count()
         
         group_orders_data.append({
@@ -1783,7 +1817,7 @@ def join_group_order():
     db.session.add(participant)
     
     # Update group order current quantity
-    group_order = GroupOrder.query.get(data.get('group_order_id'))
+    group_order = db.session.get(GroupOrder, data.get('group_order_id'))
     group_order.current_quantity += data.get('quantity')
     
     db.session.commit()
@@ -1795,7 +1829,7 @@ def get_price_alerts():
     vendor_id = session.get('vendor_id')
     vendor = None
     if vendor_id:
-        vendor = Vendor.query.get(vendor_id)
+        vendor = db.session.get(Vendor, vendor_id)
     
     # Base alerts for all vendors
     alerts = [
@@ -1996,7 +2030,7 @@ def get_vendor_orders():
     orders_data = []
     
     for order in orders:
-        supplier = Supplier.query.get(order.supplier_id)
+        supplier = db.session.get(Supplier, order.supplier_id)
         orders_data.append({
             'id': order.id,
             'supplier_name': supplier.name,
@@ -2033,7 +2067,7 @@ def get_vendor_dashboard_stats():
         return jsonify({'success': False, 'message': 'Please login first'})
     
     vendor_id = session['vendor_id']
-    vendor = Vendor.query.get(vendor_id)
+    vendor = db.session.get(Vendor, vendor_id)
     
     # Get current month date range
     now = datetime.now()
@@ -2084,12 +2118,12 @@ def get_vendor_dashboard_stats():
     recent_transactions = []
     
     for order in recent_orders:
-        supplier = Supplier.query.get(order.supplier_id)
+        supplier = db.session.get(Supplier, order.supplier_id)
         # Get order items for description
         order_items = OrderItem.query.filter_by(order_id=order.id).all()
         item_names = []
         for item in order_items:
-            product = Product.query.get(item.product_id)
+            product = db.session.get(Product, item.product_id)
             if product:
                 item_names.append(product.name)
         
@@ -2175,12 +2209,12 @@ def get_vendor_ledger():
     ledger_transactions = []
     
     for order in recent_orders:
-        supplier = Supplier.query.get(order.supplier_id)
+        supplier = db.session.get(Supplier, order.supplier_id)
         # Get order items for description
         order_items = OrderItem.query.filter_by(order_id=order.id).all()
         item_names = []
         for item in order_items:
-            product = Product.query.get(item.product_id)
+            product = db.session.get(Product, item.product_id)
             if product:
                 item_names.append(product.name)
         
@@ -2235,6 +2269,30 @@ def place_order():
     
     return jsonify({'success': True, 'message': 'Order placed successfully'})
 
+@app.route('/api/customer/profile', methods=['PUT'])
+def update_customer_profile():
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    data = request.get_json()
+    customer = db.session.get(Customer, session['customer_id'])
+
+    # Update fields
+    customer.name = data.get('name', customer.name)
+    customer.email = data.get('email', customer.email)
+    customer.phone = data.get('phone', customer.phone)
+    customer.location = data.get('address', customer.location)  # Note: using location field
+
+    db.session.commit()
+
+    # Update session
+    session['customer_name'] = customer.name
+    session['customer_email'] = customer.email
+    session['customer_phone'] = customer.phone
+    session['customer_address'] = customer.location  # Map location to address in session
+
+    return jsonify({'success': True, 'message': 'Profile updated successfully'})
+
 @app.route('/api/debug/products')
 def debug_products():
     products = Product.query.all()
@@ -2254,6 +2312,43 @@ def debug_products():
     
     return jsonify(products_data)
 
+
+
+@app.route('/api/place-order-customer', methods=['POST'])
+def place_order_customer():
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    data = request.get_json()
+    customer = db.session.get(Customer, session['customer_id'])
+
+    # Update customer details
+    customer.name = data.get('name', customer.name)
+    customer.email = data.get('email', customer.email)
+    customer.phone = data.get('phone', customer.phone)
+    customer.address = data.get('address', customer.address)
+
+    # Calculate total from items
+    total = 0
+    for item in data['items']:
+        menu_item = db.session.get(MenuItem, item['id'])
+        if menu_item:
+            total += menu_item.price * item['qty']
+
+    # Create order
+    order = Order(
+        customer_id=session['customer_id'],
+        total_amount=total,
+        status='pending',
+        order_type='customer'
+    )
+    db.session.add(order)
+    db.session.commit()
+
+    # For now, skip order items as they are for products, not menu items
+    # In a full implementation, you might need a separate table for menu order items
+
+    return jsonify({'success': True, 'order_id': order.id, 'message': 'Order placed successfully!'})
 
 
 @app.route('/logout')
@@ -2289,9 +2384,31 @@ def delivery_dashboard():
 
 @app.route('/customer/dashboard')
 def customer_dashboard():
-    if 'customer_id' not in session:
-        return redirect(url_for('vendor_login'))
-    return render_template('customer_dashboard.html')
+    customer_id = session.get('customer_id')
+    if not customer_id:
+        # Auto-login for testing
+        customer = Customer.query.first()
+        if customer:
+            session['customer_id'] = customer.id
+            session['customer_name'] = customer.name
+            session['customer_email'] = customer.email
+            session['customer_phone'] = customer.phone
+            session['customer_location'] = customer.location
+        else:
+            return redirect('/')
+
+    customer = Customer.query.get(session['customer_id'])
+    if not customer:
+        return redirect('/')
+
+    customer_data = {
+        'id': customer.id,
+        'name': customer.name,
+        'email': customer.email,
+        'phone': customer.phone,
+        'location': customer.location
+    }
+    return render_template('customer_dashboard.html', customer_data=customer_data)
 
 # Chatbot API endpoints
 @app.route('/api/chatbot/message', methods=['POST'])
