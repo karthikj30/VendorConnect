@@ -367,7 +367,13 @@
             <div class="form-group full-width" id="other_business_group" style="display: none;">
                 <label for="other_business">Please specify your stall</label>
                 <input type="text" id="other_business" name="other_business" placeholder="e.g., Pav Bhaji Stall">
-            </div> 
+            </div>
+
+            <div class="form-group" id="gstin_group" style="display: none;">
+                <label for="gstin">GSTIN <span style="color: red;">*</span></label>
+                <input type="text" id="gstin" name="gstin" placeholder="e.g., 27AABCH1234A1Z0" maxlength="15">
+                <small style="color: #666; display: block; margin-top: 5px;">Goods and Services Tax Identification Number (15 characters)</small>
+            </div>
             
             <div class="form-group" id="vehicle_info_group" style="display:none;">
                 <label for="vehicle_info">Vehicle Info (for Delivery Agents)</label>
@@ -473,6 +479,7 @@
             const businessType = document.getElementById('business_type').value;
             const otherBusiness = document.getElementById('other_business') ? document.getElementById('other_business').value.trim() : '';
             const vehicleInfo = document.getElementById('vehicle_info') ? document.getElementById('vehicle_info').value.trim() : '';
+            const gstin = document.getElementById('gstin') ? document.getElementById('gstin').value.trim().toUpperCase() : '';
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
             
@@ -491,6 +498,20 @@
 
             if (role === 'Vendor' && businessType === 'other' && !otherBusiness) {
                 document.getElementById('errorAlert').textContent = 'Please specify your stall type.';
+                document.getElementById('errorAlert').style.display = 'block';
+                return;
+            }
+
+            // GSTIN validation for vendors
+            if (role === 'Vendor' && !gstin) {
+                document.getElementById('errorAlert').textContent = 'GSTIN is required for vendors.';
+                document.getElementById('errorAlert').style.display = 'block';
+                return;
+            }
+
+            // GSTIN format validation (15 characters)
+            if (role === 'Vendor' && gstin && gstin.length !== 15) {
+                document.getElementById('errorAlert').textContent = 'GSTIN must be 15 characters long.';
                 document.getElementById('errorAlert').style.display = 'block';
                 return;
             }
@@ -515,6 +536,7 @@
             if (role === 'Vendor') {
                 payload.business_type = businessType;
                 payload.other_business = businessType === 'other' ? otherBusiness : '';
+                payload.gstin = gstin;
             }
             if (role === 'Delivery Agent') {
                 payload.vehicle_info = vehicleInfo;
@@ -624,6 +646,8 @@
         const otherInput = document.getElementById('other_business');
         const roleSelect = document.getElementById('role');
         const vehicleGroup = document.getElementById('vehicle_info_group');
+        const gstinGroup = document.getElementById('gstin_group');
+        const gstinInput = document.getElementById('gstin');
 
         // Show/hide vehicle info when Delivery Agent selected
         function updateRoleUI() {
@@ -634,16 +658,23 @@
                 vehicleGroup.style.display = 'none';
             }
 
-            // business type only visible/required for Vendors
+            // business type and GSTIN only visible/required for Vendors
             if (r === 'Vendor') {
                 if (businessGroup) businessGroup.style.display = 'block';
                 businessSelect.setAttribute('required', 'required');
+                gstinGroup.style.display = 'block';
+                if (gstinInput) gstinInput.setAttribute('required', 'required');
             } else {
                 if (businessGroup) businessGroup.style.display = 'none';
                 businessSelect.removeAttribute('required');
                 businessSelect.value = '';
                 if (otherGroup) otherGroup.style.display = 'none';
                 if (otherInput) otherInput.removeAttribute('required');
+                gstinGroup.style.display = 'none';
+                if (gstinInput) {
+                    gstinInput.removeAttribute('required');
+                    gstinInput.value = '';
+                }
             }
         }
 

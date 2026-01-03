@@ -431,6 +431,7 @@ class Vendor(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     location = db.Column(db.String(200), nullable=False)
     business_type = db.Column(db.String(100), nullable=False)
+    gstin = db.Column(db.String(15), unique=True, nullable=False)
     logo = db.Column(db.String(300), nullable=True)
     hero_image = db.Column(db.String(300), nullable=True)
     promo_due = db.Column(db.Float, default=0.0)
@@ -985,10 +986,15 @@ def vendor_register():
         location = data.get('location')
         password = data.get('password')
         business_type = data.get('business_type') or 'other'
+        gstin = data.get('gstin')
 
         # Basic validation
         if not name or not phone or not password:
             return jsonify({'success': False, 'message': 'Name, phone and password are required'})
+        
+        # GSTIN validation for vendors
+        if role == 'vendor' and not gstin:
+            return jsonify({'success': False, 'message': 'GSTIN is required for vendors'})
 
         # Prevent duplicates across relevant tables by phone/email
         if Vendor.query.filter_by(phone=phone).first() or Supplier.query.filter_by(phone=phone).first() or DeliveryAgent.query.filter_by(phone=phone).first() or Customer.query.filter_by(phone=phone).first():
@@ -1000,12 +1006,17 @@ def vendor_register():
         pw_hash = generate_password_hash(password)
 
         if role == 'vendor':
+            # Check if GSTIN already exists
+            if Vendor.query.filter_by(gstin=gstin).first():
+                return jsonify({'success': False, 'message': 'A vendor with this GSTIN already exists'})
+            
             vendor = Vendor(
                 name=name,
                 phone=phone,
                 email=email or '',
                 location=location or '',
                 business_type=business_type,
+                gstin=gstin,
                 password_hash=pw_hash
             )
             db.session.add(vendor)
