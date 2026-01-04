@@ -496,6 +496,33 @@ class Customer(db.Model):
     password_hash = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class CustomerOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    total_amount = db.Column(db.Float, nullable=False)
+    subtotal = db.Column(db.Float, nullable=False)
+    delivery_fee = db.Column(db.Float, default=40.0)
+    tax_amount = db.Column(db.Float, default=0.0)
+    status = db.Column(db.String(20), default='pending')  # pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
+    payment_method = db.Column(db.String(20), default='cod')
+    payment_status = db.Column(db.String(20), default='pending')  # pending, paid, failed
+    delivery_address = db.Column(db.String(300), nullable=True)
+    delivery_instructions = db.Column(db.String(500), nullable=True)
+    customer_name = db.Column(db.String(100), nullable=True)
+    customer_email = db.Column(db.String(120), nullable=True)
+    customer_phone = db.Column(db.String(15), nullable=True)
+    estimated_delivery_time = db.Column(db.DateTime, nullable=True)
+    actual_delivery_time = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class CustomerOrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('customer_order.id'), nullable=False)
+    menu_item_id = db.Column(db.Integer, db.ForeignKey('menu_item.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price_per_unit = db.Column(db.Float, nullable=False)
+
 class Order(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
@@ -2322,33 +2349,160 @@ def place_order_customer():
     data = request.get_json()
     customer = db.session.get(Customer, session['customer_id'])
 
-    # Update customer details
-    customer.name = data.get('name', customer.name)
-    customer.email = data.get('email', customer.email)
-    customer.phone = data.get('phone', customer.phone)
-    customer.address = data.get('address', customer.address)
+    # Validate required fields
+    required_fields = ['name', 'email', 'phone', 'address', 'items']
+    for field in required_fields:
+        if field not in data or not data[field]:
+            return jsonify({'success': False, 'message': f'{field.title()} is required'}), 400
 
-    # Calculate total from items
-    total = 0
+    if not data['items'] or len(data['items']) == 0:
+        return jsonify({'success': False, 'message': 'No items in cart'}), 400
+
+    # Calculate order amounts
+    subtotal = 0
+    order_items = []
     for item in data['items']:
-        menu_item = db.session.get(MenuItem, item['id'])
-        if menu_item:
-            total += menu_item.price * item['qty']
+        if 'id' not in item or 'qty' not in item:
+            return jsonify({'success': False, 'message': 'Invalid item data'}), 400
 
-    # Create order
-    order = Order(
+        menu_item = db.session.get(MenuItem, item['id'])
+        if not menu_item:
+            return jsonify({'success': False, 'message': f'Item {item["id"]} not found'}), 400
+
+        if item['qty'] <= 0:
+            return jsonify({'success': False, 'message': 'Invalid quantity'}), 400
+
+        item_total = menu_item.price * item['qty']
+        subtotal += item_total
+        order_items.append({
+            'menu_item_id': item['id'],
+            'quantity': item['qty'],
+            'price_per_unit': menu_item.price,
+            'item_total': item_total
+        })
+
+    # Calculate fees
+    delivery_fee = 40.0 if subtotal < 300 else 0.0  # Free delivery above ₹300
+    tax_amount = round(subtotal * 0.05, 2)  # 5% GST
+    total_amount = subtotal + delivery_fee + tax_amount
+
+    # Validate minimum order
+    if total_amount < 50:
+        return jsonify({'success': False, 'message': 'Minimum order amount is ₹50'}), 400
+
+    # Estimate delivery time (30-45 minutes from now)
+    estimated_delivery = datetime.utcnow() + timedelta(minutes=30 + (data.get('items', []).__len__() * 2))
+
+    # Create customer order
+    order = CustomerOrder(
         customer_id=session['customer_id'],
-        total_amount=total,
+        total_amount=total_amount,
+        subtotal=subtotal,
+        delivery_fee=delivery_fee,
+        tax_amount=tax_amount,
         status='pending',
-        order_type='customer'
+        payment_method=data.get('payment', 'cod'),
+        payment_status='pending' if data.get('payment', 'cod') != 'cod' else 'paid',
+        delivery_address=data['address'],
+        delivery_instructions=data.get('instructions', ''),
+        customer_name=data['name'],
+        customer_email=data['email'],
+        customer_phone=data['phone'],
+        estimated_delivery_time=estimated_delivery
     )
     db.session.add(order)
+    db.session.flush()  # Get order ID without committing
+
+    # Create order items
+    for item_data in order_items:
+        order_item = CustomerOrderItem(
+            order_id=order.id,
+            menu_item_id=item_data['menu_item_id'],
+            quantity=item_data['quantity'],
+            price_per_unit=item_data['price_per_unit']
+        )
+        db.session.add(order_item)
+
     db.session.commit()
 
-    # For now, skip order items as they are for products, not menu items
-    # In a full implementation, you might need a separate table for menu order items
+    # Update order status to confirmed
+    order.status = 'confirmed'
+    db.session.commit()
 
-    return jsonify({'success': True, 'order_id': order.id, 'message': 'Order placed successfully!'})
+    return jsonify({
+        'success': True,
+        'order_id': order.id,
+        'message': 'Order placed successfully!',
+        'order_details': {
+            'subtotal': subtotal,
+            'delivery_fee': delivery_fee,
+            'tax_amount': tax_amount,
+            'total': total_amount,
+            'estimated_delivery': estimated_delivery.strftime('%I:%M %p'),
+            'payment_method': order.payment_method
+        }
+    })
+
+
+@app.route('/api/customer/orders', methods=['GET'])
+def get_customer_orders():
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    try:
+        customer_id = session['customer_id']
+        orders = CustomerOrder.query.filter_by(customer_id=customer_id).order_by(CustomerOrder.created_at.desc()).all()
+
+        orders_data = []
+        for order in orders:
+            order_items = CustomerOrderItem.query.filter_by(order_id=order.id).all()
+            items_data = []
+            for item in order_items:
+                menu_item = MenuItem.query.get(item.menu_item_id)
+                if menu_item:
+                    items_data.append({
+                        'name': menu_item.name,
+                        'quantity': item.quantity,
+                        'price_per_unit': item.price_per_unit,
+                        'total': item.quantity * item.price_per_unit
+                    })
+
+            # Format datetime safely
+            estimated_time = None
+            if order.estimated_delivery_time:
+                try:
+                    # Handle both datetime objects and strings
+                    dt = order.estimated_delivery_time
+                    if isinstance(dt, str):
+                        from datetime import datetime
+                        # Parse ISO format datetime string
+                        dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+                    # Format to 12-hour time
+                    estimated_time = dt.strftime('%I:%M %p')
+                except Exception as e:
+                    print(f"Error formatting estimated_delivery_time for order {order.id}: {e}")
+                    estimated_time = None
+
+            orders_data.append({
+                'id': order.id,
+                'total_amount': order.total_amount,
+                'subtotal': order.subtotal,
+                'delivery_fee': order.delivery_fee,
+                'tax_amount': order.tax_amount,
+                'status': order.status,
+                'payment_method': order.payment_method,
+                'payment_status': order.payment_status,
+                'delivery_address': order.delivery_address,
+                'delivery_instructions': order.delivery_instructions,
+                'estimated_delivery_time': estimated_time,
+                'created_at': order.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'items': items_data
+            })
+
+        return jsonify({'success': True, 'orders': orders_data})
+    except Exception as e:
+        print(f"Error in get_customer_orders: {e}")
+        return jsonify({'success': False, 'message': 'Error loading orders'}), 500
 
 
 @app.route('/logout')
@@ -2382,6 +2536,65 @@ def delivery_dashboard():
     return render_template('delivery_dashboard.html')
 
 
+@app.route('/customer/login', methods=['GET', 'POST'])
+def customer_login():
+    if request.method == 'POST':
+        data = request.get_json()
+        phone = data.get('phone')
+        password = data.get('password')
+
+        customer = Customer.query.filter_by(phone=phone).first()
+        if customer and customer.password_hash and check_password_hash(customer.password_hash, password):
+            session.clear()
+            session['customer_id'] = customer.id
+            session['customer_name'] = customer.name
+            session['customer_email'] = customer.email
+            session['customer_phone'] = customer.phone
+            session['customer_location'] = customer.location
+            return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('customer_dashboard')})
+
+        return jsonify({'success': False, 'message': 'Invalid credentials'})
+
+    return render_template('customer_login.html')
+
+
+@app.route('/customer/register', methods=['GET', 'POST'])
+def customer_register():
+    if request.method == 'POST':
+        data = request.get_json()
+        name = data.get('name')
+        phone = data.get('phone')
+        email = data.get('email')
+        location = data.get('location')
+        password = data.get('password')
+
+        # Basic validation
+        if not name or not phone or not password:
+            return jsonify({'success': False, 'message': 'Name, phone and password are required'})
+
+        # Prevent duplicates
+        if Customer.query.filter_by(phone=phone).first():
+            return jsonify({'success': False, 'message': 'An account with this phone number already exists'})
+
+        if email and Customer.query.filter_by(email=email).first():
+            return jsonify({'success': False, 'message': 'An account with this email already exists'})
+
+        pw_hash = generate_password_hash(password)
+
+        customer = Customer(
+            name=name,
+            phone=phone,
+            email=email,
+            location=location or '',
+            password_hash=pw_hash
+        )
+        db.session.add(customer)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Registration successful'})
+
+    return render_template('customer_register.html')
+
+
 @app.route('/customer/dashboard')
 def customer_dashboard():
     customer_id = session.get('customer_id')
@@ -2406,9 +2619,10 @@ def customer_dashboard():
         'name': customer.name,
         'email': customer.email,
         'phone': customer.phone,
-        'location': customer.location
+        'location': customer.location,
+        'address': customer.location  # For backward compatibility
     }
-    return render_template('customer_dashboard.html', customer_data=customer_data)
+    return render_template('customer_dashboard.html', customer_data=customer_data, customer_name=customer.name)
 
 # Chatbot API endpoints
 @app.route('/api/chatbot/message', methods=['POST'])
