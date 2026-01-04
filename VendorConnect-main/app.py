@@ -2610,6 +2610,77 @@ def supplier_dashboard():
     return render_template('supplier_dashboard.html', features=features)
 
 
+@app.route('/supplier/dashboard/data')
+def supplier_dashboard_data():
+    """Return JSON analytics and recent orders for the logged-in supplier."""
+    if 'supplier_id' not in session:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 401
+
+    supplier_id = session['supplier_id']
+
+    # Sales over last 7 days
+    try:
+        # SQLite and other DBs should support date() or strftime; use generic date()
+        sales_rows = db.session.query(
+            db.func.date(Order.created_at).label('d'),
+            db.func.coalesce(db.func.sum(Order.total_amount), 0).label('total')
+        ).filter(Order.supplier_id == supplier_id).group_by(db.func.date(Order.created_at)).order_by(db.func.date(Order.created_at)).all()
+
+        # Build a dict for quick lookup
+        sales_map = {r.d: float(r.total or 0) for r in sales_rows}
+        today = datetime.utcnow().date()
+        sales_last_7 = []
+        for i in range(6, -1, -1):
+            d = today - timedelta(days=i)
+            key = d.isoformat()
+            sales_last_7.append({'date': key, 'total': float(sales_map.get(key, 0.0))})
+    except Exception as e:
+        app.logger.exception('Error computing sales for supplier dashboard:')
+        sales_last_7 = []
+
+    # Top products by quantity in recent orders
+    try:
+        top_query = db.session.query(
+            OrderItem.product_id,
+            db.func.coalesce(db.func.sum(OrderItem.quantity), 0).label('qty')
+        ).join(Order, Order.id == OrderItem.order_id).filter(Order.supplier_id == supplier_id).group_by(OrderItem.product_id).order_by(db.func.sum(OrderItem.quantity).desc()).limit(8).all()
+
+        top_products = []
+        for row in top_query:
+            product = Product.query.get(row.product_id)
+            top_products.append({'product_id': row.product_id, 'name': product.name if product else 'Unknown', 'quantity': float(row.qty or 0)})
+    except Exception:
+        app.logger.exception('Error computing top products:')
+        top_products = []
+
+    # Recent orders with itemized details
+    try:
+        recent_orders_q = Order.query.filter_by(supplier_id=supplier_id).order_by(Order.created_at.desc()).limit(10).all()
+        recent_orders = []
+        for o in recent_orders_q:
+            vendor = Vendor.query.get(o.vendor_id)
+            items_q = OrderItem.query.filter_by(order_id=o.id).all()
+            items = []
+            for it in items_q:
+                prod = Product.query.get(it.product_id)
+                items.append({'product_id': it.product_id, 'name': prod.name if prod else 'Unknown', 'quantity': float(it.quantity), 'price_per_unit': float(it.price_per_unit)})
+
+            recent_orders.append({
+                'order_id': o.id,
+                'vendor_id': o.vendor_id,
+                'vendor_name': vendor.name if vendor else None,
+                'total_amount': float(o.total_amount),
+                'status': o.status,
+                'created_at': o.created_at.isoformat() if o.created_at else None,
+                'items': items
+            })
+    except Exception:
+        app.logger.exception('Error fetching recent orders for supplier dashboard:')
+        recent_orders = []
+
+    return jsonify({'success': True, 'sales_last_7': sales_last_7, 'top_products': top_products, 'recent_orders': recent_orders})
+
+
 # --- Supplier feature routes (placeholders) ---
 @app.route('/supplier/manage-products', methods=['GET', 'POST'])
 def supplier_manage_products():
