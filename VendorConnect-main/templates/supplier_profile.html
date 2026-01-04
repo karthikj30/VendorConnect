@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Supplier Profile</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Supplier</h3><p>Profile</p></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+                <li class="nav-item"><a class="nav-link active" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header"><h1>Update Profile</h1></div>
+            <div class="main-container">
+                <div class="content-card">
+                    <h3>Profile Settings</h3>
+                    <form method="post" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:10px;max-width:700px;">
+                        <label>Name <input name="name" value="{{ supplier.name if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <label>Phone <input name="phone" value="{{ supplier.phone if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <label>Location <input name="location" value="{{ supplier.location if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <label>Email <input name="email" value="{{ supplier.email if supplier and supplier.email else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <label>Certification (PDF/JPG/PNG) <input name="cert" type="file" accept=".pdf,image/*" style="padding:6px;border-radius:8px;border:1px solid #ddd;"></label>
+                        {% if supplier and supplier.certification %}
+                            <p>Current certification: <a href="/{{ supplier.certification }}" target="_blank">View</a></p>
+                        {% endif %}
+                        <div style="display:flex;gap:8px;">
+                            <button class="ad-button" type="submit">Save</button>
+                            <a class="logout-btn" href="/supplier/dashboard">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

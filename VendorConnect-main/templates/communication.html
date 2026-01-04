@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Communication - Supplier</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Supplier</h3><p>Communication</p></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header"><h1>Supplier Communication</h1></div>
+            <div class="main-container">
+                <div class="content-card">
+                    <h3>Messaging & Broadcasts</h3>
+                    <p>Start a chat with vendors or send broadcast messages.</p>
+                    <h4>Vendors</h4>
+                    {% if vendors and vendors|length > 0 %}
+                        <ul>
+                            {% for v in vendors %}
+                                <li>{{ v.name }} — {{ v.location or '' }} — <a href="#">Start chat</a></li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No vendors found.</p>
+                    {% endif %}
+
+                    <h4 style="margin-top:12px">Broadcast message</h4>
+                    <form method="post" action="/supplier/communication" style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <input name="subject" placeholder="Subject" style="padding:8px;border-radius:8px;border:1px solid #ddd;flex:1 1 300px;">
+                        <input name="message" placeholder="Message" style="padding:8px;border-radius:8px;border:1px solid #ddd;flex:1 1 400px;">
+                        <button class="ad-button" type="submit">Send</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

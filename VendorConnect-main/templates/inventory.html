@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Inventory - Supplier</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Supplier</h3><p>Inventory</p></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header"><h1>Inventory & Product Control</h1></div>
+            <div class="main-container">
+                    <div class="content-card">
+                        <h3>Inventory Controls</h3>
+                        <p>Manage stock, pricing and alerts for your products.</p>
+                        {% if low_stock and low_stock|length > 0 %}
+                        <div style="margin-bottom:12px;">
+                            <strong style="color:#e74c3c">Low stock alerts:</strong>
+                            <ul>
+                                {% for p in low_stock %}
+                                    <li>{{ p.name }} — {{ p.stock_available }} {{ p.unit }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <h4>Your Products</h4>
+                        {% if products and products|length > 0 %}
+                            <table style="width:100%;border-collapse:collapse;margin-top:12px;">
+                                <thead>
+                                    <tr style="text-align:left;border-bottom:1px solid #eee;">
+                                        <th style="padding:8px">Name</th>
+                                        <th style="padding:8px">Category</th>
+                                        <th style="padding:8px">Price</th>
+                                        <th style="padding:8px">Stock</th>
+                                        <th style="padding:8px">Unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in products %}
+                                    <tr>
+                                        <td style="padding:8px">{{ p.name }}</td>
+                                        <td style="padding:8px">{{ p.category }}</td>
+                                        <td style="padding:8px">{{ p.current_price }}</td>
+                                        <td style="padding:8px">{{ p.stock_available }}</td>
+                                        <td style="padding:8px">{{ p.unit }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <p>No products yet.</p>
+                        {% endif %}
+                    </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

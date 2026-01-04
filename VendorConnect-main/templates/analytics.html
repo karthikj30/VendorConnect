@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Analytics - Supplier</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Supplier</h3><p>Analytics</p></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header"><h1>Supplier Analytics</h1></div>
+            <div class="main-container">
+                <div class="content-card">
+                    <h3>Reports</h3>
+                    <p>Sales and product performance for your store.</p>
+                    <div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;">
+                        <div class="content-card" style="padding:10px;min-width:140px;">Total units sold<br><strong style="font-size:18px">{{ total_sales }}</strong></div>
+                        <div class="content-card" style="padding:10px;min-width:140px;">Total revenue<br><strong style="font-size:18px">₹{{ '%.2f'|format(total_revenue) }}</strong></div>
+                    </div>
+
+                    <h4>Top Selling Products</h4>
+                    {% if top_selling and top_selling|length > 0 %}
+                        <ol>
+                            {% for name, sold in top_selling %}
+                                <li>{{ name }} — {{ sold|int }} units</li>
+                            {% endfor %}
+                        </ol>
+                    {% else %}
+                        <p>No sales data yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

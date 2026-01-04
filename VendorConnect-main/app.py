@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for, send_from_directory, send_file, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from sqlalchemy import text
 import json
 import random
 from datetime import datetime, timedelta
+import io
+import csv
 import requests
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -176,6 +178,10 @@ except ImportError:
 
 db = SQLAlchemy(app)
 CORS(app)
+
+# Uploads for supplier files
+app.config['SUPPLIER_UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads', 'suppliers')
+os.makedirs(app.config['SUPPLIER_UPLOAD_FOLDER'], exist_ok=True)
 
 # Google OAuth client ID (set via environment variable `GOOGLE_CLIENT_ID`)
 app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID', '')
@@ -458,6 +464,8 @@ class Supplier(db.Model):
     # Added authentication fields so suppliers can sign up / login
     email = db.Column(db.String(120), unique=True, nullable=True)
     password_hash = db.Column(db.String(200), nullable=True)
+    # Path to uploaded certification file
+    certification = db.Column(db.String(300), nullable=True)
 
 class Product(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -855,6 +863,10 @@ def create_sample_vendors():
     ]
     
     for vendor_data in sample_vendors:
+        # Ensure required fields (gstin) exist for sample vendors to avoid integrity errors
+        if not vendor_data.get('gstin'):
+            # generate a pseudo-random 15-char GSTIN-like string
+            vendor_data['gstin'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=15))
         vendor = Vendor(**vendor_data)
         db.session.add(vendor)
     
@@ -2526,7 +2538,446 @@ def vendor_dashboard():
 def supplier_dashboard():
     if 'supplier_id' not in session:
         return redirect(url_for('vendor_login'))
-    return render_template('supplier_dashboard.html')
+    supplier_id = session['supplier_id']
+    # compute a few summary stats to show on dashboard
+    try:
+        products_count = Product.query.filter_by(supplier_id=supplier_id).count()
+    except Exception:
+        products_count = 0
+
+    try:
+        pending_orders = Order.query.filter_by(supplier_id=supplier_id, status='pending').count()
+    except Exception:
+        pending_orders = 0
+
+    try:
+        delivered_count = Order.query.filter_by(supplier_id=supplier_id, status='delivered').count()
+    except Exception:
+        delivered_count = 0
+
+    try:
+        total_earnings = db.session.query(db.func.coalesce(db.func.sum(Order.total_amount), 0)).filter(Order.supplier_id == supplier_id, Order.status == 'delivered').scalar() or 0.0
+    except Exception:
+        total_earnings = 0.0
+
+    features = [
+        {
+            'title': 'Supplier Profile & Management',
+            'points': ['Supplier registration & onboarding','Business details & warehouse locations','Product catalog management','Quality certification upload','Service area management'],
+            'link': '/supplier/profile'
+        },
+        {
+            'title': 'Inventory & Product Control',
+            'points': ['Real-time stock updates','Dynamic price updates','Bulk price discounts','Product availability alerts'],
+            'link': '/supplier/inventory',
+            'stat': {'label': 'Products', 'value': products_count}
+        },
+        {
+            'title': 'Order & Delivery Management',
+            'points': ['View incoming vendor orders','Accept / reject orders','Assign delivery agents','Update delivery status','Upload delivery proof'],
+            'link': '/supplier/orders',
+            'stat': {'label': 'Pending', 'value': pending_orders}
+        },
+        {
+            'title': 'Supplier Communication',
+            'points': ['Chat with vendors','Send price updates & offers','Broadcast messages to vendors','Respond to order queries'],
+            'link': '/supplier/communication'
+        },
+        {
+            'title': 'Payments & Finance',
+            'points': ['Receive vendor payments','Auto-generated invoices','Settlement tracking','Earnings summary dashboard'],
+            'link': '/supplier/payments',
+            'stat': {'label': 'Earnings', 'value': f"₹{total_earnings:.2f}"}
+        },
+        {
+            'title': 'Supplier Analytics',
+            'points': ['Sales performance reports','Top-selling products','Vendor demand analysis','Delivery success rate'],
+            'link': '/supplier/analytics',
+            'stat': {'label': 'Delivered', 'value': delivered_count}
+        },
+        {
+            'title': 'Supplier Reliability & Trust',
+            'points': ['Vendor feedback & ratings','Quality complaint handling','Penalty alerts for delays','Supplier verification badge'],
+            'link': '/supplier/reliability'
+        },
+        {
+            'title': 'Common Features (Vendor & Supplier)',
+            'points': ['Notification system (order, payment, delivery)','Location-based matching','Language selection','Help & support system','Secure authentication'],
+            'link': '/supplier/common-features'
+        }
+    ]
+
+    return render_template('supplier_dashboard.html', features=features)
+
+
+# --- Supplier feature routes (placeholders) ---
+@app.route('/supplier/manage-products', methods=['GET', 'POST'])
+def supplier_manage_products():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+
+    supplier_id = session['supplier_id']
+
+    if request.method == 'POST':
+        # Basic create product form handling
+        name = request.form.get('name')
+        category = request.form.get('category') or 'general'
+        price = request.form.get('price') or 0
+        stock = request.form.get('stock') or 0
+        unit = request.form.get('unit') or 'kg'
+
+        try:
+            price_f = float(price)
+            stock_i = int(float(stock))
+        except Exception:
+            price_f = 0.0
+            stock_i = 0
+
+        if not name:
+            return render_template('manage_products.html', error='Product name required', products=Product.query.filter_by(supplier_id=supplier_id).all())
+
+        p = Product(name=name, category=category, current_price=price_f, supplier_id=supplier_id, stock_available=stock_i, unit=unit)
+        db.session.add(p)
+        db.session.commit()
+        return redirect(url_for('supplier_manage_products'))
+
+    products = Product.query.filter_by(supplier_id=supplier_id).all()
+    return render_template('manage_products.html', products=products)
+
+
+@app.route('/supplier/product/<int:product_id>/edit', methods=['GET', 'POST'])
+def supplier_product_edit(product_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    p = Product.query.get(product_id)
+    if not p or p.supplier_id != session['supplier_id']:
+        return redirect(url_for('supplier_manage_products'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        category = request.form.get('category')
+        price = request.form.get('price')
+        stock = request.form.get('stock')
+        unit = request.form.get('unit')
+        try:
+            p.current_price = float(price)
+        except Exception:
+            pass
+        try:
+            p.stock_available = int(float(stock))
+        except Exception:
+            pass
+        if name:
+            p.name = name
+        if category:
+            p.category = category
+        if unit:
+            p.unit = unit
+        db.session.commit()
+        return redirect(url_for('supplier_manage_products'))
+
+    return render_template('manage_products.html', edit_product=p, products=[p])
+
+
+@app.route('/supplier/product/<int:product_id>/delete', methods=['POST'])
+def supplier_product_delete(product_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    p = Product.query.get(product_id)
+    if not p or p.supplier_id != session['supplier_id']:
+        return redirect(url_for('supplier_manage_products'))
+    db.session.delete(p)
+    db.session.commit()
+    return redirect(url_for('supplier_manage_products'))
+
+
+@app.route('/supplier/orders', methods=['GET'])
+def supplier_orders():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+
+    supplier_id = session['supplier_id']
+    # List orders where supplier_id matches
+    orders = Order.query.filter_by(supplier_id=supplier_id).order_by(Order.created_at.desc()).all()
+    return render_template('supplier_orders.html', orders=orders)
+
+
+@app.route('/supplier/order/<int:order_id>/action', methods=['POST'])
+def supplier_order_action(order_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+
+    action = request.form.get('action')
+    order = Order.query.get(order_id)
+    if not order or order.supplier_id != session['supplier_id']:
+        return jsonify({'success': False, 'message': 'Order not found'}), 404
+
+    if action == 'accept':
+        order.status = 'confirmed'
+    elif action == 'reject':
+        order.status = 'cancelled'
+    elif action == 'mark_preparing':
+        order.status = 'preparing'
+    elif action == 'out_for_delivery':
+        order.status = 'out_for_delivery'
+    elif action == 'delivered':
+        order.status = 'delivered'
+
+    db.session.commit()
+    return redirect(url_for('supplier_orders'))
+
+
+@app.route('/supplier/order/<int:order_id>')
+def supplier_order_detail(order_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    order = Order.query.get(order_id)
+    if not order or order.supplier_id != session['supplier_id']:
+        return redirect(url_for('supplier_orders'))
+    items = OrderItem.query.filter_by(order_id=order.id).all()
+    agents = DeliveryAgent.query.all()
+    return render_template('supplier_order_detail.html', order=order, order_items=items, agents=agents)
+
+
+@app.route('/supplier/order/<int:order_id>/assign', methods=['POST'])
+def supplier_order_assign(order_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    agent_id = request.form.get('agent_id')
+    order = Order.query.get(order_id)
+    if order and order.supplier_id == session['supplier_id'] and agent_id:
+        # very simple assignment - store in order (add column delivery_agent_id if desired)
+        try:
+            order.delivery_agent_id = int(agent_id)
+        except Exception:
+            pass
+        order.status = 'out_for_delivery'
+        db.session.commit()
+    return redirect(url_for('supplier_order_detail', order_id=order_id))
+
+
+@app.route('/supplier/order/<int:order_id>/upload-proof', methods=['POST'])
+def supplier_order_upload_proof(order_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    order = Order.query.get(order_id)
+    if not order or order.supplier_id != session['supplier_id']:
+        return redirect(url_for('supplier_orders'))
+    proof = request.files.get('proof')
+    if proof and proof.filename:
+        fname = secure_filename(proof.filename)
+        unique = f"order_{order.id}_{uuid.uuid4().hex}_{fname}"
+        save_path = os.path.join(app.instance_path, 'uploads', 'orders')
+        os.makedirs(save_path, exist_ok=True)
+        full = os.path.join(save_path, unique)
+        proof.save(full)
+        # store relative path on order if column exists, else ignore
+        try:
+            order.proof_path = os.path.relpath(full, start=basedir)
+            db.session.commit()
+        except Exception:
+            db.session.commit()
+    return redirect(url_for('supplier_order_detail', order_id=order_id))
+
+
+@app.route('/supplier/profile', methods=['GET', 'POST'])
+def supplier_profile():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+
+    supplier = Supplier.query.get(session['supplier_id'])
+    if request.method == 'POST':
+        name = request.form.get('name')
+        phone = request.form.get('phone')
+        location = request.form.get('location')
+        email = request.form.get('email')
+
+        if name:
+            supplier.name = name
+        if phone:
+            supplier.phone = phone
+        if location:
+            supplier.location = location
+        if email:
+            supplier.email = email
+        # handle certification upload
+        cert = request.files.get('cert')
+        if cert and cert.filename:
+            filename = secure_filename(cert.filename)
+            # create unique filename
+            unique = f"supplier_{supplier.id}_{uuid.uuid4().hex}_{filename}"
+            save_path = os.path.join(app.config['SUPPLIER_UPLOAD_FOLDER'], unique)
+            cert.save(save_path)
+            # store relative path
+            supplier.certification = os.path.relpath(save_path, start=basedir)
+
+        db.session.commit()
+        return redirect(url_for('supplier_profile'))
+
+    return render_template('supplier_profile.html', supplier=supplier)
+
+
+@app.route('/supplier/inventory')
+def supplier_inventory():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    products = Product.query.filter_by(supplier_id=supplier_id).all()
+    low_stock = [p for p in products if (p.stock_available is not None and p.stock_available < 50)]
+    return render_template('inventory.html', products=products, low_stock=low_stock)
+
+
+@app.route('/supplier/communication')
+def supplier_communication():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    # simple vendor list to initiate chats/broadcasts
+    if request.method == 'POST':
+        # broadcast form - not storing in DB for now
+        subject = request.form.get('subject')
+        message = request.form.get('message')
+        flash('Broadcast sent to vendors (demo)')
+        return redirect(url_for('supplier_communication'))
+    vendors = Vendor.query.limit(20).all()
+    return render_template('communication.html', vendors=vendors)
+
+
+@app.route('/supplier/payments')
+def supplier_payments():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    delivered_orders = Order.query.filter_by(supplier_id=supplier_id, status='delivered').order_by(Order.created_at.desc()).all()
+    total_earnings = db.session.query(db.func.coalesce(db.func.sum(Order.total_amount), 0)).filter(Order.supplier_id == supplier_id, Order.status == 'delivered').scalar() or 0.0
+    invoices = [{'id': o.id, 'amount': o.total_amount, 'date': o.created_at} for o in delivered_orders]
+    return render_template('payments.html', invoices=invoices, total_earnings=total_earnings)
+
+
+@app.route('/supplier/analytics')
+def supplier_analytics():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    # top-selling products (by quantity)
+    top_selling = db.session.query(Product.name, db.func.coalesce(db.func.sum(OrderItem.quantity), 0).label('sold'))\
+        .join(OrderItem, Product.id == OrderItem.product_id)\
+        .join(Order, Order.id == OrderItem.order_id)\
+        .filter(Order.supplier_id == supplier_id)\
+        .group_by(Product.id)\
+        .order_by(db.desc('sold'))\
+        .limit(8).all()
+
+    total_sales = db.session.query(db.func.coalesce(db.func.sum(OrderItem.quantity), 0)).join(Order, Order.id == OrderItem.order_id).filter(Order.supplier_id == supplier_id).scalar() or 0
+    total_revenue = db.session.query(db.func.coalesce(db.func.sum(Order.total_amount), 0)).filter(Order.supplier_id == supplier_id).scalar() or 0.0
+
+    return render_template('analytics.html', top_selling=top_selling, total_sales=total_sales, total_revenue=total_revenue)
+
+
+@app.route('/supplier/reliability')
+def supplier_reliability():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    supplier = Supplier.query.get(supplier_id)
+    recent_orders = Order.query.filter_by(supplier_id=supplier_id).order_by(Order.created_at.desc()).limit(10).all()
+    # simplistic complaint/penalty placeholders
+    delayed_orders = Order.query.filter_by(supplier_id=supplier_id, status='delayed').count()
+    return render_template('reliability.html', supplier=supplier, recent_orders=recent_orders, delayed_orders=delayed_orders)
+
+
+@app.route('/supplier/common-features')
+def supplier_common_features():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    unread_orders = Order.query.filter_by(supplier_id=supplier_id, status='pending').count()
+    return render_template('common_features.html', unread_orders=unread_orders)
+
+
+@app.route('/supplier/payments/export')
+def supplier_payments_export():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    fmt = request.args.get('format', 'csv')
+    supplier_id = session['supplier_id']
+    orders = Order.query.filter_by(supplier_id=supplier_id, status='delivered').order_by(Order.created_at.desc()).all()
+
+    # Prepare rows
+    rows = []
+    for o in orders:
+        rows.append({'id': o.id, 'amount': o.total_amount, 'date': o.created_at.strftime('%Y-%m-%d') if o.created_at else '', 'status': o.status})
+
+    if fmt == 'csv':
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=['id', 'amount', 'date', 'status'])
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
+        output.seek(0)
+        return send_file(io.BytesIO(output.getvalue().encode('utf-8')), mimetype='text/csv', as_attachment=True, download_name='payments.csv')
+
+    if fmt == 'xlsx':
+        # Lazy import openpyxl
+        try:
+            import openpyxl
+            from openpyxl.workbook import Workbook
+        except Exception:
+            flash('XLSX export requires openpyxl to be installed.')
+            return redirect(url_for('supplier_payments'))
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['id', 'amount', 'date', 'status'])
+        for r in rows:
+            ws.append([r['id'], r['amount'], r['date'], r['status']])
+        bio = io.BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+        return send_file(bio, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', as_attachment=True, download_name='payments.xlsx')
+
+    flash('Unknown export format')
+    return redirect(url_for('supplier_payments'))
+
+
+@app.route('/supplier/invoice/<int:order_id>/pdf')
+def supplier_invoice_pdf(order_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    order = Order.query.get(order_id)
+    if not order or order.supplier_id != session['supplier_id']:
+        flash('Invoice not found')
+        return redirect(url_for('supplier_payments'))
+
+    # Lazy import reportlab
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.pdfgen import canvas
+    except Exception:
+        flash('PDF generation requires reportlab to be installed.')
+        return redirect(url_for('supplier_payments'))
+
+    bio = io.BytesIO()
+    c = canvas.Canvas(bio, pagesize=A4)
+    width, height = A4
+    c.setFont('Helvetica-Bold', 16)
+    c.drawString(40, height - 60, f'Invoice #{order.id}')
+    c.setFont('Helvetica', 12)
+    c.drawString(40, height - 90, f'Date: {order.created_at.strftime("%Y-%m-%d") if order.created_at else ""}')
+    c.drawString(40, height - 110, f'Total: ₹{order.total_amount:.2f}')
+    c.drawString(40, height - 140, 'Items:')
+    y = height - 160
+    items = OrderItem.query.filter_by(order_id=order.id).all()
+    for it in items:
+        prod = Product.query.get(it.product_id)
+        c.drawString(50, y, f'- {prod.name if prod else "Product"} x {it.quantity} @ ₹{it.price_per_unit:.2f}')
+        y -= 18
+        if y < 80:
+            c.showPage()
+            y = height - 60
+    c.showPage()
+    c.save()
+    bio.seek(0)
+    return send_file(bio, mimetype='application/pdf', as_attachment=True, download_name=f'invoice_{order.id}.pdf')
 
 
 @app.route('/delivery/dashboard')

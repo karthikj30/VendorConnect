@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Common Features - Supplier</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Supplier</h3><p>Common Features</p></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header"><h1>Common Features (Vendor & Supplier)</h1></div>
+            <div class="main-container">
+                <div class="content-card">
+                    <h3>Platform Features</h3>
+                    <p>Common features across the platform.</p>
+                    <p>Unread orders: <strong>{{ unread_orders }}</strong></p>
+                    <h4 style="margin-top:12px">Language</h4>
+                    <form method="post" action="/supplier/common-features">
+                        <select name="lang" style="padding:8px;border-radius:8px;border:1px solid #ddd;">
+                            <option value="en">English</option>
+                            <option value="hi">Hindi</option>
+                            <option value="mr">Marathi</option>
+                        </select>
+                        <button class="ad-button" type="submit" style="margin-left:8px">Save</button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Reliability & Trust - Supplier</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+</head>
+<body>
+    <div class="dashboard">
+        <aside class="sidebar">
+            <div class="sidebar-header"><h3>Supplier</h3><p>Reliability</p></div>
+            <ul class="nav-menu">
+                <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+                <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+            </ul>
+        </aside>
+        <main class="main-content">
+            <div class="header"><h1>Supplier Reliability & Trust</h1></div>
+            <div class="main-container">
+                <div class="content-card">
+                    <h3>Trust & Ratings</h3>
+                    {% if supplier %}
+                        <p>Rating: <strong>{{ supplier.rating or 'N/A' }}</strong> · Hygiene: <strong>{{ supplier.hygiene_rating or 'N/A' }}</strong></p>
+                        <p>Verification: {% if supplier.verification_status %}<span style="color:green">Verified</span>{% else %}<span style="color:#666">Not verified</span>{% endif %}</p>
+                    {% else %}
+                        <p>No supplier data available.</p>
+                    {% endif %}
+
+                    <h4>Recent Orders</h4>
+                    {% if recent_orders and recent_orders|length > 0 %}
+                        <ul>
+                            {% for o in recent_orders %}
+                                <li>Order #{{ o.id }} — Status: {{ o.status }} — {{ o.created_at.strftime('%Y-%m-%d') }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No recent orders.</p>
+                    {% endif %}
+
+                    <p style="margin-top:12px;color:#e74c3c">Delayed / problem orders: <strong>{{ delayed_orders }}</strong></p>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+</html>
