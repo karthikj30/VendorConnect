@@ -8,7 +8,20 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/customer_dashboard.css">
     <script>
-        const customerData = {{ customer_data|tojson }};
+        // Global error handler for Google Maps
+        window.gm_authFailure = function() {
+            console.error('Google Maps authentication failed');
+            const mapContainer = document.getElementById('deliveryMap');
+            if (mapContainer) {
+                mapContainer.innerHTML = '<div style="padding: 40px; text-align: center;"><i class="fas fa-map-marked-alt" style="font-size: 48px; color: #666; margin-bottom: 15px;"></i><p style="color: #666; margin-bottom: 10px;"><strong>Map Temporarily Unavailable</strong></p><p style="font-size: 14px; color: #999;">Tracking your delivery via GPS coordinates</p></div>';
+            }
+        };
+    </script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=geometry" onerror="window.gm_authFailure()"></script>
+    <script>
+        // Server-side Jinja2 template - renders as JSON object at runtime
+        // noinspection JSUnresolvedVariable
+        const customerData = {{ customer_data|tojson|safe }};
     </script>
 </head>
 
@@ -38,11 +51,78 @@
 
     <!-- Main Container -->
     <div class="main-container">
+        <!-- Delivery Tracking Section -->
+        <div class="active-delivery-tracker" id="activeDeliveryTracker" style="display: none;">
+            <div class="delivery-header">
+                <div class="delivery-status">
+                    <div class="status-dot"></div>
+                    <div>
+                        <div class="status-title">Order on the Way</div>
+                        <div class="status-subtitle" id="deliveryETA">Arriving in ~12 minutes</div>
+                    </div>
+                </div>
+                <button onclick="closeDeliveryTracker()" class="close-tracker" id="closeTrackerBtn" title="Wait for delivery confirmation" style="opacity: 0.5; cursor: not-allowed;">&times;</button>
+            </div>
+            
+            <div class="delivery-map-container" id="deliveryMapContainer">
+                <div id="deliveryMap" style="width: 100%; height: 350px; border-radius: 8px;"></div>
+                <div id="mapLoading" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #666;">
+                    <i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i>
+                    <p>Loading map...</p>
+                </div>
+            </div>
+            
+            <div class="delivery-details">
+                <div class="delivery-agent-card">
+                    <div class="agent-avatar">🚚</div>
+                    <div class="agent-info">
+                        <div class="agent-name" id="agentName">Delivery Partner</div>
+                        <div class="agent-vehicle" id="agentVehicle">Bike - KA01AB1234</div>
+                        <div class="agent-rating">⭐ 4.8 (234 deliveries)</div>
+                    </div>
+                    <button class="call-btn" onclick="callDeliveryAgent()">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                </div>
+                
+                <div class="delivery-timeline">
+                    <div class="timeline-item completed">
+                        <div class="timeline-dot">✓</div>
+                        <div class="timeline-content">
+                            <div class="timeline-label">Order Confirmed</div>
+                            <div class="timeline-time">2:15 PM</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item completed">
+                        <div class="timeline-dot">✓</div>
+                        <div class="timeline-content">
+                            <div class="timeline-label">Preparing</div>
+                            <div class="timeline-time">2:18 PM</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item active">
+                        <div class="timeline-dot">📍</div>
+                        <div class="timeline-content">
+                            <div class="timeline-label">Out for Delivery</div>
+                            <div class="timeline-time">Now</div>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-dot">🏠</div>
+                        <div class="timeline-content">
+                            <div class="timeline-label">Delivery</div>
+                            <div class="timeline-time">~2:27 PM</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="ads-section">
             <div class="ads-header">
                 <div>
-                    <div class="ads-eyebrow">Sponsored</div>
-                    <div class="ads-title">Promotions near you</div>
+                    <div class="ads-eyebrow" id="sponsoredLabel">Sponsored</div>
+                    <div class="ads-title" id="promotionsLabel">Promotions near you</div>
                 </div>
                 <div class="ad-meta" id="adsMeta"></div>
             </div>
@@ -51,16 +131,16 @@
             </div>
         </div>
 
-        <h2 class="section-title">Top Restaurants Near You</h2>
+        <h2 class="section-title" id="topRestaurantsLabel">Top Restaurants Near You</h2>
         <div class="category-filter" id="categoryFilters">
-            <button class="category-btn active" data-category="all" onclick="filterCategory('all', this)">🌟 All</button>
-            <button class="category-btn" data-category="ice_cream" onclick="filterCategory('ice_cream', this)">🍦 Ice Cream</button>
-            <button class="category-btn" data-category="chaat" onclick="filterCategory('chaat', this)">🌶️ Chaat</button>
-            <button class="category-btn" data-category="dosa" onclick="filterCategory('dosa', this)">🥞 Dosa</button>
-            <button class="category-btn" data-category="samosa" onclick="filterCategory('samosa', this)">🥟 Samosa</button>
-            <button class="category-btn" data-category="vada_pav" onclick="filterCategory('vada_pav', this)">🥪 Vada Pav</button>
-            <button class="category-btn" data-category="tea" onclick="filterCategory('tea', this)">🍵 Tea</button>
-            <button class="category-btn" data-category="juice" onclick="filterCategory('juice', this)">🧃 Juice</button>
+            <button class="category-btn active" data-category="all" onclick="filterCategory('all', this)" id="catAll">🌟 <span class="cat-label">All</span></button>
+            <button class="category-btn" data-category="ice_cream" onclick="filterCategory('ice_cream', this)" id="catIceCream">🍦 <span class="cat-label">Ice Cream</span></button>
+            <button class="category-btn" data-category="chaat" onclick="filterCategory('chaat', this)" id="catChaat">🌶️ <span class="cat-label">Chaat</span></button>
+            <button class="category-btn" data-category="dosa" onclick="filterCategory('dosa', this)" id="catDosa">🥞 <span class="cat-label">Dosa</span></button>
+            <button class="category-btn" data-category="samosa" onclick="filterCategory('samosa', this)" id="catSamosa">🥟 <span class="cat-label">Samosa</span></button>
+            <button class="category-btn" data-category="vada_pav" onclick="filterCategory('vada_pav', this)" id="catVadaPav">🥪 <span class="cat-label">Vada Pav</span></button>
+            <button class="category-btn" data-category="tea" onclick="filterCategory('tea', this)" id="catTea">🍵 <span class="cat-label">Tea</span></button>
+            <button class="category-btn" data-category="juice" onclick="filterCategory('juice', this)" id="catJuice">🧃 <span class="cat-label">Juice</span></button>
         </div>
         <div class="vendors-grid" id="vendorsGrid"></div>
     </div>
@@ -179,6 +259,17 @@
                     <div class="form-group">
                         <label>Landmark (Optional)</label>
                         <input type="text" id="customerLandmark" placeholder="Near famous location">
+                    </div>
+                    <div class="form-group">
+                        <label>Location (GPS Coordinates) - Optional</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="number" id="customerLatitude" placeholder="Latitude" step="0.000001" style="flex: 1;">
+                            <input type="number" id="customerLongitude" placeholder="Longitude" step="0.000001" style="flex: 1;">
+                            <button type="button" onclick="getCurrentLocation()" style="padding: 8px 12px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;" title="Get my current location">
+                                <i class="fas fa-crosshairs"></i>
+                            </button>
+                        </div>
+                        <small style="color: #666; font-size: 12px;">Click the target icon to auto-fill with your current location</small>
                     </div>
                 </div>
 
@@ -314,14 +405,14 @@
             <div class="checkout-body">
                 <!-- Notification Settings -->
                 <div class="checkout-section">
-                    <h3 class="checkout-section-title">
+                    <h3 class="checkout-section-title" id="notificationsLabel">
                         <i class="fas fa-bell"></i> Notifications
                     </h3>
                     <div class="settings-group">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Email Notifications</div>
-                                <div class="setting-description">Receive order updates via email</div>
+                                <div class="setting-label" id="emailNotificationsLabel">Email Notifications</div>
+                                <div class="setting-description" id="emailNotificationsDesc">Receive order updates via email</div>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="emailNotifications" checked>
@@ -330,8 +421,8 @@
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">SMS Notifications</div>
-                                <div class="setting-description">Receive order updates via SMS</div>
+                                <div class="setting-label" id="smsNotificationsLabel">SMS Notifications</div>
+                                <div class="setting-description" id="smsNotificationsDesc">Receive order updates via SMS</div>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="smsNotifications" checked>
@@ -340,8 +431,8 @@
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Promotional Emails</div>
-                                <div class="setting-description">Receive offers and promotions</div>
+                                <div class="setting-label" id="promoEmailsLabel">Promotional Emails</div>
+                                <div class="setting-description" id="promoEmailsDesc">Receive offers and promotions</div>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="promoEmails">
@@ -353,16 +444,16 @@
 
                 <!-- App Preferences -->
                 <div class="checkout-section">
-                    <h3 class="checkout-section-title">
+                    <h3 class="checkout-section-title" id="appPreferencesLabel">
                         <i class="fas fa-palette"></i> App Preferences
                     </h3>
                     <div class="settings-group">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Language</div>
-                                <div class="setting-description">Choose your preferred language</div>
+                                <div class="setting-label" id="languageLabel">Language</div>
+                                <div class="setting-description" id="languageDesc">Choose your preferred language</div>
                             </div>
-                            <select id="languageSelect" class="setting-select">
+                            <select id="languageSelect" class="setting-select" onchange="applyLanguage(this.value)">
                                 <option value="en">English</option>
                                 <option value="hi">हिंदी</option>
                                 <option value="mr">मराठी</option>
@@ -370,8 +461,8 @@
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Theme</div>
-                                <div class="setting-description">Choose app appearance</div>
+                                <div class="setting-label" id="themeLabel">Theme</div>
+                                <div class="setting-description" id="themeDesc">Choose app appearance</div>
                             </div>
                             <select id="themeSelect" class="setting-select">
                                 <option value="light">Light Mode</option>
@@ -384,21 +475,21 @@
 
                 <!-- Delivery Preferences -->
                 <div class="checkout-section">
-                    <h3 class="checkout-section-title">
+                    <h3 class="checkout-section-title" id="deliveryPreferencesLabel">
                         <i class="fas fa-truck"></i> Delivery Preferences
                     </h3>
                     <div class="settings-group">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Default Instructions</div>
-                                <div class="setting-description">Standard delivery instructions</div>
+                                <div class="setting-label" id="defaultInstructionsLabel">Default Instructions</div>
+                                <div class="setting-description" id="defaultInstructionsDesc">Standard delivery instructions</div>
                             </div>
                             <textarea id="defaultInstructions" class="setting-textarea" rows="2" placeholder="e.g., Ring doorbell, leave at door"></textarea>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Preferred Payment</div>
-                                <div class="setting-description">Default payment method</div>
+                                <div class="setting-label" id="preferredPaymentLabel">Preferred Payment</div>
+                                <div class="setting-description" id="preferredPaymentDesc">Default payment method</div>
                             </div>
                             <select id="defaultPayment" class="setting-select">
                                 <option value="cod">Cash on Delivery</option>
@@ -411,14 +502,14 @@
 
                 <!-- Privacy & Security -->
                 <div class="checkout-section">
-                    <h3 class="checkout-section-title">
+                    <h3 class="checkout-section-title" id="privacyLabel">
                         <i class="fas fa-shield-alt"></i> Privacy & Security
                     </h3>
                     <div class="settings-group">
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Profile Visibility</div>
-                                <div class="setting-description">Control who can see your profile</div>
+                                <div class="setting-label" id="profileVisibilityLabel">Profile Visibility</div>
+                                <div class="setting-description" id="profileVisibilityDesc">Control who can see your profile</div>
                             </div>
                             <select id="profileVisibility" class="setting-select">
                                 <option value="private">Private</option>
@@ -428,8 +519,8 @@
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <div class="setting-label">Data Sharing</div>
-                                <div class="setting-description">Share usage data for better service</div>
+                                <div class="setting-label" id="dataSharingLabel">Data Sharing</div>
+                                <div class="setting-description" id="dataSharingDesc">Share usage data for better service</div>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="dataSharing">
@@ -441,7 +532,7 @@
 
                 <!-- Account Actions -->
                 <div class="checkout-section">
-                    <h3 class="checkout-section-title">
+                    <h3 class="checkout-section-title" id="accountLabel">
                         <i class="fas fa-user-cog"></i> Account
                     </h3>
                     <div class="settings-group">
@@ -458,7 +549,7 @@
                 </div>
             </div>
             <div class="checkout-footer">
-                <button class="place-order-btn" onclick="saveSettings()">Save Settings</button>
+                <button class="place-order-btn" id="saveSettingsBtn" onclick="saveSettings()">Save Settings</button>
             </div>
         </div>
     </div>
@@ -467,18 +558,28 @@
         /* =======================
            GLOBAL STATE
         ======================= */
-        const cart = [];
-        let selectedPayment = 'cod';
-        let vendors = [];
-        let allMenuItems = [];
-          let promotions = [];
-        let currentAd = null;
-        let adInterval = null;
+                const cart = [];
+                let selectedPayment = 'cod';
+                let vendors = [];
+                let allMenuItems = [];
+                let promotions = [];
+                let currentAd = null;
+                let adInterval = null;
+                let currentLanguage = 'en';
 
         let currentCategory = 'all';
         let searchQuery = '';
+        
+        // Google Maps variables
+        let deliveryMap = null;
+        let deliveryMarker = null;
+        let customerMarker = null;
+        let routeLine = null;
+        let customerLocation = null;
+        let currentDeliveryStatus = null; // Track current delivery status
 
         function filterCategory(category, el) {
+            currentCategory = category;
             const categoryMap = {
                 'icecream': 'ice_cream',
                 'chaat': 'chaat',
@@ -759,7 +860,8 @@
                         price: item.price,
                         desc: item.description || 'Fresh & delicious',
                         icon: getItemIcon(item.name),
-                        image: item.image || ''
+                        image: item.image || '',
+                        ingredients: item.ingredients || ''
                     });
                 });
 
@@ -804,6 +906,8 @@
                     return;
                 }
 
+                const lang = currentLanguage || 'en';
+
                 grid.innerHTML = displayVendors.map(v => `
         <div class="vendor-card" onclick="openVendorModal(${v.id})">
             <div class="vendor-image" style="${v.hero_image ? `background-image:url('${v.hero_image}');background-size:cover;background-position:center;` : ''}">
@@ -816,7 +920,7 @@
                 <div>${v.location}</div>
             </div>
             <div class="vendor-menu-preview">
-                ${allMenuItems.filter(item => item.vendor_id === v.id).slice(0, 2).map(item => `<div class="menu-item-preview">${item.name} - ₹${item.price}</div>`).join('')}
+                ${allMenuItems.filter(item => item.vendor_id === v.id).slice(0, 2).map(item => `<div class="menu-item-preview">${translateMenuText(item.name, lang)} - ₹${item.price}</div>`).join('')}
             </div>
         </div>
     `).join('');
@@ -828,6 +932,7 @@
         ======================= */
         function openVendorModal(id) {
             const v = vendors.find(x => x.id === id);
+            const lang = currentLanguage || 'en';
 
             document.getElementById('modalVendorName').textContent = v.name;
 
@@ -851,6 +956,8 @@
             document.getElementById('menuSection').innerHTML = v.menu.map(item => {
                 const cartItem = cart.find(c => c.name === item.name);
                 const qty = cartItem ? cartItem.qty : 0;
+                const translatedName = translateMenuText(item.name, lang);
+                const translatedDesc = translateMenuDescription(item.desc, lang);
 
                 return `
                     <div class="menu-item">
@@ -858,8 +965,9 @@
                             ${item.image ? `<img src="/static/${item.image}" alt="${item.name}" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" onerror="this.style.display='none';this.parentElement.style.background='linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)';this.parentElement.innerHTML='${item.icon}';">` : item.icon}
                         </div>
                         <div class="menu-item-info">
-                            <div class="menu-item-name">${item.name}</div>
-                            <div class="menu-item-description">${item.desc}</div>
+                            <div class="menu-item-name">${translatedName}</div>
+                            <div class="menu-item-description">${translatedDesc}</div>
+                            ${item.ingredients ? `<div class="menu-item-ingredients" style="font-size: 12px; color: #666; margin: 8px 0; line-height: 1.4;"><strong>🥘 Ingredients:</strong> ${item.ingredients}</div>` : ''}
                             <div class="menu-item-footer">
                                 <div class="menu-item-price">₹${item.price}</div>
                                 ${qty > 0 ? `
@@ -981,8 +1089,84 @@
         }
 
         function toggleNotifications() {
-            document.getElementById('notificationsPanel').classList.toggle('active');
+            const panel = document.getElementById('notificationsPanel');
+            panel.classList.toggle('active');
             document.getElementById('profileModal').classList.remove('active');
+            
+            // Load notifications when panel opens
+            if (panel.classList.contains('active')) {
+                loadNotifications();
+            }
+        }
+        
+        async function loadNotifications() {
+            try {
+                const response = await fetch('/api/customer/notifications');
+                const data = await response.json();
+                
+                if (data.success && data.notifications) {
+                    renderNotifications(data.notifications);
+                    updateNotificationBadge(data.notifications);
+                }
+            } catch (error) {
+                console.error('Error loading notifications:', error);
+            }
+        }
+        
+        function renderNotifications(notifications) {
+            const panel = document.getElementById('notificationsPanel');
+            
+            if (!notifications || notifications.length === 0) {
+                panel.innerHTML = `
+                    <div class="notifications-header">Notifications</div>
+                    <div style="text-align: center; padding: 40px; color: #666;">
+                        <i class="fas fa-bell-slash" style="font-size: 48px; margin-bottom: 10px; opacity: 0.3;"></i>
+                        <p>No notifications yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Helper to calculate relative time
+            const getRelativeTime = (isoString) => {
+                const now = new Date();
+                const then = new Date(isoString);
+                const diffMs = now - then;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMins / 60);
+                const diffDays = Math.floor(diffHours / 24);
+                
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+                if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+                return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+            };
+            
+            const notificationsHtml = notifications.map(notif => `
+                <div class="notification-item ${notif.unread ? 'unread' : ''}">
+                    <div class="notification-title">${notif.title}</div>
+                    <div class="notification-text">${notif.text}</div>
+                    <div class="notification-time">${getRelativeTime(notif.time)}</div>
+                </div>
+            `).join('');
+            
+            panel.innerHTML = `
+                <div class="notifications-header">Notifications</div>
+                ${notificationsHtml}
+            `;
+        }
+        
+        function updateNotificationBadge(notifications) {
+            const badge = document.querySelector('.icon-btn .badge');
+            if (badge) {
+                const unreadCount = notifications.filter(n => n.unread).length;
+                if (unreadCount > 0) {
+                    badge.textContent = unreadCount;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
         }
 
         /* =======================
@@ -1055,6 +1239,13 @@
 
         function closeOrdersModal() {
             document.getElementById('ordersModal').classList.remove('active');
+        }
+
+        function trackOrder(orderId) {
+            // Close the orders modal
+            closeOrdersModal();
+            // Show delivery tracker for the order
+            showDeliveryTracker(orderId);
         }
 
         async function loadOrderHistory() {
@@ -1133,6 +1324,16 @@
                             <div><strong>Tax:</strong> ₹${order.tax_amount}</div>
                         </div>
                     </div>
+                    
+                    ${['pending', 'confirmed', 'preparing', 'ready', 'out_for_delivery'].includes(order.status) ? `
+                        <button class="track-order-btn" onclick="trackOrder(${order.id})">
+                            <i class="fas fa-map-marker-alt"></i> Track Order
+                        </button>
+                    ` : order.status === 'delivered' ? `
+                        <div style="margin-top: 15px; padding: 10px; background: #e8f5e9; border-radius: 8px; color: #2e7d32; font-size: 14px; text-align: center;">
+                            <i class="fas fa-check-circle"></i> Delivered Successfully
+                        </div>
+                    ` : ''}
                 </div>
             `}).join('');
         }
@@ -1194,12 +1395,32 @@
         /* =======================
            PLACE ORDER
         ======================= */
+        function getCurrentLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        document.getElementById('customerLatitude').value = position.coords.latitude.toFixed(6);
+                        document.getElementById('customerLongitude').value = position.coords.longitude.toFixed(6);
+                        alert('✓ Location detected successfully!');
+                    },
+                    (error) => {
+                        alert('Could not get your location. Please enter manually or allow location access.');
+                        console.error('Geolocation error:', error);
+                    }
+                );
+            } else {
+                alert('Geolocation is not supported by your browser');
+            }
+        }
+
         async function placeOrder() {
             const name = document.getElementById('customerName').value.trim();
             const email = document.getElementById('customerEmail').value.trim();
             const phone = document.getElementById('customerPhone').value.trim();
             const address = document.getElementById('customerAddress').value.trim();
             const instructions = document.getElementById('customerLandmark').value.trim();
+            let latitude = document.getElementById('customerLatitude').value.trim();
+            let longitude = document.getElementById('customerLongitude').value.trim();
 
             if (!name || !email || !phone || !address) {
                 alert('Please fill in all required fields!');
@@ -1209,6 +1430,54 @@
             if (cart.length === 0) {
                 alert('Your cart is empty!');
                 return;
+            }
+
+            // Auto-capture live location if not provided
+            if (!latitude || !longitude) {
+                const locationCaptured = await new Promise((resolve) => {
+                    if (!navigator.geolocation) {
+                        alert('📍 Your device does not support location services. Please enter GPS coordinates manually using the target icon.');
+                        resolve(false);
+                        return;
+                    }
+                    
+                    const confirmation = confirm('📍 We need your live location for accurate delivery tracking. Allow location access?');
+                    if (!confirmation) {
+                        alert('Location is required for delivery. Please click the target icon (🎯) next to GPS coordinates to share your location.');
+                        resolve(false);
+                        return;
+                    }
+                    
+                    // Show loading indicator
+                    const submitButton = document.querySelector('.checkout-action');
+                    const originalText = submitButton.textContent;
+                    submitButton.textContent = '📍 Getting your location...';
+                    submitButton.disabled = true;
+                    
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            latitude = position.coords.latitude.toFixed(6);
+                            longitude = position.coords.longitude.toFixed(6);
+                            document.getElementById('customerLatitude').value = latitude;
+                            document.getElementById('customerLongitude').value = longitude;
+                            submitButton.textContent = originalText;
+                            submitButton.disabled = false;
+                            resolve(true);
+                        },
+                        (error) => {
+                            console.error('Location error:', error);
+                            submitButton.textContent = originalText;
+                            submitButton.disabled = false;
+                            alert('❌ Failed to get your location. Please click the target icon (🎯) to manually share your location or enter coordinates.');
+                            resolve(false);
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    );
+                });
+                
+                if (!locationCaptured) {
+                    return;
+                }
             }
 
             const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -1227,6 +1496,8 @@
                 phone: phone,
                 address: address,
                 instructions: instructions,
+                latitude: latitude ? parseFloat(latitude) : null,
+                longitude: longitude ? parseFloat(longitude) : null,
                 items: cart.map(item => ({id: item.id, qty: item.qty})),
                 payment: selectedPayment
             };
@@ -1246,22 +1517,23 @@
                 const data = await response.json();
 
                 if (data.success) {
+                    const orderId = data.order_id;
                     const orderDetails = data.order_details;
-                    alert(`Order Placed Successfully! 🎉
-
-Order ID: #${data.order_id}
-Subtotal: ₹${orderDetails.subtotal}
-Delivery Fee: ₹${orderDetails.delivery_fee}
-Tax: ₹${orderDetails.tax_amount}
-Total: ₹${orderDetails.total}
-Payment: ${orderDetails.payment_method.toUpperCase()}
-Estimated Delivery: ${orderDetails.estimated_delivery}
-
-Your order will be delivered soon!`);
-
+                    
+                    // Close checkout modal
+                    closeCheckout();
+                    
+                    // Clear cart
                     cart.length = 0;
                     updateCart();
-                    closeCheckout();
+                    
+                    // Show order confirmation toast
+                    showOrderConfirmationToast(orderId, orderDetails);
+                    
+                    // Auto-show delivery tracker after 2 seconds
+                    setTimeout(() => {
+                        showDeliveryTracker(orderId);
+                    }, 2000);
                 } else {
                     alert('Error placing order: ' + data.message);
                 }
@@ -1272,6 +1544,333 @@ Your order will be delivered soon!`);
                 placeOrderBtn.innerHTML = originalText;
                 placeOrderBtn.disabled = false;
             }
+        }
+
+        function showOrderConfirmationToast(orderId, orderDetails) {
+            const toast = document.createElement('div');
+            toast.className = 'order-confirmation-toast';
+            toast.innerHTML = `
+                <div class="toast-content">
+                    <div class="toast-icon">✓</div>
+                    <div class="toast-details">
+                        <div class="toast-title">Order Placed Successfully! 🎉</div>
+                        <div class="toast-order-id">Order #${orderId}</div>
+                        <div class="toast-amount">Total: ₹${orderDetails.total}</div>
+                        <div class="toast-message">Your order will be delivered soon!</div>
+                    </div>
+                    <button class="toast-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
+            // Auto-remove toast after 5 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 5000);
+        }
+        
+        /* =======================
+           LANGUAGE TRANSLATIONS
+        ======================= */
+        const translations = {
+            en: {
+                settings: 'Settings',
+                notifications: 'Notifications',
+                emailNotifications: 'Email Notifications',
+                receiveOrderUpdates: 'Receive order updates via email',
+                smsNotifications: 'SMS Notifications',
+                receiveOrderUpdatesSms: 'Receive order updates via SMS',
+                promoEmails: 'Promotional Emails',
+                receiveOffers: 'Receive offers and promotions',
+                appPreferences: 'App Preferences',
+                language: 'Language',
+                chooseLanguage: 'Choose your preferred language',
+                theme: 'Theme',
+                chooseTheme: 'Choose app appearance',
+                lightMode: 'Light Mode',
+                darkMode: 'Dark Mode',
+                autoMode: 'Auto (System)',
+                deliveryPreferences: 'Delivery Preferences',
+                defaultInstructions: 'Default Instructions',
+                standardInstructions: 'Standard delivery instructions',
+                preferredPayment: 'Preferred Payment',
+                defaultPaymentMethod: 'Default payment method',
+                cashOnDelivery: 'Cash on Delivery',
+                upi: 'UPI',
+                creditDebit: 'Credit/Debit Card',
+                privacy: 'Privacy & Security',
+                profileVisibility: 'Profile Visibility',
+                controlProfileVisibility: 'Control who can see your profile',
+                private: 'Private',
+                vendorsOnly: 'Visible to Vendors Only',
+                public: 'Public',
+                dataSharing: 'Data Sharing',
+                shareDataImprovement: 'Share usage data for better service',
+                account: 'Account',
+                changePassword: 'Change Password',
+                exportData: 'Export My Data',
+                deleteAccount: 'Delete Account',
+                saveSettings: 'Save Settings',
+                settingsSaved: '✅ Settings saved successfully!',
+                settingsError: '❌ Failed to save settings',
+                passwordSuccess: '✅ Password changed successfully',
+                passwordError: '❌ Password change failed',
+                dataExported: '✅ Your data has been exported successfully!',
+                dataExportError: '❌ Failed to export data',
+                accountDeleted: '✅ Your account has been deleted',
+                accountDeleteError: '❌ Failed to delete account',
+                sponsored: 'SPONSORED',
+                promotionsNearYou: 'Promotions near you',
+                seeMore: 'See more',
+                topRestaurants: 'Top Restaurants Near You',
+                allCategories: 'All',
+                iceCreamCategory: 'Ice Cream',
+                chaatCategory: 'Chaat',
+                dosaCategory: 'Dosa',
+                samosaCategory: 'Samosa',
+                vadaPavCategory: 'Vada Pav',
+                teaCategory: 'Tea',
+                juiceCategory: 'Juice',
+                mins: 'mins'
+            },
+            hi: {
+                settings: 'सेटिंग्स',
+                notifications: 'सूचनाएं',
+                emailNotifications: 'ईमेल सूचनाएं',
+                receiveOrderUpdates: 'ईमेल के माध्यम से ऑर्डर अपडेट प्राप्त करें',
+                smsNotifications: 'एसएमएस सूचनाएं',
+                receiveOrderUpdatesSms: 'एसएमएस के माध्यम से ऑर्डर अपडेट प्राप्त करें',
+                promoEmails: 'प्रचारणात्मक ईमेल',
+                receiveOffers: 'ऑफर और प्रचार प्राप्त करें',
+                appPreferences: 'ऐप वरीयताएं',
+                language: 'भाषा',
+                chooseLanguage: 'अपनी पसंदीदा भाषा चुनें',
+                theme: 'थीम',
+                chooseTheme: 'ऐप की उपस्थिति चुनें',
+                lightMode: 'लाइट मोड',
+                darkMode: 'डार्क मोड',
+                autoMode: 'ऑटो (सिस्टम)',
+                deliveryPreferences: 'डिलीवरी वरीयताएं',
+                defaultInstructions: 'डिफ़ॉल्ट निर्देश',
+                standardInstructions: 'मानक डिलीवरी निर्देश',
+                preferredPayment: 'पसंदीदा भुगतान',
+                defaultPaymentMethod: 'डिफ़ॉल्ट भुगतान विधि',
+                cashOnDelivery: 'नकद डिलीवरी पर',
+                upi: 'यूपीआई',
+                creditDebit: 'क्रेडिट/डेबिट कार्ड',
+                privacy: 'गोपनीयता और सुरक्षा',
+                profileVisibility: 'प्रोफाइल दृश्यता',
+                controlProfileVisibility: 'नियंत्रित करें कि कौन आपकी प्रोफाइल देख सकता है',
+                private: 'निजी',
+                vendorsOnly: 'केवल विक्रेताओं के लिए दृश्यमान',
+                public: 'सार्वजनिक',
+                dataSharing: 'डेटा साझाकरण',
+                shareDataImprovement: 'बेहतर सेवा के लिए उपयोग डेटा साझा करें',
+                account: 'खाता',
+                changePassword: 'पासवर्ड बदलें',
+                exportData: 'मेरा डेटा निर्यात करें',
+                deleteAccount: 'खाता हटाएं',
+                saveSettings: 'सेटिंग्स सहेजें',
+                settingsSaved: '✅ सेटिंग्स सफलतापूर्वक सहेजी गईं!',
+                settingsError: '❌ सेटिंग्स सहेजने में विफल',
+                passwordSuccess: '✅ पासवर्ड सफलतापूर्वक बदल दिया गया',
+                passwordError: '❌ पासवर्ड परिवर्तन विफल',
+                dataExported: '✅ आपका डेटा सफलतापूर्वक निर्यात किया गया!',
+                dataExportError: '❌ डेटा निर्यात विफल',
+                accountDeleted: '✅ आपका खाता हटा दिया गया है',
+                accountDeleteError: '❌ खाता हटाने में विफल',
+                sponsored: 'प्रायोजित',
+                promotionsNearYou: 'आपके पास प्रचार',
+                seeMore: 'अधिक देखें',
+                topRestaurants: 'आपके पास शीर्ष रेस्तरां',
+                allCategories: 'सभी',
+                iceCreamCategory: 'आइसक्रीम',
+                chaatCategory: 'छाट',
+                dosaCategory: 'डोसा',
+                samosaCategory: 'समोसा',
+                vadaPavCategory: 'वड़ा पाव',
+                teaCategory: 'चाय',
+                juiceCategory: 'जूस',
+                mins: 'मिनट'
+            },
+            mr: {
+                settings: 'सेटिंग्ज',
+                notifications: 'सूचना',
+                emailNotifications: 'ईमेल सूचना',
+                receiveOrderUpdates: 'ईमेलद्वारे ऑर्डर अपडेट प्राप्त करा',
+                smsNotifications: 'एसएमएस सूचना',
+                receiveOrderUpdatesSms: 'एसएमएसद्वारे ऑर्डर अपडेट प्राप्त करा',
+                promoEmails: 'प्रचारात्मक ईमेल',
+                receiveOffers: 'ऑफर आणि प्रचार प्राप्त करा',
+                appPreferences: 'ऍप्लिकेशन पसंती',
+                language: 'भाषा',
+                chooseLanguage: 'तुमची पसंतीची भाषा निवडा',
+                theme: 'थीम',
+                chooseTheme: 'ऍप्लिकेशनचा देखावट निवडा',
+                lightMode: 'लाइट मोड',
+                darkMode: 'डार्क मोड',
+                autoMode: 'ऑटो (सिस्टम)',
+                deliveryPreferences: 'डिलिव्हरी पसंती',
+                defaultInstructions: 'डिफॉल्ट सूचना',
+                standardInstructions: 'मानक डिलिव्हरी सूचना',
+                preferredPayment: 'पसंतीची पेमेंट',
+                defaultPaymentMethod: 'डिफॉल्ट पेमेंट पद्धत',
+                cashOnDelivery: 'नकदी डिलिव्हरी',
+                upi: 'यूपीआই',
+                creditDebit: 'क्रेडिट/डेबिट कार्ड',
+                privacy: 'गोपनीयता आणि सुरक्षा',
+                profileVisibility: 'प्रोफाइल दृश्यमानता',
+                controlProfileVisibility: 'नियंत्रण करा की कोण तुमची प्रोफाइल पाहू शकतो',
+                private: 'खाजगी',
+                vendorsOnly: 'केवळ विक्रेत्यांना दृश्यमान',
+                public: 'सार्वजनिक',
+                dataSharing: 'डेटा शेअरिंग',
+                shareDataImprovement: 'चांगल्या सेवेसाठी वापर डेटा शेअर करा',
+                account: 'खाते',
+                changePassword: 'पासवर्ड बदला',
+                exportData: 'माझा डेटा निर्यात करा',
+                deleteAccount: 'खाते हटवा',
+                saveSettings: 'सेटिंग्ज जतन करा',
+                settingsSaved: '✅ सेटिंग्ज यशस्वीरित्या जतन केल्या गेल्या!',
+                settingsError: '❌ सेटिंग्ज जतन करण्यात अपयशी',
+                passwordSuccess: '✅ पासवर्ड यशस्वीरित्या बदलला गेला',
+                passwordError: '❌ पासवर्ड बदल अपयशी',
+                dataExported: '✅ तुमचा डेटा यशस्वीरित्या निर्यात केला गेला!',
+                dataExportError: '❌ डेटा निर्यात अपयशी',
+                accountDeleted: '✅ तुमचे खाते हटवले गेले आहे',
+                accountDeleteError: '❌ खाते हटवण्यात अपयशी',
+                sponsored: 'प्रायोजित',
+                promotionsNearYou: 'आपल्या जवळ प्रचार',
+                seeMore: 'अधिक पाहा',
+                topRestaurants: 'आपल्या जवळ शीर्ष रेस्तरांत',
+                allCategories: 'सर्व',
+                iceCreamCategory: 'आईस्क्रीम',
+                chaatCategory: 'छाट',
+                dosaCategory: 'डोसा',
+                samosaCategory: 'समोसा',
+                vadaPavCategory: 'वड़ा पाव',
+                teaCategory: 'चहा',
+                juiceCategory: 'रस',
+                mins: 'मिनिट'
+            }
+        };
+
+        // Basic dictionary to auto-translate common menu names/descriptions
+        const menuTranslations = {
+            hi: {
+                'carrot juice': 'गाजर का जूस',
+                'mixed fruit juice': 'मिक्स्ड फ्रूट जूस',
+                'cutting chai': 'कटिंग चाय',
+                'lemon tea': 'नींबू चाय',
+                'paneer vada pav': 'पनीर वडा पाव',
+                'masala vada pav': 'मसाला वडा पाव',
+                'mini samosa': 'मिनी समोसा',
+                'cheese samosa': 'चीज़ समोसा',
+                'mysore masala dosa': 'मैसूर मसाला डोसा',
+                'cheese dosa': 'चीज़ डोसा',
+                'masala dosa': 'मसाला डोसा',
+                'kulfi': 'कुल्फी',
+                'tea': 'चाय',
+                'juice': 'जूस',
+                'fresh & delicious': 'ताज़ा और स्वादिष्ट'
+            },
+            mr: {
+                'carrot juice': 'गाजर ज्युस',
+                'mixed fruit juice': 'मिक्स्ड फ्रूट ज्युस',
+                'cutting chai': 'कटिंग चहा',
+                'lemon tea': 'लिंबू चहा',
+                'paneer vada pav': 'पनीर वडा पाव',
+                'masala vada pav': 'मसाला वडा पाव',
+                'mini samosa': 'मिनी समोसा',
+                'cheese samosa': 'चीज समोसा',
+                'mysore masala dosa': 'मैसूर मसाला डोसा',
+                'cheese dosa': 'चीज डोसा',
+                'masala dosa': 'मसाला डोसा',
+                'kulfi': 'कुल्फी',
+                'tea': 'चहा',
+                'juice': 'रस',
+                'fresh & delicious': 'ताजे आणि स्वादिष्ट'
+            }
+        };
+
+        function translateMenuText(text, lang) {
+            if (!text) return '';
+            const key = text.toLowerCase().trim();
+            return menuTranslations[lang]?.[key] || text;
+        }
+
+        function translateMenuDescription(text, lang) {
+            if (!text) return '';
+            const key = text.toLowerCase().trim();
+            return menuTranslations[lang]?.[key] || text;
+        }
+        
+        function applyLanguage(language) {
+            const t = translations[language] || translations['en'];
+            currentLanguage = language;
+            localStorage.setItem('appLanguage', language);
+            
+            // Update visible text elements
+            const elementsToUpdate = {
+                'settingsTitle': t.settings,
+                'notificationsLabel': t.notifications,
+                'emailNotificationsLabel': t.emailNotifications,
+                'emailNotificationsDesc': t.receiveOrderUpdates,
+                'smsNotificationsLabel': t.smsNotifications,
+                'smsNotificationsDesc': t.receiveOrderUpdatesSms,
+                'promoEmailsLabel': t.promoEmails,
+                'promoEmailsDesc': t.receiveOffers,
+                'appPreferencesLabel': t.appPreferences,
+                'languageLabel': t.language,
+                'languageDesc': t.chooseLanguage,
+                'themeLabel': t.theme,
+                'themeDesc': t.chooseTheme,
+                'deliveryPreferencesLabel': t.deliveryPreferences,
+                'defaultInstructionsLabel': t.defaultInstructions,
+                'defaultInstructionsDesc': t.standardInstructions,
+                'preferredPaymentLabel': t.preferredPayment,
+                'preferredPaymentDesc': t.defaultPaymentMethod,
+                'privacyLabel': t.privacy,
+                'profileVisibilityLabel': t.profileVisibility,
+                'profileVisibilityDesc': t.controlProfileVisibility,
+                'dataSharingLabel': t.dataSharing,
+                'dataSharingDesc': t.shareDataImprovement,
+                'accountLabel': t.account,
+                'saveSettingsBtn': t.saveSettings,
+                'sponsoredLabel': t.sponsored,
+                'promotionsLabel': t.promotionsNearYou,
+                'topRestaurantsLabel': t.topRestaurants
+            };
+            
+            for (const [id, text] of Object.entries(elementsToUpdate)) {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            }
+            
+            // Update category button labels
+            const categoryUpdates = {
+                'catAll': t.allCategories,
+                'catIceCream': t.iceCreamCategory,
+                'catChaat': t.chaatCategory,
+                'catDosa': t.dosaCategory,
+                'catSamosa': t.samosaCategory,
+                'catVadaPav': t.vadaPavCategory,
+                'catTea': t.teaCategory,
+                'catJuice': t.juiceCategory
+            };
+            
+            for (const [id, text] of Object.entries(categoryUpdates)) {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    const labelSpan = btn.querySelector('.cat-label');
+                    if (labelSpan) labelSpan.textContent = text;
+                }
+            }
+
+            // Re-render vendors and menus with new language
+            renderVendors();
         }
         
         /* =======================
@@ -1287,21 +1886,52 @@ Your order will be delivered soon!`);
             document.getElementById('settingsModal').classList.remove('active');
         }
 
-        function loadSettings() {
-            // Load saved settings from localStorage or set defaults
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/customer/settings');
+                const data = await response.json();
+                
+                if (data.success && data.settings) {
+                    const settings = data.settings;
+                    
+                    // Apply settings to form
+                    document.getElementById('emailNotifications').checked = settings.email_notifications;
+                    document.getElementById('smsNotifications').checked = settings.sms_notifications;
+                    document.getElementById('promoEmails').checked = settings.promo_emails;
+                    document.getElementById('languageSelect').value = settings.language;
+                    document.getElementById('themeSelect').value = settings.theme;
+                    document.getElementById('defaultInstructions').value = settings.default_instructions || '';
+                    document.getElementById('defaultPayment').value = settings.default_payment;
+                    document.getElementById('profileVisibility').value = settings.profile_visibility;
+                    document.getElementById('dataSharing').checked = settings.data_sharing;
+                    
+                    // Apply current theme and language
+                    applyTheme(settings.theme);
+                    applyLanguage(settings.language);
+                } else {
+                    // Fallback to localStorage if API fails
+                    loadSettingsFromLocalStorage();
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+                loadSettingsFromLocalStorage();
+            }
+        }
+        
+        function loadSettingsFromLocalStorage() {
+            // Fallback to localStorage
             const settings = {
                 emailNotifications: localStorage.getItem('emailNotifications') !== 'false',
                 smsNotifications: localStorage.getItem('smsNotifications') !== 'false',
                 promoEmails: localStorage.getItem('promoEmails') === 'true',
-                language: localStorage.getItem('language') || 'en',
+                language: localStorage.getItem('appLanguage') || localStorage.getItem('language') || 'en',
                 theme: localStorage.getItem('theme') || 'light',
                 defaultInstructions: localStorage.getItem('defaultInstructions') || '',
                 defaultPayment: localStorage.getItem('defaultPayment') || 'cod',
                 profileVisibility: localStorage.getItem('profileVisibility') || 'private',
                 dataSharing: localStorage.getItem('dataSharing') === 'true'
             };
-
-            // Apply settings to form
+            
             document.getElementById('emailNotifications').checked = settings.emailNotifications;
             document.getElementById('smsNotifications').checked = settings.smsNotifications;
             document.getElementById('promoEmails').checked = settings.promoEmails;
@@ -1311,32 +1941,202 @@ Your order will be delivered soon!`);
             document.getElementById('defaultPayment').value = settings.defaultPayment;
             document.getElementById('profileVisibility').value = settings.profileVisibility;
             document.getElementById('dataSharing').checked = settings.dataSharing;
+            
+            // Apply theme and language
+            applyTheme(settings.theme);
+            applyLanguage(settings.language);
+            
+            applyTheme(settings.theme);
         }
 
-        function saveSettings() {
+        async function saveSettings() {
             // Get form values
             const settings = {
-                emailNotifications: document.getElementById('emailNotifications').checked,
-                smsNotifications: document.getElementById('smsNotifications').checked,
-                promoEmails: document.getElementById('promoEmails').checked,
+                email_notifications: document.getElementById('emailNotifications').checked,
+                sms_notifications: document.getElementById('smsNotifications').checked,
+                promo_emails: document.getElementById('promoEmails').checked,
                 language: document.getElementById('languageSelect').value,
                 theme: document.getElementById('themeSelect').value,
-                defaultInstructions: document.getElementById('defaultInstructions').value,
-                defaultPayment: document.getElementById('defaultPayment').value,
-                profileVisibility: document.getElementById('profileVisibility').value,
-                dataSharing: document.getElementById('dataSharing').checked
+                default_instructions: document.getElementById('defaultInstructions').value,
+                default_payment: document.getElementById('defaultPayment').value,
+                profile_visibility: document.getElementById('profileVisibility').value,
+                data_sharing: document.getElementById('dataSharing').checked
             };
 
-            // Save to localStorage
-            Object.keys(settings).forEach(key => {
-                localStorage.setItem(key, settings[key]);
+            try {
+                const response = await fetch('/api/customer/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Also save to localStorage as backup
+                    localStorage.setItem('emailNotifications', settings.email_notifications);
+                    localStorage.setItem('smsNotifications', settings.sms_notifications);
+                    localStorage.setItem('promoEmails', settings.promo_emails);
+                    localStorage.setItem('language', settings.language);
+                    localStorage.setItem('theme', settings.theme);
+                    localStorage.setItem('defaultInstructions', settings.default_instructions);
+                    localStorage.setItem('defaultPayment', settings.default_payment);
+                    localStorage.setItem('profileVisibility', settings.profile_visibility);
+                    localStorage.setItem('dataSharing', settings.data_sharing);
+                    
+                    // Apply theme immediately
+                    applyTheme(settings.theme);
+                    
+                    // Apply language immediately
+                    applyLanguage(settings.language);
+                    
+                    const t = translations[settings.language] || translations['en'];
+                    alert(t.settingsSaved);
+                    closeSettings();
+                } else {
+                    const t = translations[settings.language] || translations['en'];
+                    alert(t.settingsError + ': ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                const lang = document.getElementById('languageSelect').value || 'en';
+                const t = translations[lang] || translations['en'];
+                alert(t.settingsError + '. ' + t.account);
+            }
+        }
+        
+        function applyTheme(theme) {
+            const body = document.body;
+            
+            if (theme === 'dark') {
+                body.classList.add('dark-theme');
+                body.classList.remove('light-theme');
+            } else if (theme === 'light') {
+                body.classList.add('light-theme');
+                body.classList.remove('dark-theme');
+            } else if (theme === 'auto') {
+                // Detect system preference
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                if (prefersDark) {
+                    body.classList.add('dark-theme');
+                    body.classList.remove('light-theme');
+                } else {
+                    body.classList.add('light-theme');
+                    body.classList.remove('dark-theme');
+                }
+            }
+        }
+        
+        function changePassword() {
+            const currentPassword = prompt('Enter your current password:');
+            if (!currentPassword) return;
+            
+            const newPassword = prompt('Enter your new password (minimum 6 characters):');
+            if (!newPassword) return;
+            
+            if (newPassword.length < 6) {
+                alert('❌ Password must be at least 6 characters long');
+                return;
+            }
+            
+            const confirmPassword = prompt('Confirm your new password:');
+            if (!confirmPassword) return;
+            
+            if (newPassword !== confirmPassword) {
+                alert('❌ Passwords do not match');
+                return;
+            }
+            
+            fetch('/api/customer/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword,
+                    confirm_password: confirmPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ Failed to change password');
             });
-
-            // Apply theme immediately
-            applyTheme(settings.theme);
-
-            alert('Settings saved successfully!');
-            closeSettings();
+        }
+        
+        function exportData() {
+            if (!confirm('Export all your data? This will download a JSON file with your information.')) {
+                return;
+            }
+            
+            fetch('/api/customer/export-data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Create downloadable JSON file
+                    const dataStr = JSON.stringify(data.data, null, 2);
+                    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(dataBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `vendorconnect-data-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    
+                    alert('✅ Your data has been exported successfully!');
+                } else {
+                    alert('❌ Failed to export data: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ Failed to export data');
+            });
+        }
+        
+        function deleteAccount() {
+            if (!confirm('⚠️ WARNING: This will permanently delete your account and all data. This action cannot be undone. Are you sure?')) {
+                return;
+            }
+            
+            const password = prompt('Enter your password to confirm account deletion:');
+            if (!password) return;
+            
+            const confirmation = prompt('Type DELETE (in capital letters) to confirm:');
+            if (confirmation !== 'DELETE') {
+                alert('❌ Account deletion cancelled');
+                return;
+            }
+            
+            fetch('/api/customer/delete-account', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    password: password,
+                    confirmation: confirmation
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('✅ Your account has been deleted. You will be redirected to the home page.');
+                    window.location.href = '/';
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('❌ Failed to delete account');
+            });
         }
 
         /* =======================
@@ -1355,11 +2155,461 @@ Your order will be delivered soon!`);
         };
 
         /* =======================
+           REAL-TIME DELIVERY TRACKING
+        ======================= */
+        let deliveryTrackingInterval = null;
+        let currentOrderId = null;
+        
+        function initializeMap(deliveryLat, deliveryLon, destLat, destLon) {
+            const mapContainer = document.getElementById('deliveryMap');
+            const loadingEl = document.getElementById('mapLoading');
+            
+            if (!mapContainer) return;
+            
+            // Check if Google Maps is available
+            if (typeof google === 'undefined' || !google.maps) {
+                console.error('Google Maps API not loaded - showing fallback');
+                if (loadingEl) {
+                    loadingEl.innerHTML = `
+                        <div style="padding: 20px; text-align: center;">
+                            <i class="fas fa-truck" style="font-size: 48px; color: #2196F3; margin-bottom: 15px;"></i>
+                            <p style="color: #666; margin-bottom: 10px;"><strong>Tracking Active</strong></p>
+                            <p style="font-size: 13px; color: #999;">Agent Location: ${deliveryLat.toFixed(4)}, ${deliveryLon.toFixed(4)}</p>
+                            <p style="font-size: 13px; color: #999;">Your Location: ${destLat.toFixed(4)}, ${destLon.toFixed(4)}</p>
+                            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; font-size: 12px; color: #1976d2;">
+                                <i class="fas fa-sync-alt fa-spin"></i> Updating every 5 seconds
+                            </div>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            try {
+                // Calculate center point between delivery agent and customer
+                const centerLat = (deliveryLat + destLat) / 2;
+                const centerLng = (deliveryLon + destLon) / 2;
+                
+                // Initialize Google Map
+                deliveryMap = new google.maps.Map(mapContainer, {
+                    center: { lat: centerLat, lng: centerLng },
+                    zoom: 13,
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: true,
+                    styles: [
+                        {
+                            featureType: "poi",
+                            elementType: "labels",
+                            stylers: [{ visibility: "off" }]
+                        }
+                    ]
+                });
+                
+                // Create delivery agent marker (truck icon)
+                deliveryMarker = new google.maps.Marker({
+                    position: { lat: deliveryLat, lng: deliveryLon },
+                    map: deliveryMap,
+                    title: 'Delivery Agent',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: '#4CAF50',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    },
+                    label: {
+                        text: '🚚',
+                        fontSize: '20px'
+                    }
+                });
+                
+                // Create customer destination marker
+                customerMarker = new google.maps.Marker({
+                    position: { lat: destLat, lng: destLon },
+                    map: deliveryMap,
+                    title: 'Delivery Destination',
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#FF5252',
+                        fillOpacity: 1,
+                        strokeColor: '#ffffff',
+                        strokeWeight: 2
+                    },
+                    label: {
+                        text: '📍',
+                        fontSize: '18px'
+                    }
+                });
+                
+                // Draw route line
+                routeLine = new google.maps.Polyline({
+                    path: [
+                        { lat: deliveryLat, lng: deliveryLon },
+                        { lat: destLat, lng: destLon }
+                    ],
+                    geodesic: true,
+                    strokeColor: '#2196F3',
+                    strokeOpacity: 0.8,
+                    strokeWeight: 4,
+                    map: deliveryMap
+                });
+                
+                // Fit map to show both markers
+                const bounds = new google.maps.LatLngBounds();
+                bounds.extend({ lat: deliveryLat, lng: deliveryLon });
+                bounds.extend({ lat: destLat, lng: destLon });
+                deliveryMap.fitBounds(bounds);
+                
+                // Add padding to bounds
+                setTimeout(() => {
+                    deliveryMap.panToBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+                }, 100);
+                
+                // Calculate and display distance
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                    new google.maps.LatLng(deliveryLat, deliveryLon),
+                    new google.maps.LatLng(destLat, destLon)
+                );
+                
+                const distanceKm = (distance / 1000).toFixed(1);
+                console.log(`Distance: ${distanceKm} km`);
+                
+                if (loadingEl) loadingEl.style.display = 'none';
+                
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                if (loadingEl) loadingEl.innerHTML = '<p style="color: #f44336;">Map failed to load</p>';
+            }
+        }
+        
+        function updateMapMarker(latitude, longitude) {
+            // Check if Google Maps is available
+            if (typeof google === 'undefined' || !google.maps) {
+                console.log('Google Maps not available, skipping marker update');
+                return;
+            }
+            
+            if (!deliveryMap || !deliveryMarker) {
+                // Map not initialized yet, initialize it
+                if (customerLocation) {
+                    initializeMap(latitude, longitude, customerLocation.lat, customerLocation.lng);
+                }
+                return;
+            }
+            
+            // Update delivery agent marker position with smooth animation
+            const newPosition = { lat: latitude, lng: longitude };
+            deliveryMarker.setPosition(newPosition);
+            
+            // Update route line
+            if (routeLine && customerMarker) {
+                routeLine.setPath([
+                    newPosition,
+                    customerMarker.getPosition()
+                ]);
+            }
+            
+            // Recenter map to show both markers
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(newPosition);
+            if (customerMarker) {
+                bounds.extend(customerMarker.getPosition());
+            }
+            deliveryMap.fitBounds(bounds);
+            
+            // Calculate distance
+            if (customerMarker) {
+                const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                    new google.maps.LatLng(latitude, longitude),
+                    customerMarker.getPosition()
+                );
+                const distanceKm = (distance / 1000).toFixed(1);
+                
+                // Update ETA based on distance (assuming 20 km/h average speed)
+                const etaMinutes = Math.ceil((distance / 1000) / 20 * 60);
+                const eta = document.getElementById('deliveryETA');
+                if (eta) {
+                    eta.textContent = `${distanceKm} km away • Arriving in ~${etaMinutes} minutes`;
+                }
+            }
+        }
+
+        function showDeliveryTracker(orderId) {
+            currentOrderId = orderId;
+            const tracker = document.getElementById('activeDeliveryTracker');
+            if (tracker) {
+                tracker.style.display = 'block';
+                
+                // Show default map centered on Bangalore immediately
+                initializeDefaultMap();
+                
+                // Fetch order details to get customer location
+                fetch(`/api/customer/orders`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const order = data.orders.find(o => o.id === orderId);
+                            if (order && order.delivery_latitude && order.delivery_longitude) {
+                                customerLocation = {
+                                    lat: order.delivery_latitude,
+                                    lng: order.delivery_longitude
+                                };
+                                console.log('Customer location:', customerLocation);
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error fetching order:', error));
+                
+                startDeliveryTracking(orderId);
+            }
+        }
+        
+        function initializeDefaultMap() {
+            const mapContainer = document.getElementById('deliveryMap');
+            const loadingEl = document.getElementById('mapLoading');
+            
+            if (!mapContainer || deliveryMap) return; // Don't reinitialize if map already exists
+            
+            try {
+                // Default to Bangalore center
+                deliveryMap = new google.maps.Map(mapContainer, {
+                    center: { lat: 12.9716, lng: 77.5946 },
+                    zoom: 12,
+                    mapTypeControl: false,
+                    streetViewControl: false,
+                    fullscreenControl: true
+                });
+                
+                if (loadingEl) loadingEl.style.display = 'none';
+                console.log('Default map initialized');
+            } catch (error) {
+                console.error('Error initializing default map:', error);
+                if (loadingEl) {
+                    loadingEl.innerHTML = '<p style="color: #f44336;">Map failed to load. Check your internet connection.</p>';
+                }
+            }
+        }
+
+        function updateCloseButtonState() {
+            const closeBtn = document.getElementById('closeTrackerBtn');
+            if (!closeBtn) return;
+            
+            if (currentDeliveryStatus === 'delivered') {
+                closeBtn.style.opacity = '1';
+                closeBtn.style.cursor = 'pointer';
+                closeBtn.title = 'Close tracking';
+                closeBtn.style.color = '#4CAF50';
+            } else {
+                closeBtn.style.opacity = '0.5';
+                closeBtn.style.cursor = 'not-allowed';
+                closeBtn.title = 'Waiting for delivery confirmation...';
+                closeBtn.style.color = '#666';
+            }
+        }
+
+        function closeDeliveryTracker() {
+            // Only allow closing if delivery is confirmed/delivered
+            if (currentDeliveryStatus !== 'delivered') {
+                alert('⏳ Please wait for delivery confirmation from the agent.');
+                return;
+            }
+            
+            const tracker = document.getElementById('activeDeliveryTracker');
+            if (tracker) {
+                tracker.style.display = 'none';
+            }
+            if (deliveryTrackingInterval) {
+                clearInterval(deliveryTrackingInterval);
+            }
+            currentOrderId = null;
+            currentDeliveryStatus = null;
+        }
+
+        async function startDeliveryTracking(orderId) {
+            // Fetch location immediately
+            await updateDeliveryLocation(orderId);
+            
+            // Then update every 5 seconds for real-time tracking
+            if (deliveryTrackingInterval) {
+                clearInterval(deliveryTrackingInterval);
+            }
+            
+            deliveryTrackingInterval = setInterval(() => {
+                updateDeliveryLocation(orderId);
+            }, 5000); // 5-second updates for real-time tracking
+        }
+
+        async function updateDeliveryLocation(orderId) {
+            try {
+                const response = await fetch(`/api/delivery/location/${orderId}`);
+                const data = await response.json();
+                
+                if (data.success && data.location) {
+                    const location = data.location;
+                    
+                    // Update delivery agent details if available
+                    if (location.agent) {
+                        const agent = location.agent;
+                        document.getElementById('agentName').textContent = agent.name;
+                        document.getElementById('agentVehicle').textContent = agent.vehicle;
+                        
+                        // Update rating display
+                        const ratingEl = document.querySelector('.agent-rating');
+                        if (ratingEl) {
+                            ratingEl.innerHTML = `⭐ ${agent.rating.toFixed(1)} (${agent.total_deliveries} deliveries)`;
+                        }
+                    }
+                    
+                    // Initialize map if not already done and we have customer location
+                    if (!deliveryMap && customerLocation) {
+                        initializeMap(
+                            location.latitude,
+                            location.longitude,
+                            customerLocation.lat,
+                            customerLocation.lng
+                        );
+                    } else if (deliveryMap && !deliveryMarker && customerLocation) {
+                        // Upgrade from default map to full tracking map
+                        console.log('Upgrading to full tracking map with real coordinates');
+                        initializeMap(
+                            location.latitude,
+                            location.longitude,
+                            customerLocation.lat,
+                            customerLocation.lng
+                        );
+                    } else if (deliveryMap && deliveryMarker) {
+                        // Update marker position (only re-render the marker, not the whole map)
+                        updateMapMarker(location.latitude, location.longitude);
+                    }
+                    
+                    // Update delivery status if available
+                    if (location.status) {
+                        // Store the status for close button control
+                        currentDeliveryStatus = location.status;
+                        updateDeliveryStatus(location.status, location.notes, location.timestamps);
+                    }
+                    
+                    // Log update timestamp
+                    console.log(`Location updated at ${new Date(location.timestamp).toLocaleTimeString()}`);
+                } else {
+                    console.log('No active delivery tracking yet');
+                }
+            } catch (error) {
+                console.error('Error updating delivery location:', error);
+            }
+        }
+
+        function updateDeliveryStatus(status, notes, timestamps) {
+            currentDeliveryStatus = status;
+            updateCloseButtonState();
+            
+            const statusTitle = document.querySelector('.status-title');
+            const timeline = document.querySelector('.delivery-timeline');
+            
+            // Status text mapping
+            const statusText = {
+                'confirmed': 'Order Confirmed',
+                'preparing': 'Preparing Your Order',
+                'ready': 'Order Ready',
+                'out_for_delivery': 'Order on the Way',
+                'delivered': 'Order Delivered',
+                'cancelled': 'Order Cancelled'
+            };
+            
+            if (statusTitle) {
+                statusTitle.textContent = statusText[status] || 'Order in Progress';
+            }
+            
+            // Update timeline with real timestamps
+            if (timeline && timestamps) {
+                const timelineItems = timeline.querySelectorAll('.timeline-item');
+                
+                // Helper to format time
+                const formatTime = (isoString) => {
+                    if (!isoString) return '';
+                    const date = new Date(isoString);
+                    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                };
+                
+                // Update each timeline item with actual timestamp
+                if (timelineItems[0]) { // Order Confirmed
+                    const timeEl = timelineItems[0].querySelector('.timeline-time');
+                    if (timestamps.confirmed) {
+                        timelineItems[0].classList.add('completed');
+                        if (timeEl) timeEl.textContent = formatTime(timestamps.confirmed);
+                    }
+                }
+                
+                if (timelineItems[1]) { // Preparing
+                    const timeEl = timelineItems[1].querySelector('.timeline-time');
+                    if (timestamps.preparing) {
+                        timelineItems[1].classList.add('completed');
+                        if (timeEl) timeEl.textContent = formatTime(timestamps.preparing);
+                    }
+                }
+                
+                if (timelineItems[2]) { // Out for Delivery
+                    const timeEl = timelineItems[2].querySelector('.timeline-time');
+                    if (timestamps.out_for_delivery) {
+                        timelineItems[2].classList.add('completed');
+                        if (timeEl) timeEl.textContent = formatTime(timestamps.out_for_delivery);
+                        if (status === 'out_for_delivery') {
+                            timelineItems[2].classList.add('active');
+                            if (timeEl) timeEl.textContent = 'Now';
+                        }
+                    } else if (status === 'out_for_delivery') {
+                        timelineItems[2].classList.add('active');
+                        if (timeEl) timeEl.textContent = 'Now';
+                    }
+                }
+                
+                if (timelineItems[3]) { // Delivered
+                    const timeEl = timelineItems[3].querySelector('.timeline-time');
+                    if (timestamps.delivered) {
+                        timelineItems[3].classList.add('completed');
+                        if (timeEl) timeEl.textContent = formatTime(timestamps.delivered);
+                    } else if (timestamps.estimated_delivery) {
+                        if (timeEl) timeEl.textContent = '~' + formatTime(timestamps.estimated_delivery);
+                    }
+                }
+            }
+        }
+
+        function callDeliveryAgent() {
+            alert('Calling delivery partner... (Demo)');
+        }
+
+        /* =======================
            INIT
         ======================= */
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize language from localStorage or database default
+            const savedLanguage = localStorage.getItem('appLanguage') || 'en';
+            applyLanguage(savedLanguage);
+            
+            // Add event listener for language changes
+            const languageSelect = document.getElementById('languageSelect');
+            if (languageSelect) {
+                languageSelect.addEventListener('change', (e) => {
+                    applyLanguage(e.target.value);
+                });
+            }
+            
             loadVendors();
             loadPromotions();
+            loadNotifications();
+            
+            // Refresh notifications every 30 seconds
+            setInterval(loadNotifications, 30000);
+            
+            // Demo: Show delivery tracker after 3 seconds
+            setTimeout(() => {
+                // Uncomment to see delivery tracker in action
+                // showDeliveryTracker(1);
+            }, 3000);
         });
     </script>
 </body>
