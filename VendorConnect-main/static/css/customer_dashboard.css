@@ -18,13 +18,86 @@
     --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
     --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
     --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.2);
+    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+}
+
+/* Dark Theme Variables */
+body.dark-theme {
+    --card-bg: #1e1e2e;
+    --text-primary: #e0e0e0;
+    --text-secondary: #b0b0b0;
+    --border: #3a3a4a;
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+    --bg-gradient: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+}
+
+body.dark-theme {
+    background: var(--bg-gradient);
+    color: var(--text-primary);
+}
+
+body.dark-theme .nav-container,
+body.dark-theme .vendor-card,
+body.dark-theme .modal-content,
+body.dark-theme .checkout-content,
+body.dark-theme .order-card,
+body.dark-theme .notification-item,
+body.dark-theme .promotion-card {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme select {
+    background: #2a2a3a;
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+body.dark-theme .menu-item {
+    background: var(--card-bg);
+    border-color: var(--border);
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', 'Roboto', sans-serif;
-    background: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+    background: var(--bg-gradient);
     min-height: 100vh;
     color: var(--text-primary);
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Track Order Button */
+.track-order-btn {
+    margin-top: 15px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.3);
+}
+
+.track-order-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(33, 150, 243, 0.4);
+    background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+}
+
+.track-order-btn:active {
+    transform: translateY(0);
 }
 
 /* Header Styles */
@@ -1536,3 +1609,485 @@ body {
     box-shadow: var(--shadow-lg);
     transform: translateY(-4px);
 }
+
+/* =============================================
+   REAL-TIME DELIVERY TRACKING STYLES
+   ============================================= */
+
+.active-delivery-tracker {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-md);
+    border: 2px solid var(--success);
+    animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.delivery-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.delivery-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    background: #00f2fe;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.2);
+    }
+}
+
+.status-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary);
+}
+
+.status-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.close-tracker {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    transition: color 0.3s;
+}
+
+.close-tracker:hover {
+    color: var(--text-primary);
+}
+
+.delivery-map-container {
+    margin: 16px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+#deliveryMap {
+    width: 100%;
+    height: 300px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+}
+
+.delivery-details {
+    margin-top: 16px;
+}
+
+.delivery-agent-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.agent-avatar {
+    font-size: 32px;
+    min-width: 50px;
+    text-align: center;
+}
+
+.agent-info {
+    flex: 1;
+}
+
+.agent-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.agent-vehicle {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.agent-rating {
+    font-size: 12px;
+    color: #f59e0b;
+    margin-top: 2px;
+}
+
+.call-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--success);
+    border: none;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+
+.call-btn:hover {
+    transform: scale(1.1);
+    box-shadow: var(--shadow-md);
+}
+
+.delivery-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    position: relative;
+}
+
+.timeline-item:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 26px;
+    top: 48px;
+    width: 2px;
+    height: 24px;
+    background: #e4e7eb;
+}
+
+.timeline-item.completed::after {
+    background: #00f2fe;
+}
+
+.timeline-item.active::after {
+    background: #f59e0b;
+}
+
+.timeline-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #e4e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.timeline-item.completed .timeline-dot {
+    background: #00f2fe;
+    border-color: #00f2fe;
+    color: white;
+}
+
+.timeline-item.active .timeline-dot {
+    background: #f59e0b;
+    border-color: #f59e0b;
+    color: white;
+    animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.timeline-content {
+    flex: 1;
+}
+
+.timeline-label {
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--text-primary);
+}
+
+.timeline-time {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* =============================================
+   ORDER CONFIRMATION TOAST
+   ============================================= */
+
+.order-confirmation-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 9999;
+    animation: slideInRight 0.4s ease-out;
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(400px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.toast-content {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    max-width: 400px;
+    border-left: 4px solid #00f2fe;
+}
+
+.toast-icon {
+    font-size: 24px;
+    color: #00f2fe;
+    font-weight: bold;
+    min-width: 30px;
+    text-align: center;
+}
+
+.toast-details {
+    flex: 1;
+}
+
+.toast-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.toast-order-id {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.toast-amount {
+    font-size: 18px;
+    color: #00f2fe;
+    font-weight: bold;
+    margin: 8px 0 4px 0;
+}
+
+.toast-message {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0;
+    min-width: auto;
+    transition: color 0.3s;
+}
+
+.toast-close:hover {
+    color: var(--text-primary);
+}
+
+/* =============================================
+   TRACK ORDER BUTTON
+   ============================================= */
+
+.track-order-btn {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.track-order-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.track-order-btn i {
+    font-size: 16px;
+}
+
+/* =============================================
+   RESPONSIVE DELIVERY TRACKING
+   ============================================= */
+
+@media (max-width: 768px) {
+    .active-delivery-tracker {
+        margin-bottom: 16px;
+        padding: 16px;
+    }
+
+    .delivery-map-container {
+        margin: 12px 0;
+    }
+
+    #deliveryMap {
+        height: 250px !important;
+    }
+
+    .delivery-agent-card {
+        padding: 10px;
+        gap: 10px;
+    }
+
+    .agent-avatar {
+        font-size: 28px;
+        min-width: 40px;
+    }
+
+    .call-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+    }
+
+    .timeline-item {
+        padding: 10px;
+    }
+
+    .timeline-dot {
+        width: 18px;
+        height: 18px;
+        font-size: 10px;
+    }
+
+    .toast-content {
+        max-width: 90vw;
+        padding: 12px;
+        gap: 12px;
+    }
+
+    .toast-title {
+        font-size: 14px;
+    }
+
+    .toast-order-id {
+        font-size: 12px;
+    }
+
+    .toast-amount {
+        font-size: 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .active-delivery-tracker {
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .delivery-header {
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+    }
+
+    .status-title {
+        font-size: 14px;
+    }
+
+    .status-subtitle {
+        font-size: 12px;
+    }
+
+    #deliveryMap {
+        height: 200px !important;
+    }
+
+    .delivery-agent-card {
+        padding: 8px;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .agent-info {
+        width: 100%;
+    }
+
+    .call-btn {
+        width: 40px;
+        height: 40px;
+        margin: 0 auto;
+    }
+
+    .timeline-item {
+        padding: 8px;
+    }
+
+    .order-confirmation-toast {
+        bottom: 10px;
+        right: 10px;
+        left: 10px;
+    }
+
+    .toast-content {
+        flex-direction: column;
+        max-width: 100%;
+    }
+
+    .toast-icon {
+        font-size: 20px;
+    }
+}
+```

@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import io
 import csv
 import requests
+from threading import Lock
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
@@ -178,6 +179,10 @@ except ImportError:
 
 db = SQLAlchemy(app)
 CORS(app)
+
+# Real-time delivery tracking cache (in-memory for speed)
+delivery_location_cache = {}
+delivery_cache_lock = Lock()
 
 # Uploads for supplier files
 app.config['SUPPLIER_UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads', 'suppliers')
@@ -429,6 +434,54 @@ def generate_otp():
     return ''.join(random.choices(string.digits, k=6))
 
 
+def extract_gps_from_address(address):
+    """
+    Extract or generate approximate GPS coordinates from address string
+    Uses simple pattern matching for common Bangalore locations
+    For production, integrate with Google Maps Geocoding API or Mapbox
+    """
+    if not address:
+        return None, None
+    
+    address_lower = address.lower()
+    
+    # Common Bangalore locations and their approximate coordinates
+    bangalore_locations = {
+        'mg road': (12.9352, 77.6245),
+        'indiranagar': (12.9716, 77.6412),
+        'koramangala': (12.9352, 77.6245),
+        'whitefield': (12.9698, 77.7499),
+        'marathahalli': (12.9716, 77.7501),
+        'jayanagar': (13.0033, 77.5933),
+        'yelahanka': (13.1059, 77.5945),
+        'sr nagar': (13.0035, 77.5936),
+        'banaswadi': (13.0259, 77.5869),
+        'malleshwaram': (13.0021, 77.5738),
+        'btm': (12.9176, 77.6412),
+        'hsr': (12.9352, 77.6298),
+        'rest area': (13.1939, 77.7063),
+        'central': (12.9716, 77.5945),
+        'east': (13.0259, 77.6411),
+        'west': (12.9716, 77.5200),
+        'south': (12.8397, 77.6245),
+        'north': (13.0830, 77.6245),
+    }
+    
+    # Search for known locations in address
+    for location_name, (lat, lon) in bangalore_locations.items():
+        if location_name in address_lower:
+            # Add slight random variation to simulate different addresses in area (±0.01 degrees)
+            lat += random.uniform(-0.01, 0.01)
+            lon += random.uniform(-0.01, 0.01)
+            return round(lat, 6), round(lon, 6)
+    
+    # Default: Return center of Bangalore if location not recognized
+    # This allows the system to work without external API
+    default_lat = 12.9716 + random.uniform(-0.05, 0.05)
+    default_lon = 77.5945 + random.uniform(-0.05, 0.05)
+    return round(default_lat, 6), round(default_lon, 6)
+
+
 # Database Models
 class Vendor(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -483,6 +536,7 @@ class MenuItem(db.Model):
     price = db.Column(db.Float, nullable=False)
     description = db.Column(db.String(255), nullable=True)
     image = db.Column(db.String(300), nullable=True)
+    ingredients = db.Column(db.Text, nullable=True)  # Comma-separated or JSON list of ingredients
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class DeliveryAgent(db.Model):
@@ -503,6 +557,16 @@ class Customer(db.Model):
     location = db.Column(db.String(200), nullable=True)
     password_hash = db.Column(db.String(200), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    # Settings
+    email_notifications = db.Column(db.Boolean, default=True)
+    sms_notifications = db.Column(db.Boolean, default=True)
+    promo_emails = db.Column(db.Boolean, default=False)
+    language = db.Column(db.String(10), default='en')
+    theme = db.Column(db.String(20), default='light')
+    default_instructions = db.Column(db.Text, nullable=True)
+    default_payment = db.Column(db.String(20), default='cod')
+    profile_visibility = db.Column(db.String(20), default='private')
+    data_sharing = db.Column(db.Boolean, default=False)
 
 class CustomerOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -519,8 +583,16 @@ class CustomerOrder(db.Model):
     customer_name = db.Column(db.String(100), nullable=True)
     customer_email = db.Column(db.String(120), nullable=True)
     customer_phone = db.Column(db.String(15), nullable=True)
+    delivery_agent_id = db.Column(db.Integer, db.ForeignKey('delivery_agent.id'), nullable=True)
+    delivery_latitude = db.Column(db.Float, nullable=True)
+    delivery_longitude = db.Column(db.Float, nullable=True)
     estimated_delivery_time = db.Column(db.DateTime, nullable=True)
     actual_delivery_time = db.Column(db.DateTime, nullable=True)
+    confirmed_at = db.Column(db.DateTime, nullable=True)  # When order was confirmed
+    preparing_at = db.Column(db.DateTime, nullable=True)  # When food preparation started
+    ready_at = db.Column(db.DateTime, nullable=True)  # When order was ready
+    picked_up_at = db.Column(db.DateTime, nullable=True)  # When delivery agent picked up
+    out_for_delivery_at = db.Column(db.DateTime, nullable=True)  # When delivery started
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -1020,8 +1092,8 @@ def vendor_login():
             user = DeliveryAgent.query.filter_by(phone=phone).first()
             if user and user.password_hash and check_password_hash(user.password_hash, password):
                 session.clear()
-                session['delivery_id'] = user.id
-                return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('delivery_dashboard')})
+                session['delivery_agent_id'] = user.id
+                return jsonify({'success': True, 'message': 'Login successful', 'redirect': url_for('delivery_agent_dashboard')})
         elif role == 'customer':
             user = Customer.query.filter_by(phone=phone).first()
             if user and user.password_hash and check_password_hash(user.password_hash, password):
@@ -2402,6 +2474,18 @@ def place_order_customer():
     if total_amount < 50:
         return jsonify({'success': False, 'message': 'Minimum order amount is ₹50'}), 400
 
+    # Get GPS coordinates - use manual input if provided, otherwise extract from address
+    delivery_lat = data.get('latitude')
+    delivery_lon = data.get('longitude')
+    
+    if delivery_lat and delivery_lon:
+        # Use manually provided coordinates
+        delivery_lat = float(delivery_lat)
+        delivery_lon = float(delivery_lon)
+    else:
+        # Extract GPS coordinates from address
+        delivery_lat, delivery_lon = extract_gps_from_address(data['address'])
+
     # Estimate delivery time (30-45 minutes from now)
     estimated_delivery = datetime.utcnow() + timedelta(minutes=30 + (data.get('items', []).__len__() * 2))
 
@@ -2416,6 +2500,8 @@ def place_order_customer():
         payment_method=data.get('payment', 'cod'),
         payment_status='pending' if data.get('payment', 'cod') != 'cod' else 'paid',
         delivery_address=data['address'],
+        delivery_latitude=delivery_lat,
+        delivery_longitude=delivery_lon,
         delivery_instructions=data.get('instructions', ''),
         customer_name=data['name'],
         customer_email=data['email'],
@@ -2424,6 +2510,17 @@ def place_order_customer():
     )
     db.session.add(order)
     db.session.flush()  # Get order ID without committing
+
+    # Assign to available delivery agent (round-robin or least-loaded)
+    try:
+        available_agents = db.session.query(DeliveryAgent).order_by(
+            db.func.random()
+        ).limit(1).all()
+        
+        if available_agents:
+            order.delivery_agent_id = available_agents[0].id
+    except Exception as e:
+        app.logger.warning(f"Could not assign delivery agent: {str(e)}")
 
     # Create order items
     for item_data in order_items:
@@ -2437,9 +2534,25 @@ def place_order_customer():
 
     db.session.commit()
 
-    # Update order status to confirmed
+    # Update order status to confirmed and set timestamp
+    current_time = datetime.utcnow()
     order.status = 'confirmed'
+    order.confirmed_at = current_time
+    # Auto-set preparing timestamp a minute later
+    order.preparing_at = current_time + timedelta(minutes=1)
     db.session.commit()
+
+    # Cache initial delivery location in real-time cache
+    if order.delivery_agent_id:
+        with delivery_cache_lock:
+            delivery_location_cache[f"order_{order.id}"] = {
+                'order_id': order.id,
+                'delivery_agent_id': order.delivery_agent_id,
+                'latitude': delivery_lat,
+                'longitude': delivery_lon,
+                'timestamp': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow()
+            }
 
     return jsonify({
         'success': True,
@@ -2451,10 +2564,309 @@ def place_order_customer():
             'tax_amount': tax_amount,
             'total': total_amount,
             'estimated_delivery': estimated_delivery.strftime('%I:%M %p'),
-            'payment_method': order.payment_method
+            'payment_method': order.payment_method,
+            'delivery_latitude': delivery_lat,
+            'delivery_longitude': delivery_lon
         }
     })
 
+
+@app.route('/api/customer/notifications', methods=['GET'])
+def get_customer_notifications():
+    """Get recent notifications for customer based on order status changes"""
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        customer_id = session['customer_id']
+        
+        # Get recent orders (last 24 hours)
+        recent_orders = db.session.query(CustomerOrder).filter(
+            CustomerOrder.customer_id == customer_id,
+            CustomerOrder.created_at >= datetime.utcnow() - timedelta(days=1)
+        ).order_by(CustomerOrder.updated_at.desc()).limit(10).all()
+        
+        notifications = []
+        
+        for order in recent_orders:
+            # Get vendor name from order items
+            vendor_name = 'Restaurant'
+            first_item = db.session.query(CustomerOrderItem).filter_by(
+                order_id=order.id
+            ).first()
+            
+            if first_item:
+                menu_item = db.session.query(MenuItem).filter_by(
+                    id=first_item.menu_item_id
+                ).first()
+                if menu_item:
+                    vendor = db.session.query(Vendor).filter_by(
+                        id=menu_item.vendor_id
+                    ).first()
+                    if vendor:
+                        vendor_name = vendor.name
+            
+            # Create notification based on order status
+            notification = None
+            
+            if order.status == 'delivered' and order.actual_delivery_time:
+                notification = {
+                    'title': 'Order Delivered',
+                    'text': f'Your order from {vendor_name} has been delivered',
+                    'time': order.actual_delivery_time.isoformat(),
+                    'unread': True
+                }
+            elif order.status == 'out_for_delivery' and order.out_for_delivery_at:
+                notification = {
+                    'title': 'Out for Delivery',
+                    'text': f'Your order from {vendor_name} is on the way',
+                    'time': order.out_for_delivery_at.isoformat(),
+                    'unread': True
+                }
+            elif order.status == 'preparing' and order.preparing_at:
+                notification = {
+                    'title': 'Order Confirmed',
+                    'text': f'{vendor_name} is preparing your order',
+                    'time': order.preparing_at.isoformat(),
+                    'unread': False
+                }
+            elif order.status == 'confirmed' and order.confirmed_at:
+                notification = {
+                    'title': 'Order Confirmed',
+                    'text': f'Your order has been confirmed',
+                    'time': order.confirmed_at.isoformat(),
+                    'unread': False
+                }
+            
+            if notification:
+                notifications.append(notification)
+        
+        return jsonify({
+            'success': True,
+            'notifications': notifications
+        })
+    except Exception as e:
+        app.logger.error(f"Get notifications error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/customer/settings', methods=['GET'])
+def get_customer_settings():
+    """Get customer settings"""
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        customer = db.session.query(Customer).filter_by(id=session['customer_id']).first()
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        settings = {
+            'email_notifications': customer.email_notifications if hasattr(customer, 'email_notifications') else True,
+            'sms_notifications': customer.sms_notifications if hasattr(customer, 'sms_notifications') else True,
+            'promo_emails': customer.promo_emails if hasattr(customer, 'promo_emails') else False,
+            'language': customer.language if hasattr(customer, 'language') else 'en',
+            'theme': customer.theme if hasattr(customer, 'theme') else 'light',
+            'default_instructions': customer.default_instructions if hasattr(customer, 'default_instructions') else '',
+            'default_payment': customer.default_payment if hasattr(customer, 'default_payment') else 'cod',
+            'profile_visibility': customer.profile_visibility if hasattr(customer, 'profile_visibility') else 'private',
+            'data_sharing': customer.data_sharing if hasattr(customer, 'data_sharing') else False
+        }
+        
+        return jsonify({'success': True, 'settings': settings})
+    except Exception as e:
+        app.logger.error(f"Error fetching settings: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/customer/settings', methods=['POST'])
+def save_customer_settings():
+    """Save customer settings"""
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        data = request.get_json()
+        customer = db.session.query(Customer).filter_by(id=session['customer_id']).first()
+        
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        # Update settings with hasattr checks for backward compatibility
+        if hasattr(customer, 'email_notifications'):
+            customer.email_notifications = data.get('email_notifications', True)
+        if hasattr(customer, 'sms_notifications'):
+            customer.sms_notifications = data.get('sms_notifications', True)
+        if hasattr(customer, 'promo_emails'):
+            customer.promo_emails = data.get('promo_emails', False)
+        if hasattr(customer, 'language'):
+            customer.language = data.get('language', 'en')
+        if hasattr(customer, 'theme'):
+            customer.theme = data.get('theme', 'light')
+        if hasattr(customer, 'default_instructions'):
+            customer.default_instructions = data.get('default_instructions', '')
+        if hasattr(customer, 'default_payment'):
+            customer.default_payment = data.get('default_payment', 'cod')
+        if hasattr(customer, 'profile_visibility'):
+            customer.profile_visibility = data.get('profile_visibility', 'private')
+        if hasattr(customer, 'data_sharing'):
+            customer.data_sharing = data.get('data_sharing', False)
+        
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Settings saved successfully'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error saving settings: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/customer/change-password', methods=['POST'])
+def change_customer_password():
+    """Change customer password"""
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        data = request.get_json()
+        current_password = data.get('current_password')
+        new_password = data.get('new_password')
+        confirm_password = data.get('confirm_password')
+        
+        if not current_password or not new_password or not confirm_password:
+            return jsonify({'success': False, 'message': 'All fields are required'}), 400
+        
+        if new_password != confirm_password:
+            return jsonify({'success': False, 'message': 'New passwords do not match'}), 400
+        
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'message': 'Password must be at least 6 characters'}), 400
+        
+        customer = db.session.query(Customer).filter_by(id=session['customer_id']).first()
+        
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        # Verify current password
+        if customer.password_hash and not check_password_hash(customer.password_hash, current_password):
+            return jsonify({'success': False, 'message': 'Current password is incorrect'}), 401
+        
+        # Update password
+        customer.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Password changed successfully'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error changing password: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/customer/export-data', methods=['GET'])
+def export_customer_data():
+    """Export customer data"""
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        customer_id = session['customer_id']
+        customer = db.session.query(Customer).filter_by(id=customer_id).first()
+        
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        # Get all customer orders
+        orders = db.session.query(CustomerOrder).filter_by(customer_id=customer_id).all()
+        
+        orders_data = []
+        for order in orders:
+            order_items = db.session.query(CustomerOrderItem).filter_by(order_id=order.id).all()
+            items_list = []
+            
+            for item in order_items:
+                menu_item = db.session.query(MenuItem).filter_by(id=item.menu_item_id).first()
+                if menu_item:
+                    items_list.append({
+                        'name': menu_item.name,
+                        'quantity': item.quantity,
+                        'price': item.price
+                    })
+            
+            orders_data.append({
+                'order_id': order.id,
+                'date': order.created_at.isoformat() if order.created_at else None,
+                'status': order.status,
+                'total_amount': order.total_amount,
+                'payment_method': order.payment_method,
+                'items': items_list
+            })
+        
+        export_data = {
+            'customer_info': {
+                'name': customer.name,
+                'email': customer.email,
+                'phone': customer.phone,
+                'location': customer.location,
+                'created_at': customer.created_at.isoformat() if customer.created_at else None
+            },
+            'settings': {
+                'email_notifications': customer.email_notifications if hasattr(customer, 'email_notifications') else True,
+                'sms_notifications': customer.sms_notifications if hasattr(customer, 'sms_notifications') else True,
+                'promo_emails': customer.promo_emails if hasattr(customer, 'promo_emails') else False,
+                'language': customer.language if hasattr(customer, 'language') else 'en',
+                'theme': customer.theme if hasattr(customer, 'theme') else 'light'
+            },
+            'orders': orders_data,
+            'total_orders': len(orders_data),
+            'export_date': datetime.utcnow().isoformat()
+        }
+        
+        return jsonify({'success': True, 'data': export_data})
+    except Exception as e:
+        app.logger.error(f"Error exporting data: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/customer/delete-account', methods=['POST'])
+def delete_customer_account():
+    """Delete customer account"""
+    if 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        data = request.get_json()
+        password = data.get('password')
+        confirmation = data.get('confirmation')
+        
+        if not password:
+            return jsonify({'success': False, 'message': 'Password required'}), 400
+        
+        if confirmation != 'DELETE':
+            return jsonify({'success': False, 'message': 'Please type DELETE to confirm'}), 400
+        
+        customer_id = session['customer_id']
+        customer = db.session.query(Customer).filter_by(id=customer_id).first()
+        
+        if not customer:
+            return jsonify({'success': False, 'message': 'Customer not found'}), 404
+        
+        # Verify password
+        if customer.password_hash and not check_password_hash(customer.password_hash, password):
+            return jsonify({'success': False, 'message': 'Incorrect password'}), 401
+        
+        # Delete customer orders and related data
+        orders = db.session.query(CustomerOrder).filter_by(customer_id=customer_id).all()
+        for order in orders:
+            db.session.query(CustomerOrderItem).filter_by(order_id=order.id).delete()
+            db.session.delete(order)
+        
+        # Delete customer
+        db.session.delete(customer)
+        db.session.commit()
+        
+        # Clear session
+        session.clear()
+        
+        return jsonify({'success': True, 'message': 'Account deleted successfully'})
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error deleting account: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/customer/orders', methods=['GET'])
 def get_customer_orders():
@@ -3145,6 +3557,617 @@ def customer_dashboard():
         'address': customer.location  # For backward compatibility
     }
     return render_template('customer_dashboard.html', customer_data=customer_data, customer_name=customer.name)
+
+# =============================================
+# REAL-TIME DELIVERY TRACKING API
+# =============================================
+
+@app.route('/api/delivery/location/update', methods=['POST'])
+def update_delivery_location():
+    """
+    Delivery agent sends GPS coordinates (lightweight network call)
+    Stores in fast in-memory cache instead of hitting database every second
+    """
+    try:
+        data = request.get_json()
+        order_id = data.get('order_id')
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        delivery_agent_id = data.get('delivery_agent_id')
+        
+        if not all([order_id, latitude, longitude]):
+            return jsonify({'success': False, 'message': 'Missing location data'}), 400
+        
+        # Store in fast in-memory cache (Redis would be better in production)
+        with delivery_cache_lock:
+            delivery_location_cache[f"order_{order_id}"] = {
+                'order_id': order_id,
+                'delivery_agent_id': delivery_agent_id,
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'timestamp': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow()
+            }
+        
+        return jsonify({'success': True, 'message': 'Location updated'})
+    except Exception as e:
+        print(f"Delivery location update error: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delivery/location/<int:order_id>', methods=['GET'])
+def get_delivery_location(order_id):
+    """
+    Frontend fetches current delivery partner location with complete agent details
+    Returns cached location instantly without database query + agent info
+    """
+    try:
+        cache_key = f"order_{order_id}"
+        
+        with delivery_cache_lock:
+            location_data = delivery_location_cache.get(cache_key)
+        
+        # Get order and delivery agent info from database
+        order = db.session.query(CustomerOrder).filter_by(id=order_id).first()
+        if not order:
+            return jsonify({
+                'success': False,
+                'message': 'Order not found'
+            }), 404
+        
+        # Get delivery agent details
+        delivery_agent = None
+        agent_details = {
+            'name': 'Delivery Partner',
+            'phone': '+91 XXXXX XXXXX',
+            'vehicle': 'Bike - KA01AB1234',
+            'rating': 4.8,
+            'total_deliveries': 234
+        }
+        
+        if order.delivery_agent_id:
+            delivery_agent = db.session.query(DeliveryAgent).filter_by(
+                id=order.delivery_agent_id
+            ).first()
+            
+            if delivery_agent:
+                # Count total deliveries for this agent
+                total_deliveries = db.session.query(CustomerOrder).filter(
+                    CustomerOrder.delivery_agent_id == delivery_agent.id,
+                    CustomerOrder.status.in_(['delivered', 'out_for_delivery'])
+                ).count()
+                
+                agent_details = {
+                    'name': delivery_agent.name,
+                    'phone': delivery_agent.phone,
+                    'vehicle': delivery_agent.vehicle_info or 'Bike - KA01AB1234',
+                    'rating': 4.8,  # Could calculate from customer feedback
+                    'total_deliveries': total_deliveries
+                }
+        
+        if location_data:
+            # Add agent details to location data
+            location_data['agent'] = agent_details
+            
+            # Add status timestamps
+            location_data['timestamps'] = {
+                'confirmed': order.confirmed_at.isoformat() if order.confirmed_at else None,
+                'preparing': order.preparing_at.isoformat() if order.preparing_at else None,
+                'ready': order.ready_at.isoformat() if order.ready_at else None,
+                'picked_up': order.picked_up_at.isoformat() if order.picked_up_at else None,
+                'out_for_delivery': order.out_for_delivery_at.isoformat() if order.out_for_delivery_at else None,
+                'delivered': order.actual_delivery_time.isoformat() if order.actual_delivery_time else None,
+                'estimated_delivery': order.estimated_delivery_time.isoformat() if order.estimated_delivery_time else None
+            }
+            
+            return jsonify({
+                'success': True,
+                'location': location_data,
+                'source': 'cache',  # Indicates this came from fast cache
+                'order_status': order.status
+            })
+        
+        # Fallback: use order's delivery coordinates if available
+        if order.delivery_latitude and order.delivery_longitude:
+            fallback_location = {
+                'order_id': order_id,
+                'latitude': order.delivery_latitude,
+                'longitude': order.delivery_longitude,
+                'timestamp': order.updated_at.isoformat() if order.updated_at else datetime.utcnow().isoformat(),
+                'status': order.status,
+                'agent': agent_details
+            }
+            
+            return jsonify({
+                'success': True,
+                'location': fallback_location,
+                'source': 'database',
+                'order_status': order.status
+            })
+        
+        return jsonify({
+            'success': True,
+            'location': None,
+            'message': 'Order found but no active delivery tracking',
+            'agent': agent_details,
+            'order_status': order.status
+        })
+    except Exception as e:
+        app.logger.error(f"Get delivery location error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delivery/tracking/<int:order_id>', methods=['GET'])
+def get_delivery_tracking(order_id):
+    """
+    Complete delivery tracking info for customer
+    Includes real-time location, ETA, and order status
+    """
+    try:
+        # Get order from database
+        order = db.session.query(CustomerOrder).filter_by(id=order_id).first()
+        if not order:
+            return jsonify({'success': False, 'message': 'Order not found'}), 404
+        
+        cache_key = f"order_{order_id}"
+        
+        with delivery_cache_lock:
+            location_data = delivery_location_cache.get(cache_key)
+        
+        # If no cached location, use order's delivery coordinates
+        if not location_data and order.delivery_latitude and order.delivery_longitude:
+            location_data = {
+                'order_id': order_id,
+                'latitude': order.delivery_latitude,
+                'longitude': order.delivery_longitude,
+                'timestamp': order.created_at.isoformat() if order.created_at else None,
+            }
+        
+        # Get delivery agent info
+        delivery_agent = None
+        if order.delivery_agent_id:
+            delivery_agent = db.session.query(DeliveryAgent).filter_by(
+                id=order.delivery_agent_id
+            ).first()
+        
+        # Calculate ETA based on estimated delivery time
+        eta_minutes = 0
+        if order.estimated_delivery_time:
+            time_diff = (order.estimated_delivery_time - datetime.utcnow()).total_seconds() / 60
+            eta_minutes = max(0, int(time_diff))
+        
+        tracking_info = {
+            'order_id': order_id,
+            'status': order.status,
+            'location': location_data,
+            'eta_minutes': eta_minutes,
+            'delivery_address': order.delivery_address,
+            'delivery_agent': {
+                'name': delivery_agent.name if delivery_agent else 'Delivery Partner',
+                'phone': delivery_agent.phone if delivery_agent else '+91 XXXXX XXXXX',
+                'vehicle': delivery_agent.vehicle_info if delivery_agent else 'Bike - KA01AB1234',
+                'rating': 4.8
+            },
+            'updated_at': datetime.utcnow().isoformat()
+        }
+        
+        return jsonify({'success': True, 'tracking': tracking_info})
+    except Exception as e:
+        app.logger.error(f"Get delivery tracking error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+# =============================================
+# DELIVERY AGENT API ENDPOINTS
+# =============================================
+
+@app.route('/delivery-agent/dashboard')
+def delivery_agent_dashboard():
+    """Delivery agent dashboard page"""
+    delivery_agent_id = session.get('delivery_agent_id')
+    if not delivery_agent_id:
+        return redirect('/vendor/login')
+    
+    agent = DeliveryAgent.query.get(delivery_agent_id)
+    if not agent:
+        return redirect('/vendor/login')
+    
+    return render_template('delivery_agent_dashboard.html', agent_name=agent.name)
+
+@app.route('/api/delivery-agent/profile', methods=['GET', 'PUT'])
+def delivery_agent_profile():
+    """Get or update delivery agent profile"""
+    delivery_agent_id = session.get('delivery_agent_id')
+    if not delivery_agent_id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    agent = DeliveryAgent.query.get(delivery_agent_id)
+    if not agent:
+        return jsonify({'success': False, 'message': 'Agent not found'}), 404
+    
+    if request.method == 'GET':
+        return jsonify({
+            'success': True,
+            'agent': {
+                'id': agent.id,
+                'name': agent.name,
+                'email': agent.email,
+                'phone': agent.phone,
+                'location': agent.location,
+                'vehicle_info': agent.vehicle_info,
+                'total_deliveries': 42,  # Example data
+                'completed_deliveries': 38,
+                'in_transit_deliveries': 3,
+                'rating': 4.8
+            }
+        })
+    
+    elif request.method == 'PUT':
+        data = request.get_json()
+        agent.name = data.get('name', agent.name)
+        agent.email = data.get('email', agent.email)
+        agent.phone = data.get('phone', agent.phone)
+        agent.location = data.get('location', agent.location)
+        agent.vehicle_info = data.get('vehicle_info', agent.vehicle_info)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Profile updated successfully'})
+
+@app.route('/api/delivery-agent/deliveries', methods=['GET'])
+def get_agent_deliveries():
+    """Get assigned deliveries for delivery agent from database"""
+    delivery_agent_id = session.get('delivery_agent_id')
+    if not delivery_agent_id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    try:
+        # Fetch real orders assigned to this delivery agent
+        orders = db.session.query(CustomerOrder).filter_by(
+            delivery_agent_id=delivery_agent_id
+        ).order_by(CustomerOrder.created_at.desc()).all()
+        
+        deliveries = []
+        for order in orders:
+            # Count items in this order
+            items_count = db.session.query(CustomerOrderItem).filter_by(
+                order_id=order.id
+            ).count()
+            
+            # Map status to delivery status
+            status_map = {
+                'pending': 'Pending',
+                'confirmed': 'Confirmed',
+                'preparing': 'Preparing',
+                'ready': 'Ready for Pickup',
+                'out_for_delivery': 'In Transit',
+                'delivered': 'Delivered',
+                'cancelled': 'Cancelled'
+            }
+            
+            delivery_data = {
+                'order_id': order.id,
+                'customer_name': order.customer_name or 'Customer',
+                'customer_phone': order.customer_phone,
+                'customer_email': order.customer_email,
+                'delivery_address': order.delivery_address,
+                'total_amount': order.total_amount,
+                'status': status_map.get(order.status, order.status),
+                'status_raw': order.status,
+                'created_at': order.created_at.isoformat() if order.created_at else None,
+                'items_count': items_count,
+                'delivery_instructions': order.delivery_instructions,
+                'latitude': order.delivery_latitude,
+                'longitude': order.delivery_longitude,
+                'estimated_delivery_time': order.estimated_delivery_time.isoformat() if order.estimated_delivery_time else None,
+            }
+            
+            deliveries.append(delivery_data)
+        
+        return jsonify({
+            'success': True,
+            'deliveries': deliveries,
+            'total_count': len(deliveries)
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching deliveries: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error fetching deliveries: {str(e)}'
+        }), 500
+
+@app.route('/api/delivery-agent/update-location', methods=['POST'])
+def update_agent_location():
+    """Update delivery agent's current GPS location"""
+    if 'delivery_agent_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        data = request.get_json()
+        latitude = data.get('latitude')
+        longitude = data.get('longitude')
+        
+        if not latitude or not longitude:
+            return jsonify({'success': False, 'message': 'Location coordinates required'}), 400
+        
+        delivery_agent_id = session['delivery_agent_id']
+        
+        # Store agent's current location in cache
+        cache_key = f"agent_location_{delivery_agent_id}"
+        
+        with delivery_cache_lock:
+            delivery_location_cache[cache_key] = {
+                'agent_id': delivery_agent_id,
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'timestamp': datetime.utcnow().isoformat(),
+                'updated_at': datetime.utcnow()
+            }
+        
+        return jsonify({
+            'success': True,
+            'message': 'Location updated successfully'
+        })
+    except Exception as e:
+        app.logger.error(f"Update agent location error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delivery-agent/available-orders', methods=['POST'])
+def get_available_orders():
+    """Get available orders near delivery agent's current location"""
+    if 'delivery_agent_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        data = request.get_json()
+        agent_lat = data.get('latitude')
+        agent_lon = data.get('longitude')
+        
+        if not agent_lat or not agent_lon:
+            return jsonify({'success': False, 'message': 'Location required'}), 400
+        
+        delivery_agent_id = session['delivery_agent_id']
+        
+        # Get unassigned orders or orders in 'confirmed' status
+        available_orders = db.session.query(CustomerOrder).filter(
+            CustomerOrder.status.in_(['confirmed', 'preparing']),
+            CustomerOrder.delivery_agent_id == None
+        ).order_by(CustomerOrder.created_at.desc()).limit(20).all()
+        
+        orders_data = []
+        
+        for order in available_orders:
+            if not order.delivery_latitude or not order.delivery_longitude:
+                continue
+            
+            # Calculate distance using Haversine formula
+            from math import radians, cos, sin, asin, sqrt
+            
+            lon1, lat1, lon2, lat2 = map(radians, [agent_lon, agent_lat, order.delivery_longitude, order.delivery_latitude])
+            dlon = lon2 - lon1
+            dlat = lat2 - lat1
+            a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+            c = 2 * asin(sqrt(a))
+            distance_km = 6371 * c  # Radius of earth in kilometers
+            
+            # Get order items
+            order_items = db.session.query(CustomerOrderItem).filter_by(
+                order_id=order.id
+            ).all()
+            
+            items_list = []
+            vendor_name = 'Restaurant'
+            
+            for item in order_items:
+                menu_item = db.session.query(MenuItem).filter_by(
+                    id=item.menu_item_id
+                ).first()
+                
+                if menu_item:
+                    items_list.append({
+                        'name': menu_item.name,
+                        'quantity': item.quantity
+                    })
+                    
+                    # Get vendor name
+                    if not vendor_name or vendor_name == 'Restaurant':
+                        vendor = db.session.query(Vendor).filter_by(
+                            id=menu_item.vendor_id
+                        ).first()
+                        if vendor:
+                            vendor_name = vendor.name
+            
+            orders_data.append({
+                'order_id': order.id,
+                'customer_name': order.customer_name,
+                'customer_phone': order.customer_phone,
+                'delivery_address': order.delivery_address,
+                'delivery_latitude': order.delivery_latitude,
+                'delivery_longitude': order.delivery_longitude,
+                'distance_km': round(distance_km, 2),
+                'total_amount': order.total_amount,
+                'payment_method': order.payment_method,
+                'items': items_list,
+                'vendor_name': vendor_name,
+                'created_at': order.created_at.isoformat(),
+                'estimated_delivery_time': order.estimated_delivery_time.isoformat() if order.estimated_delivery_time else None
+            })
+        
+        # Sort by distance (closest first)
+        orders_data.sort(key=lambda x: x['distance_km'])
+        
+        return jsonify({
+            'success': True,
+            'orders': orders_data
+        })
+    except Exception as e:
+        app.logger.error(f"Get available orders error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delivery-agent/accept-order', methods=['POST'])
+def accept_order():
+    """Delivery agent accepts an order"""
+    if 'delivery_agent_id' not in session:
+        return jsonify({'success': False, 'message': 'Not logged in'}), 401
+    
+    try:
+        data = request.get_json()
+        order_id = data.get('order_id')
+        agent_latitude = data.get('latitude')
+        agent_longitude = data.get('longitude')
+        
+        if not order_id:
+            return jsonify({'success': False, 'message': 'Order ID required'}), 400
+        
+        delivery_agent_id = session['delivery_agent_id']
+        
+        # Get the order
+        order = db.session.query(CustomerOrder).filter_by(id=order_id).first()
+        
+        if not order:
+            return jsonify({'success': False, 'message': 'Order not found'}), 404
+        
+        # Check if order is already assigned
+        if order.delivery_agent_id and order.delivery_agent_id != delivery_agent_id:
+            return jsonify({'success': False, 'message': 'Order already assigned to another agent'}), 400
+        
+        # Assign order to delivery agent
+        order.delivery_agent_id = delivery_agent_id
+        order.status = 'ready'
+        
+        # Set picked_up timestamp
+        if not order.picked_up_at:
+            order.picked_up_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        # Update agent's location in cache with order info
+        if agent_latitude and agent_longitude:
+            cache_key = f"order_{order_id}"
+            
+            # Get agent details
+            agent = db.session.query(DeliveryAgent).filter_by(
+                id=delivery_agent_id
+            ).first()
+            
+            total_deliveries = db.session.query(CustomerOrder).filter(
+                CustomerOrder.delivery_agent_id == delivery_agent_id,
+                CustomerOrder.status.in_(['delivered', 'out_for_delivery'])
+            ).count()
+            
+            agent_details = {
+                'name': agent.name if agent else 'Delivery Agent',
+                'phone': agent.phone if agent else '',
+                'vehicle': agent.vehicle_info if agent else 'Vehicle',
+                'rating': 4.8,
+                'total_deliveries': total_deliveries
+            }
+            
+            with delivery_cache_lock:
+                delivery_location_cache[cache_key] = {
+                    'order_id': order_id,
+                    'delivery_agent_id': delivery_agent_id,
+                    'latitude': float(agent_latitude),
+                    'longitude': float(agent_longitude),
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'status': 'ready',
+                    'notes': 'Order accepted by delivery agent',
+                    'agent': agent_details,
+                    'updated_at': datetime.utcnow()
+                }
+        
+        return jsonify({
+            'success': True,
+            'message': 'Order accepted successfully',
+            'order_id': order_id
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Accept order error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/delivery-agent/update-status', methods=['POST'])
+def update_delivery_status():
+    """Update delivery status with GPS coordinates"""
+    delivery_agent_id = session.get('delivery_agent_id')
+    if not delivery_agent_id:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    order_id = data.get('order_id')
+    status = data.get('status')
+    latitude = data.get('latitude')
+    longitude = data.get('longitude')
+    notes = data.get('notes', '')
+    
+    if not order_id or not status:
+        return jsonify({'success': False, 'message': 'Order ID and status are required'}), 400
+    
+    try:
+        # Update order status in database
+        order = db.session.query(CustomerOrder).filter_by(id=order_id).first()
+        if not order:
+            return jsonify({'success': False, 'message': 'Order not found'}), 404
+        
+        # Map delivery agent status to order status
+        status_map = {
+            'picked_up': 'ready',
+            'in_transit': 'out_for_delivery',
+            'arrived': 'out_for_delivery',
+            'delivered': 'delivered',
+            'failed': 'cancelled'
+        }
+        
+        # Update order status and record timestamp
+        new_status = status_map.get(status, status)
+        current_time = datetime.utcnow()
+        order.status = new_status
+        
+        # Record timestamp for each status change
+        if new_status == 'confirmed' and not order.confirmed_at:
+            order.confirmed_at = current_time
+        elif new_status == 'preparing' and not order.preparing_at:
+            order.preparing_at = current_time
+        elif new_status == 'ready' and not order.ready_at:
+            order.ready_at = current_time
+            # Also mark as picked up when ready
+            if not order.picked_up_at:
+                order.picked_up_at = current_time
+        elif new_status == 'out_for_delivery' and not order.out_for_delivery_at:
+            order.out_for_delivery_at = current_time
+        elif new_status == 'delivered':
+            order.actual_delivery_time = current_time
+        
+        # Update GPS coordinates if provided
+        if latitude and longitude:
+            order.delivery_latitude = float(latitude)
+            order.delivery_longitude = float(longitude)
+        
+        db.session.commit()
+        
+        # Update GPS location in cache for real-time tracking
+        if latitude and longitude:
+            with delivery_cache_lock:
+                delivery_location_cache[f"order_{order_id}"] = {
+                    'order_id': order_id,
+                    'delivery_agent_id': delivery_agent_id,
+                    'latitude': float(latitude),
+                    'longitude': float(longitude),
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'status': status,
+                    'notes': notes,
+                    'updated_at': datetime.utcnow()
+                }
+        
+        return jsonify({
+            'success': True,
+            'message': f'Delivery status updated to {status}',
+            'order_id': order_id,
+            'order_status': order.status
+        })
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error updating delivery status: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'Error updating status: {str(e)}'
+        }), 500
 
 # Chatbot API endpoints
 @app.route('/api/chatbot/message', methods=['POST'])

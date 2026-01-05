@@ -5,24 +5,617 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delivery Dashboard - VendorConnect</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=geometry" onerror="window.gm_authFailure()"></script>
     <style>
-        body{font-family:Arial,Helvetica,sans-serif;background:#f5f7fa;color:#333}
-        .container{max-width:1000px;margin:40px auto;padding:20px;background:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08)}
-        h1{color:#2c3e50}
-        .actions{display:flex;gap:12px;margin-top:16px}
-        .btn{padding:10px 14px;background:#28a745;color:#fff;border-radius:6px;text-decoration:none}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            font-size: 28px;
+        }
+        
+        .location-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+        
+        .location-status.active {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        
+        .location-status.inactive {
+            background: #ffebee;
+            color: #c62828;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .order-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .order-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .order-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .order-id {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .distance-badge {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .order-details {
+            margin-bottom: 16px;
+        }
+        
+        .detail-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .detail-row i {
+            color: #667eea;
+            width: 20px;
+            margin-top: 2px;
+        }
+        
+        .detail-row strong {
+            color: #2c3e50;
+            min-width: 70px;
+        }
+        
+        .items-list {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+        
+        .item {
+            font-size: 13px;
+            padding: 4px 0;
+            color: #555;
+        }
+        
+        .order-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 2px solid #f0f0f0;
+        }
+        
+        .amount {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2e7d32;
+        }
+        
+        .accept-btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+        }
+        
+        .accept-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+        }
+        
+        .accept-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        .empty-state {
+            background: white;
+            padding: 60px 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+        }
+        
+        .empty-state i {
+            font-size: 64px;
+            color: #ccc;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state h3 {
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .empty-state p {
+            color: #999;
+        }
+        
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        
+        .logout-btn:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Delivery Agent Dashboard</h1>
-        <p>Welcome. Track deliveries, update status, and view assigned orders.</p>
-        <div class="actions">
-            <a class="btn" href="#">Assigned Deliveries</a>
-            <a class="btn" href="#">Update Status</a>
-            <a class="btn" href="#">Profile</a>
-            <a class="btn" href="/logout">Logout</a>
+        <div class="header">
+            <div>
+                <h1>🚚 Delivery Agent Dashboard</h1>
+                <div class="location-status inactive" id="locationStatus">
+                    <i class="fas fa-location-crosshairs"></i>
+                    <span>Location tracking inactive</span>
+                </div>
+            </div>
+            <a href="/logout" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('available')">
+                📍 Available Orders
+            </button>
+            <button class="tab" onclick="switchTab('active')">
+                🚴 Active Deliveries
+            </button>
+        </div>
+        
+        <div id="availableTab" class="tab-content active">
+            <div id="availableOrders" class="orders-grid">
+                <div class="empty-state loading">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <h3>Finding nearby orders...</h3>
+                    <p>Please wait while we locate orders near you</p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="activeTab" class="tab-content">
+            <div id="activeOrders" class="orders-grid">
+                <div class="empty-state">
+                    <i class="fas fa-box-open"></i>
+                    <h3>No active deliveries</h3>
+                    <p>Accept an order to start delivering</p>
+                </div>
+            </div>
         </div>
     </div>
+
+    <script>
+        let currentLocation = null;
+        let locationWatchId = null;
+        let updateInterval = null;
+        
+        // Switch between tabs
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            if (tabName === 'available') {
+                document.querySelectorAll('.tab')[0].classList.add('active');
+                document.getElementById('availableTab').classList.add('active');
+                loadAvailableOrders();
+            } else {
+                document.querySelectorAll('.tab')[1].classList.add('active');
+                document.getElementById('activeTab').classList.add('active');
+                loadActiveOrders();
+            }
+        }
+        
+        // Start GPS tracking
+        function startLocationTracking() {
+            if (!navigator.geolocation) {
+                alert('Your device does not support GPS tracking');
+                return;
+            }
+            
+            const statusEl = document.getElementById('locationStatus');
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Acquiring GPS signal...</span>';
+            
+            locationWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    currentLocation = {
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    };
+                    
+                    statusEl.className = 'location-status active';
+                    statusEl.innerHTML = `<i class="fas fa-location-dot"></i><span>Live tracking: ${currentLocation.latitude.toFixed(4)}, ${currentLocation.longitude.toFixed(4)}</span>`;
+                    
+                    // Send location to server
+                    updateAgentLocation();
+                },
+                (error) => {
+                    console.error('GPS error:', error);
+                    statusEl.className = 'location-status inactive';
+                    statusEl.innerHTML = '<i class="fas fa-location-crosshairs"></i><span>GPS tracking failed</span>';
+                },
+                { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
+            );
+        }
+        
+        // Update agent location on server
+        async function updateAgentLocation() {
+            if (!currentLocation) return;
+            
+            try {
+                await fetch('/api/delivery-agent/update-location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentLocation)
+                });
+            } catch (error) {
+                console.error('Failed to update location:', error);
+            }
+        }
+        
+        // Load available orders near agent
+        async function loadAvailableOrders() {
+            if (!currentLocation) {
+                document.getElementById('availableOrders').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-location-crosshairs"></i>
+                        <h3>Enable GPS to see nearby orders</h3>
+                        <p>We need your location to show available deliveries</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/delivery-agent/available-orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(currentLocation)
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.orders && data.orders.length > 0) {
+                    renderAvailableOrders(data.orders);
+                } else {
+                    document.getElementById('availableOrders').innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-check-circle"></i>
+                            <h3>No orders nearby</h3>
+                            <p>Check back soon for new delivery requests</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load orders:', error);
+                document.getElementById('availableOrders').innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <h3>Error loading orders</h3>
+                        <p>Please try again</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Render available orders
+        function renderAvailableOrders(orders) {
+            const container = document.getElementById('availableOrders');
+            
+            container.innerHTML = orders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-id">Order #${order.order_id}</div>
+                        <div class="distance-badge">
+                            <i class="fas fa-location-dot"></i>
+                            ${order.distance_km} km
+                        </div>
+                    </div>
+                    
+                    <div class="order-details">
+                        <div class="detail-row">
+                            <i class="fas fa-store"></i>
+                            <div><strong>Vendor:</strong> ${order.vendor_name}</div>
+                        </div>
+                        <div class="detail-row">
+                            <i class="fas fa-user"></i>
+                            <div><strong>Customer:</strong> ${order.customer_name}</div>
+                        </div>
+                        <div class="detail-row">
+                            <i class="fas fa-phone"></i>
+                            <div><strong>Phone:</strong> ${order.customer_phone}</div>
+                        </div>
+                        <div class="detail-row">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div><strong>Address:</strong> ${order.delivery_address}</div>
+                        </div>
+                        <div class="detail-row">
+                            <i class="fas fa-credit-card"></i>
+                            <div><strong>Payment:</strong> ${order.payment_method.toUpperCase()}</div>
+                        </div>
+                        
+                        <div class="items-list">
+                            <strong>Items:</strong>
+                            ${order.items.map(item => `<div class="item">• ${item.quantity}x ${item.name}</div>`).join('')}
+                        </div>
+                    </div>
+                    
+                    <div class="order-footer">
+                        <div class="amount">₹${order.total_amount}</div>
+                        <button class="accept-btn" onclick="acceptOrder(${order.order_id})">
+                            <i class="fas fa-check"></i> Accept Order
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Accept an order
+        async function acceptOrder(orderId) {
+            if (!currentLocation) {
+                alert('GPS location required to accept order');
+                return;
+            }
+            
+            if (!confirm('Accept this delivery order?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/delivery-agent/accept-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: orderId,
+                        latitude: currentLocation.latitude,
+                        longitude: currentLocation.longitude
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('✅ Order accepted successfully!');
+                    loadAvailableOrders();
+                    loadActiveOrders();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('Failed to accept order:', error);
+                alert('Failed to accept order. Please try again.');
+            }
+        }
+        
+        // Load active deliveries
+        async function loadActiveOrders() {
+            try {
+                const response = await fetch('/api/delivery-agent/my-deliveries');
+                const data = await response.json();
+                
+                if (data.success && data.deliveries && data.deliveries.length > 0) {
+                    renderActiveOrders(data.deliveries);
+                } else {
+                    document.getElementById('activeOrders').innerHTML = `
+                        <div class="empty-state">
+                            <i class="fas fa-box-open"></i>
+                            <h3>No active deliveries</h3>
+                            <p>Accept an order to start delivering</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Failed to load active orders:', error);
+            }
+        }
+        
+        // Render active orders
+        function renderActiveOrders(orders) {
+            const container = document.getElementById('activeOrders');
+            
+            container.innerHTML = orders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div class="order-id">Order #${order.id}</div>
+                        <div class="distance-badge">
+                            ${order.status.toUpperCase()}
+                        </div>
+                    </div>
+                    
+                    <div class="order-details">
+                        <div class="detail-row">
+                            <i class="fas fa-user"></i>
+                            <div><strong>Customer:</strong> ${order.customer_name}</div>
+                        </div>
+                        <div class="detail-row">
+                            <i class="fas fa-phone"></i>
+                            <div><strong>Phone:</strong> ${order.customer_phone}</div>
+                        </div>
+                        <div class="detail-row">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div><strong>Address:</strong> ${order.delivery_address}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="order-footer">
+                        <div class="amount">₹${order.total_amount}</div>
+                        <button class="accept-btn" onclick="updateStatus(${order.id}, '${order.status}')">
+                            Update Status
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Update delivery status
+        function updateStatus(orderId, currentStatus) {
+            // Implementation for status updates
+            alert('Status update feature - integrate with existing update-status endpoint');
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            startLocationTracking();
+            
+            // Update orders every 10 seconds
+            updateInterval = setInterval(() => {
+                const activeTab = document.querySelector('.tab-content.active');
+                if (activeTab.id === 'availableTab') {
+                    loadAvailableOrders();
+                } else {
+                    loadActiveOrders();
+                }
+            }, 10000);
+            
+            // Initial load
+            setTimeout(loadAvailableOrders, 2000);
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (locationWatchId) {
+                navigator.geolocation.clearWatch(locationWatchId);
+            }
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
 </body>
 </html>
