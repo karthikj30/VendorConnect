@@ -325,6 +325,8 @@
         let currentLocation = null;
         let locationWatchId = null;
         let updateInterval = null;
+        let locationPushInterval = null;
+        let activeOrdersList = [];
         
         // Switch between tabs
         function switchTab(tabName) {
@@ -364,6 +366,8 @@
                     
                     // Send location to server
                     updateAgentLocation();
+                    // Also push live location to all active orders for customer tracking
+                    sendOrderLocations();
                 },
                 (error) => {
                     console.error('GPS error:', error);
@@ -372,6 +376,10 @@
                 },
                 { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 }
             );
+
+            // Keep sending to backend every 5s as a fallback even if watchPosition throttles
+            if (locationPushInterval) clearInterval(locationPushInterval);
+            locationPushInterval = setInterval(sendOrderLocations, 5000);
         }
         
         // Update agent location on server
@@ -530,8 +538,12 @@
                 const data = await response.json();
                 
                 if (data.success && data.deliveries && data.deliveries.length > 0) {
+                    activeOrdersList = data.deliveries;
                     renderActiveOrders(data.deliveries);
+                    // Immediately push location for any active orders
+                    sendOrderLocations();
                 } else {
+                    activeOrdersList = [];
                     document.getElementById('activeOrders').innerHTML = `
                         <div class="empty-state">
                             <i class="fas fa-box-open"></i>
@@ -582,6 +594,30 @@
                 </div>
             `).join('');
         }
+
+        // Push live GPS for each active order to customer-facing tracker
+        async function sendOrderLocations() {
+            if (!currentLocation || !activeOrdersList || activeOrdersList.length === 0) return;
+
+            const payloads = activeOrdersList.map(order => ({
+                order_id: order.id || order.order_id,
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+                delivery_agent_id: order.delivery_agent_id || null
+            })).filter(p => p.order_id);
+
+            if (!payloads.length) return;
+
+            try {
+                await Promise.all(payloads.map(body => fetch('/api/delivery/location/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                })));
+            } catch (error) {
+                console.error('Failed to push order locations:', error);
+            }
+        }
         
         // Update delivery status
         function updateStatus(orderId, currentStatus) {
@@ -614,6 +650,9 @@
             }
             if (updateInterval) {
                 clearInterval(updateInterval);
+            }
+            if (locationPushInterval) {
+                clearInterval(locationPushInterval);
             }
         });
     </script>
