@@ -95,20 +95,21 @@
 
 .section-title { font-size:28px; font-weight:800; color:var(--text-primary); margin-bottom:18px; }
 
-/* small pills inside card header */
-.feature-card .card-pills { position:absolute; top:12px; right:12px; display:flex; gap:8px; align-items:center; z-index:3; pointer-events: auto; }
-.feature-card .card-pills .badge-pill { padding:6px 10px; font-size:12px; }
+/* small pills inside card header (inline by default) */
+.feature-card .card-pills { display:flex; gap:8px; align-items:center; margin-left:auto; }
+.feature-card .card-pills .badge-pill { padding:6px 10px; font-size:12px; flex-shrink:0; }
 
 /* Responsive: stack badges vertically and tighten spacing on medium/smaller screens to avoid horizontal overflow */
 @media (max-width: 1200px) {
-    .feature-card .card-pills { flex-direction: column; right:10px; top:10px; gap:6px; align-items:flex-end; }
+    .feature-card .card-pills { flex-direction: column; margin-left:0; gap:6px; align-items:flex-end; }
     .feature-card .card-pills .badge-pill { font-size:11px; padding:5px 8px; max-width:86px; }
     .features-grid { gap: 22px; }
 }
 
 @media (max-width: 900px) {
-    .feature-card .card-pills { right:8px; top:8px; }
+    .feature-card .card-pills { flex-direction: column; align-items:flex-end; }
     .feature-card .card-pills .badge-pill { font-size:10px; padding:4px 7px; max-width:72px; }
+    .feature-card { padding-right: 18px; }
 }
 
 .top-actions { display:flex; gap:12px; flex-wrap:wrap; }

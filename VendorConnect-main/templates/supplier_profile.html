@@ -26,16 +26,18 @@
                 <div class="content-card">
                     <h3>Supplier Profile & Management</h3>
                     <div class="features-grid" style="margin-top:12px;">
-                        <a class="feature-card" href="/supplier/onboarding">
-                            <div class="meta">
+                        <a class="feature-card" href="/supplier/onboarding" aria-label="Supplier Profile & Management">
+                            <div class="meta" style="display:flex;align-items:flex-start;gap:12px;">
                                 <div style="display:flex;align-items:center;gap:8px;">
-                                    <span class="icon"><i class="fa fa-user-plus"></i></span>
-                                    <h3 style="margin:0">Supplier registration & onboarding</h3>
+                                    <span class="icon"><i class="fa fa-user-cog"></i></span>
+                                    <h3 style="margin:0">Supplier Profile & Management</h3>
+                                </div>
+                                <div class="card-pills" role="list" aria-label="Supplier status">
+                                    <div class="badge-pill">Warehouses: {{ warehouses_count|default(0) }}</div>
+                                    <div class="badge-pill">Service Areas: {{ service_areas_count|default(0) }}</div>
+                                    <div class="badge-pill">Verified: {{ 'Yes' if verification_status else 'No' }}</div>
                                 </div>
                             </div>
-                            <ul>
-                                <li>Supplier registration & onboarding</li>
-                            </ul>
                         </a>
 
                         <a class="feature-card" href="/supplier/business">
