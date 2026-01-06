@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" id="html-root">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,14 +9,25 @@
     <link rel="stylesheet" href="/static/css/customer_dashboard.css">
     <link rel="stylesheet" href="/static/css/styles.css">
     <link rel="stylesheet" href="/static/css/supplier.css">
+    <link rel="stylesheet" href="/static/css/language-selector.css">
     {% block head_extra %}{% endblock %}
+    <script src="/static/js/translations.js"></script>
+    <script>
+      // Initialize theme on page load
+      (function() {
+        const htmlRoot = document.documentElement;
+        const savedTheme = localStorage.getItem('supplierDashboardTheme') || 'light';
+        htmlRoot.setAttribute('data-theme', savedTheme);
+        document.body.classList.add(savedTheme + '-mode');
+      })();
+    </script>
   </head>
   <body>
     <div class="dashboard">
       <aside class="sidebar">
         <div class="sidebar-header">
-          <h3>Supplier</h3>
-          <p>Manage your products & orders</p>
+          <h3 data-translate="sidebar.supplier">Supplier</h3>
+          <p data-translate="sidebar.manageProducts">Manage your products & orders</p>
         </div>
         <div class="sidebar-stats" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;margin-bottom:10px;">
           {% if warehouses_count is defined %}
@@ -34,17 +45,28 @@
         </div>
 
         <ul class="nav-menu">
-          <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
-          <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
-          <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
-          <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
-          <li class="nav-item"><a class="nav-link" href="/logout"><i class="fa fa-sign-out-alt"></i> Logout</a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> <span data-translate="sidebar.dashboard">Dashboard</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> <span data-translate="sidebar.manageProductsMenu">Manage Products</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> <span data-translate="sidebar.viewOrders">View Orders</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> <span data-translate="sidebar.updateProfile">Update Profile</span></a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout"><i class="fa fa-sign-out-alt"></i> <span data-translate="sidebar.logout">Logout</span></a></li>
         </ul>
+
+
+        <!-- Theme Selector -->
+        <div style="margin-top: 12px; display: flex; gap: 8px;">
+          <button id="light-mode-btn" title="Light Mode" style="flex: 1; padding: 8px; border: 1px solid var(--current-border); border-radius: 8px; background: transparent; color: var(--current-text); cursor: pointer; font-size: 14px;">
+            <i class="fas fa-sun"></i>
+          </button>
+          <button id="dark-mode-btn" title="Dark Mode" style="flex: 1; padding: 8px; border: 1px solid var(--current-border); border-radius: 8px; background: transparent; color: var(--current-text); cursor: pointer; font-size: 14px;">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
       </aside>
 
       <main class="main-content">
         <div class="header">
-          <h1>{% block header %}Dashboard{% endblock %}</h1>
+          <h1 data-translate="header.supplierDashboard">{% block header %}Dashboard{% endblock %}</h1>
           <div class="user-info">
             {% block header_actions %}{% endblock %}
           </div>
@@ -65,6 +87,40 @@
         </section>
       </main>
     </div>
+
+    <script>
+      // Theme switching functionality
+      const htmlRoot = document.documentElement;
+      const lightBtn = document.getElementById('light-mode-btn');
+      const darkBtn = document.getElementById('dark-mode-btn');
+
+      function setTheme(theme) {
+        htmlRoot.setAttribute('data-theme', theme);
+        document.body.className = theme + '-mode';
+        localStorage.setItem('supplierDashboardTheme', theme);
+        updateThemeButtons();
+      }
+
+      function updateThemeButtons() {
+        const currentTheme = htmlRoot.getAttribute('data-theme') || 'light';
+        if (currentTheme === 'dark') {
+          darkBtn.style.background = 'var(--current-bg-secondary)';
+          darkBtn.style.borderColor = 'var(--color-primary-gradient-start)';
+          lightBtn.style.background = 'transparent';
+          lightBtn.style.borderColor = 'var(--current-border)';
+        } else {
+          lightBtn.style.background = 'var(--current-bg-secondary)';
+          lightBtn.style.borderColor = 'var(--color-primary-gradient-start)';
+          darkBtn.style.background = 'transparent';
+          darkBtn.style.borderColor = 'var(--current-border)';
+        }
+      }
+
+      lightBtn.addEventListener('click', () => setTheme('light'));
+      darkBtn.addEventListener('click', () => setTheme('dark'));
+      
+      updateThemeButtons();
+    </script>
 
     {% block scripts %}{% endblock %}
   </body>

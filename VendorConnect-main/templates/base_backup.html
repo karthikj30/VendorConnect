@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en" id="html-root">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}VendorConnect{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/customer_dashboard.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="stylesheet" href="/static/css/supplier.css">
+    {% block head_extra %}{% endblock %}
+    <script>
+      // Initialize theme on page load
+      (function() {
+        const htmlRoot = document.documentElement;
+        const savedTheme = localStorage.getItem('supplierDashboardTheme') || 'light';
+        htmlRoot.setAttribute('data-theme', savedTheme);
+        document.body.classList.add(savedTheme + '-mode');
+      })();
+    </script>
+  </head>
+  <body>
+    <div class="dashboard">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h3>Supplier</h3>
+          <p>Manage your products & orders</p>
+        </div>
+        <div class="sidebar-stats" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;margin-bottom:10px;">
+          {% if warehouses_count is defined %}
+            <div class="badge-pill">Warehouses: {{ warehouses_count }}</div>
+          {% endif %}
+          {% if service_areas_count is defined %}
+            <div class="badge-pill">Service Areas: {{ service_areas_count }}</div>
+          {% endif %}
+          {% if products_count is defined %}
+            <div class="badge-pill">Products: {{ products_count }}</div>
+          {% endif %}
+          {% if verification_status is defined %}
+            <div class="badge-pill">Verified: {{ 'Yes' if verification_status else 'No' }}</div>
+          {% endif %}
+        </div>
+
+        <ul class="nav-menu">
+          <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/orders"><i class="fa fa-receipt"></i> View Orders</a></li>
+          <li class="nav-item"><a class="nav-link" href="/supplier/profile"><i class="fa fa-user-cog"></i> Update Profile</a></li>
+          <li class="nav-item"><a class="nav-link" href="/logout"><i class="fa fa-sign-out-alt"></i> Logout</a></li>
+        </ul>
+
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--current-border); display: flex; gap: 8px;">
+          <button id="light-mode-btn" title="Light Mode" style="flex: 1; padding: 8px; border: 1px solid var(--current-border); border-radius: 8px; background: transparent; color: var(--current-text); cursor: pointer; font-size: 14px;">
+            <i class="fas fa-sun"></i>
+          </button>
+          <button id="dark-mode-btn" title="Dark Mode" style="flex: 1; padding: 8px; border: 1px solid var(--current-border); border-radius: 8px; background: transparent; color: var(--current-text); cursor: pointer; font-size: 14px;">
+            <i class="fas fa-moon"></i>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <div class="header">
+          <h1>{% block header %}Dashboard{% endblock %}</h1>
+          <div class="user-info">
+            {% block header_actions %}{% endblock %}
+          </div>
+        </div>
+
+        <section class="main-container">
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <div class="alerts">
+                {% for m in messages %}
+                  <div class="alert">{{ m }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+          {% block content %}{% endblock %}
+        </section>
+      </main>
+    </div>
+
+    <script>
+      // Theme switching functionality
+      const htmlRoot = document.documentElement;
+      const lightBtn = document.getElementById('light-mode-btn');
+      const darkBtn = document.getElementById('dark-mode-btn');
+
+      function setTheme(theme) {
+        htmlRoot.setAttribute('data-theme', theme);
+        document.body.className = theme + '-mode';
+        localStorage.setItem('supplierDashboardTheme', theme);
+        updateThemeButtons();
+      }
+
+      function updateThemeButtons() {
+        const currentTheme = htmlRoot.getAttribute('data-theme') || 'light';
+        if (currentTheme === 'dark') {
+          darkBtn.style.background = 'var(--current-bg-secondary)';
+          darkBtn.style.borderColor = 'var(--color-primary-gradient-start)';
+          lightBtn.style.background = 'transparent';
+          lightBtn.style.borderColor = 'var(--current-border)';
+        } else {
+          lightBtn.style.background = 'var(--current-bg-secondary)';
+          lightBtn.style.borderColor = 'var(--color-primary-gradient-start)';
+          darkBtn.style.background = 'transparent';
+          darkBtn.style.borderColor = 'var(--current-border)';
+        }
+      }
+
+      lightBtn.addEventListener('click', () => setTheme('light'));
+      darkBtn.addEventListener('click', () => setTheme('dark'));
+      
+      updateThemeButtons();
+    </script>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
