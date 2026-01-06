@@ -24,12 +24,79 @@
             <div class="header"><h1>Update Profile</h1></div>
             <div class="main-container">
                 <div class="content-card">
+                    <h3>Supplier Profile & Management</h3>
+                    <div class="features-grid" style="margin-top:12px;">
+                        <a class="feature-card" href="/supplier/onboarding">
+                            <div class="meta">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="icon"><i class="fa fa-user-plus"></i></span>
+                                    <h3 style="margin:0">Supplier registration & onboarding</h3>
+                                </div>
+                            </div>
+                            <ul>
+                                <li>Supplier registration & onboarding</li>
+                            </ul>
+                        </a>
+
+                        <a class="feature-card" href="/supplier/business">
+                            <div class="meta">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="icon"><i class="fa fa-building"></i></span>
+                                    <h3 style="margin:0">Business details & warehouse locations</h3>
+                                </div>
+                            </div>
+                            <ul>
+                                <li>Manage business details and multiple warehouse locations</li>
+                            </ul>
+                        </a>
+
+                        <a class="feature-card" href="/supplier/manage-products">
+                            <div class="meta">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="icon"><i class="fa fa-boxes"></i></span>
+                                    <h3 style="margin:0">Product catalog management</h3>
+                                </div>
+                            </div>
+                            <ul>
+                                <li>Catalog products, prices, stock and bulk updates</li>
+                            </ul>
+                        </a>
+
+                        <a class="feature-card" href="/supplier/profile">
+                            <div class="meta">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="icon"><i class="fa fa-file-upload"></i></span>
+                                    <h3 style="margin:0">Quality certification upload</h3>
+                                </div>
+                            </div>
+                            <ul>
+                                <li>Upload and view quality certifications (PDF/JPG/PNG)</li>
+                            </ul>
+                        </a>
+
+                        <a class="feature-card" href="/supplier/service-areas">
+                            <div class="meta">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span class="icon"><i class="fa fa-map-marker-alt"></i></span>
+                                    <h3 style="margin:0">Service area management</h3>
+                                </div>
+                            </div>
+                            <ul>
+                                <li>Configure delivery / service areas and coverage zones</li>
+                            </ul>
+                        </a>
+                    </div>
+                </div>
+                <div class="content-card">
                     <h3>Profile Settings</h3>
-                    <form method="post" enctype="multipart/form-data" style="display:flex;flex-direction:column;gap:10px;max-width:700px;">
-                        <label>Name <input name="name" value="{{ supplier.name if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
-                        <label>Phone <input name="phone" value="{{ supplier.phone if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
-                        <label>Location <input name="location" value="{{ supplier.location if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
-                        <label>Email <input name="email" value="{{ supplier.email if supplier and supplier.email else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                    <form method="post" enctype="multipart/form-data" id="profileForm" style="display:flex;flex-direction:column;gap:10px;max-width:700px;">
+                        <label>Name <input id="profile_name" name="name" value="{{ supplier.name if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <div class="form-error" id="profile_name_error">Name is required</div>
+                        <label>Phone <input id="profile_phone" name="phone" value="{{ supplier.phone if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <div class="form-error" id="profile_phone_error">Phone is required</div>
+                        <label>Location <input id="profile_location" name="location" value="{{ supplier.location if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+                        <div class="form-error" id="profile_location_error">Location is required</div>
+                        <label>Email <input id="profile_email" name="email" value="{{ supplier.email if supplier and supplier.email else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
                         <label>Certification (PDF/JPG/PNG) <input name="cert" type="file" accept=".pdf,image/*" style="padding:6px;border-radius:8px;border:1px solid #ddd;"></label>
                         {% if supplier and supplier.certification %}
                             <p>Current certification: <a href="/{{ supplier.certification }}" target="_blank">View</a></p>
@@ -43,5 +110,38 @@
             </div>
         </main>
     </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const form = document.getElementById('profileForm');
+  if(!form) return;
+  const name = document.getElementById('profile_name'); const nameErr = document.getElementById('profile_name_error');
+  const phone = document.getElementById('profile_phone'); const phoneErr = document.getElementById('profile_phone_error');
+  const location = document.getElementById('profile_location'); const locationErr = document.getElementById('profile_location_error');
+
+  form.addEventListener('submit', function(e){
+    nameErr.style.display='none'; name.classList.remove('input-error');
+    phoneErr.style.display='none'; phone.classList.remove('input-error');
+    locationErr.style.display='none'; location.classList.remove('input-error');
+
+    let ok = true;
+    if(!name.value.trim()){
+      e.preventDefault(); nameErr.style.display='block'; name.classList.add('input-error'); name.focus(); ok=false;
+    }
+    if(!phone.value.trim()){
+      e.preventDefault(); phoneErr.style.display='block'; phone.classList.add('input-error'); if(ok) phone.focus(); ok=false;
+    }
+    if(!location.value.trim()){
+      e.preventDefault(); locationErr.style.display='block'; location.classList.add('input-error'); if(ok) location.focus(); ok=false;
+    }
+
+    if(phone && phone.value && !/^[0-9]{7,15}$/.test(phone.value)){
+      e.preventDefault(); phoneErr.textContent = 'Please enter a valid phone number'; phoneErr.style.display='block'; phone.classList.add('input-error'); if(ok) phone.focus(); ok=false;
+    }
+    return ok;
+  });
+});
+</script>
+
 </body>
 </html>

@@ -18,6 +18,21 @@
           <h3>Supplier</h3>
           <p>Manage your products & orders</p>
         </div>
+        <div class="sidebar-stats" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;margin-bottom:10px;">
+          {% if warehouses_count is defined %}
+            <div class="badge-pill">Warehouses: {{ warehouses_count }}</div>
+          {% endif %}
+          {% if service_areas_count is defined %}
+            <div class="badge-pill">Service Areas: {{ service_areas_count }}</div>
+          {% endif %}
+          {% if products_count is defined %}
+            <div class="badge-pill">Products: {{ products_count }}</div>
+          {% endif %}
+          {% if verification_status is defined %}
+            <div class="badge-pill">Verified: {{ 'Yes' if verification_status else 'No' }}</div>
+          {% endif %}
+        </div>
+
         <ul class="nav-menu">
           <li class="nav-item"><a class="nav-link" href="/supplier/dashboard"><i class="fa fa-home"></i> Dashboard</a></li>
           <li class="nav-item"><a class="nav-link" href="/supplier/manage-products"><i class="fa fa-box-open"></i> Manage Products</a></li>
@@ -36,6 +51,16 @@
         </div>
 
         <section class="main-container">
+          {% with messages = get_flashed_messages() %}
+            {% if messages %}
+              <div class="alerts">
+                {% for m in messages %}
+                  <div class="alert">{{ m }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
           {% block content %}{% endblock %}
         </section>
       </main>

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Service Area - VendorConnect{% endblock %}
+{% block header %}Edit Service Area{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="content-card" style="max-width:800px;">
+        <h3>Edit Service Area</h3>
+        <form method="post" id="saEditForm" style="display:flex;flex-direction:column;gap:10px;">
+            <label>Name <input id="sa_name" name="name" value="{{ area.name }}" required style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div class="form-error" id="sa_name_error">Name is required</div>
+            <label>Description <input name="description" value="{{ area.description }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <label>Postal Codes <input name="postal_codes" value="{{ area.postal_codes }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <label>Radius (km) <input name="radius_km" value="{{ area.radius_km }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div style="display:flex;gap:8px;">
+                <button class="ad-button" type="submit">Save</button>
+                <a class="logout-btn" href="/supplier/service-areas">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const form = document.getElementById('saEditForm');
+  if(!form) return;
+  const name = document.getElementById('sa_name'); const nameErr = document.getElementById('sa_name_error');
+  form.addEventListener('submit', function(e){
+    nameErr.style.display='none'; name.classList.remove('input-error');
+    if(!name.value.trim()){
+      e.preventDefault(); nameErr.style.display='block'; name.classList.add('input-error'); name.focus(); return false;
+    }
+    return true;
+  });
+});
+</script>
+
+{% endblock %}

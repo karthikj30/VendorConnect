@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Business Details - VendorConnect{% endblock %}
+{% block header %}Business & Warehouses{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="content-card" style="max-width:900px;">
+        <h3>Business Details</h3>
+        <form method="post" action="/supplier/onboarding" style="display:flex;flex-direction:column;gap:10px;">
+            <label>Business Name <input name="business_name" value="{{ supplier.business_name if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <label>GSTIN <input name="gstin" value="{{ supplier.gstin if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div style="display:flex;gap:8px;">
+                <button class="ad-button" type="submit">Save</button>
+                <a class="logout-btn" href="/supplier/warehouses">Manage Warehouses</a>
+            </div>
+        </form>
+
+        <hr>
+        <h4>Warehouse Locations</h4>
+        {% if warehouses and warehouses|length > 0 %}
+            <ul>
+                {% for w in warehouses %}
+                    <li><strong>{{ w.name }}</strong> — {{ w.address }} (<a href="/supplier/warehouses/{{ w.id }}/edit">Edit</a>)</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No warehouses yet — <a href="/supplier/warehouses">Add one</a>.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

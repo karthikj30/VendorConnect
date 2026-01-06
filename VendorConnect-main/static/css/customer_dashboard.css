@@ -6,20 +6,41 @@
 }
 
 :root {
-    --primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Primary color palette */
+    --brand-1: #4f46e5; /* indigo */
+    --brand-2: #7c3aed; /* purple */
+    --brand-grad: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
+    --accent-1: #06b6d4; /* turquoise */
+    --accent-2: #f97316; /* orange */
+
+    /* Semantic
+       Primary/secondary are gradients used for buttons / highlights
+    */
+    --primary: var(--brand-grad);
     --secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
     --success: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     --warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+
+    /* UI colors */
+    --bg: #f4f7fa;
     --card-bg: #ffffff;
-    --text-primary: #2d3436;
-    --text-secondary: #636e72;
-    --border: #e4e7eb;
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
-    --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.2);
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #e8ebf0 100%);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --muted: #94a3b8;
+    --border: #e6eef6;
+
+    /* Shadows */
+    --shadow-sm: 0 4px 12px rgba(28, 37, 65, 0.06);
+    --shadow-md: 0 8px 28px rgba(28, 37, 65, 0.08);
+    --shadow-lg: 0 16px 48px rgba(28, 37, 65, 0.10);
+
+    --radius-sm: 8px;
+    --radius-md: 14px;
 }
+
+/* Apply new background and base text colors */
+body { background: var(--bg); color: var(--text-primary); }
+
 
 /* Dark Theme Variables */
 body.dark-theme {
@@ -103,8 +124,8 @@ body {
 /* Header Styles */
 .header {
     background: var(--card-bg);
-    padding: 16px 32px;
-    box-shadow: var(--shadow-md);
+    padding: 18px 28px;
+    box-shadow: var(--shadow-sm);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -113,9 +134,13 @@ body {
     align-items: center;
     flex-wrap: wrap;
     gap: 20px;
-    backdrop-filter: blur(10px);
     border-bottom: 1px solid var(--border);
 }
+
+.header h1 { font-size: 26px; color: var(--text-primary); letter-spacing: -0.3px; }
+.header .top-actions a.ad-button { padding:10px 18px; border-radius:999px; box-shadow: none; background: var(--primary); color: white; }
+.header .top-actions a.ad-button:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+
 
 .logo {
     font-size: 28px;

@@ -178,6 +178,13 @@ except ImportError:
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'your-app-password')
 
 db = SQLAlchemy(app)
+# optional migrations support (Flask-Migrate)
+try:
+    from flask_migrate import Migrate
+    migrate = Migrate(app, db)
+except Exception:
+    migrate = None
+
 CORS(app)
 
 # Real-time delivery tracking cache (in-memory for speed)
@@ -517,6 +524,9 @@ class Supplier(db.Model):
     # Added authentication fields so suppliers can sign up / login
     email = db.Column(db.String(120), unique=True, nullable=True)
     password_hash = db.Column(db.String(200), nullable=True)
+    # Business details
+    business_name = db.Column(db.String(200), nullable=True)
+    gstin = db.Column(db.String(20), unique=False, nullable=True)
     # Path to uploaded certification file
     certification = db.Column(db.String(300), nullable=True)
 
@@ -528,6 +538,25 @@ class Product(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
     stock_available = db.Column(db.Integer, default=0)
     unit = db.Column(db.String(20), default='kg')
+
+class Warehouse(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    address = db.Column(db.String(400), nullable=False)
+    phone = db.Column(db.String(30), nullable=True)
+    latitude = db.Column(db.Float, nullable=True)
+    longitude = db.Column(db.Float, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ServiceArea(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.String(400), nullable=True)
+    postal_codes = db.Column(db.Text, nullable=True)  # comma separated list of postal codes or areas
+    radius_km = db.Column(db.Float, nullable=True)  # optional radius from base location
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class MenuItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -2972,11 +3001,33 @@ def supplier_dashboard():
     except Exception:
         total_earnings = 0.0
 
+    # additional supplier metrics
+    try:
+        warehouses_count = Warehouse.query.filter_by(supplier_id=supplier_id).count()
+    except Exception:
+        warehouses_count = 0
+
+    try:
+        service_areas_count = ServiceArea.query.filter_by(supplier_id=supplier_id).count()
+    except Exception:
+        service_areas_count = 0
+
+    try:
+        supplier = Supplier.query.get(supplier_id)
+        verification_status = bool(supplier.verification_status) if supplier else False
+    except Exception:
+        verification_status = False
+
     features = [
         {
             'title': 'Supplier Profile & Management',
             'points': ['Supplier registration & onboarding','Business details & warehouse locations','Product catalog management','Quality certification upload','Service area management'],
-            'link': '/supplier/profile'
+            'link': '/supplier/profile',
+            'stats': [
+                {'label': 'Warehouses', 'value': warehouses_count},
+                {'label': 'Service Areas', 'value': service_areas_count},
+                {'label': 'Verified', 'value': 'Yes' if verification_status else 'No'},
+            ]
         },
         {
             'title': 'Inventory & Product Control',
@@ -3019,7 +3070,33 @@ def supplier_dashboard():
         }
     ]
 
-    return render_template('supplier_dashboard.html', features=features)
+    return render_template('supplier_dashboard.html', features=features, warehouses_count=warehouses_count, service_areas_count=service_areas_count, verification_status=verification_status, products_count=products_count, total_earnings=total_earnings, pending_orders=pending_orders)
+
+
+@app.context_processor
+def supplier_context():
+    """Inject supplier-specific counts into templates when logged in."""
+    ctx = {}
+    if 'supplier_id' in session:
+        supplier_id = session['supplier_id']
+        try:
+            ctx['warehouses_count'] = Warehouse.query.filter_by(supplier_id=supplier_id).count()
+        except Exception:
+            ctx['warehouses_count'] = 0
+        try:
+            ctx['service_areas_count'] = ServiceArea.query.filter_by(supplier_id=supplier_id).count()
+        except Exception:
+            ctx['service_areas_count'] = 0
+        try:
+            ctx['products_count'] = Product.query.filter_by(supplier_id=supplier_id).count()
+        except Exception:
+            ctx['products_count'] = 0
+        try:
+            s = Supplier.query.get(supplier_id)
+            ctx['verification_status'] = bool(s.verification_status) if s else False
+        except Exception:
+            ctx['verification_status'] = False
+    return ctx
 
 
 @app.route('/supplier/dashboard/data')
@@ -3298,6 +3375,177 @@ def supplier_profile():
         return redirect(url_for('supplier_profile'))
 
     return render_template('supplier_profile.html', supplier=supplier)
+
+
+@app.route('/supplier/onboarding', methods=['GET', 'POST'])
+def supplier_onboarding():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier = Supplier.query.get(session['supplier_id'])
+    if request.method == 'POST':
+        business_name = request.form.get('business_name')
+        gstin = request.form.get('gstin')
+        if business_name is not None:
+            supplier.business_name = business_name
+        if gstin is not None:
+            supplier.gstin = gstin
+        # allow requesting verification (demo toggle)
+        if request.form.get('request_verification') == 'on':
+            supplier.verification_status = False  # pending - in real app, set to 'pending' state
+        db.session.commit()
+        flash('Business details updated')
+        return redirect(url_for('supplier_onboarding'))
+    return render_template('supplier_onboarding.html', supplier=supplier)
+
+
+@app.route('/supplier/business')
+def supplier_business():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier = Supplier.query.get(session['supplier_id'])
+    warehouses = Warehouse.query.filter_by(supplier_id=supplier.id).all()
+    return render_template('supplier_business.html', supplier=supplier, warehouses=warehouses)
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier = Supplier.query.get(session['supplier_id'])
+    if request.method == 'POST':
+        business_name = request.form.get('business_name')
+        gstin = request.form.get('gstin')
+        if business_name is not None:
+            supplier.business_name = business_name
+        if gstin is not None:
+            supplier.gstin = gstin
+        # allow requesting verification (demo toggle)
+        if request.form.get('request_verification') == 'on':
+            supplier.verification_status = False  # pending - in real app, set to 'pending' state
+        db.session.commit()
+        flash('Business details updated')
+        return redirect(url_for('supplier_onboarding'))
+    return render_template('supplier_onboarding.html', supplier=supplier)
+
+
+@app.route('/supplier/warehouses', methods=['GET', 'POST'])
+def supplier_warehouses():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    if request.method == 'POST':
+        # create new warehouse
+        name = request.form.get('name')
+        address = request.form.get('address')
+        phone = request.form.get('phone')
+        lat = request.form.get('latitude')
+        lon = request.form.get('longitude')
+        if name and address:
+            w = Warehouse(supplier_id=supplier_id, name=name, address=address, phone=phone)
+            try:
+                w.latitude = float(lat) if lat else None
+            except Exception:
+                w.latitude = None
+            try:
+                w.longitude = float(lon) if lon else None
+            except Exception:
+                w.longitude = None
+            db.session.add(w)
+            db.session.commit()
+            flash('Warehouse added')
+        return redirect(url_for('supplier_warehouses'))
+    warehouses = Warehouse.query.filter_by(supplier_id=supplier_id).all()
+    return render_template('supplier_warehouses.html', warehouses=warehouses)
+
+
+@app.route('/supplier/warehouses/<int:warehouse_id>/edit', methods=['GET', 'POST'])
+def supplier_warehouse_edit(warehouse_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    w = Warehouse.query.get(warehouse_id)
+    if not w or w.supplier_id != session['supplier_id']:
+        return redirect(url_for('supplier_warehouses'))
+    if request.method == 'POST':
+        w.name = request.form.get('name') or w.name
+        w.address = request.form.get('address') or w.address
+        w.phone = request.form.get('phone') or w.phone
+        try:
+            w.latitude = float(request.form.get('latitude')) if request.form.get('latitude') else w.latitude
+        except Exception:
+            pass
+        try:
+            w.longitude = float(request.form.get('longitude')) if request.form.get('longitude') else w.longitude
+        except Exception:
+            pass
+        db.session.commit()
+        flash('Warehouse updated')
+        return redirect(url_for('supplier_warehouses'))
+    return render_template('supplier_warehouse_edit.html', warehouse=w)
+
+
+@app.route('/supplier/warehouses/<int:warehouse_id>/delete', methods=['POST'])
+def supplier_warehouse_delete(warehouse_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    w = Warehouse.query.get(warehouse_id)
+    if w and w.supplier_id == session['supplier_id']:
+        db.session.delete(w)
+        db.session.commit()
+        flash('Warehouse deleted')
+    return redirect(url_for('supplier_warehouses'))
+
+
+@app.route('/supplier/service-areas', methods=['GET', 'POST'])
+def supplier_service_areas():
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    supplier_id = session['supplier_id']
+    if request.method == 'POST':
+        name = request.form.get('name')
+        description = request.form.get('description')
+        postal_codes = request.form.get('postal_codes')
+        radius = request.form.get('radius_km')
+        if name:
+            sa = ServiceArea(supplier_id=supplier_id, name=name, description=description, postal_codes=postal_codes)
+            try:
+                sa.radius_km = float(radius) if radius else None
+            except Exception:
+                sa.radius_km = None
+            db.session.add(sa)
+            db.session.commit()
+            flash('Service area added')
+        return redirect(url_for('supplier_service_areas'))
+    areas = ServiceArea.query.filter_by(supplier_id=supplier_id).all()
+    return render_template('supplier_service_areas.html', areas=areas)
+
+
+@app.route('/supplier/service-areas/<int:area_id>/edit', methods=['GET', 'POST'])
+def supplier_service_area_edit(area_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    sa = ServiceArea.query.get(area_id)
+    if not sa or sa.supplier_id != session['supplier_id']:
+        return redirect(url_for('supplier_service_areas'))
+    if request.method == 'POST':
+        sa.name = request.form.get('name') or sa.name
+        sa.description = request.form.get('description') or sa.description
+        sa.postal_codes = request.form.get('postal_codes') or sa.postal_codes
+        try:
+            sa.radius_km = float(request.form.get('radius_km')) if request.form.get('radius_km') else sa.radius_km
+        except Exception:
+            pass
+        db.session.commit()
+        flash('Service area updated')
+        return redirect(url_for('supplier_service_areas'))
+    return render_template('supplier_service_area_edit.html', area=sa)
+
+
+@app.route('/supplier/service-areas/<int:area_id>/delete', methods=['POST'])
+def supplier_service_area_delete(area_id):
+    if 'supplier_id' not in session:
+        return redirect(url_for('vendor_login'))
+    sa = ServiceArea.query.get(area_id)
+    if sa and sa.supplier_id == session['supplier_id']:
+        db.session.delete(sa)
+        db.session.commit()
+        flash('Service area deleted')
+    return redirect(url_for('supplier_service_areas'))
 
 
 @app.route('/supplier/inventory')

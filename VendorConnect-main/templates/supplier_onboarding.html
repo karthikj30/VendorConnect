@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Supplier Onboarding - VendorConnect{% endblock %}
+
+{% block header %}Supplier Onboarding{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="content-card" style="max-width:800px;">
+        <h3>Supplier registration & onboarding</h3>
+        <form method="post" id="onboardingForm" style="display:flex;flex-direction:column;gap:10px;">
+            <label>Business Name <input id="business_name" name="business_name" value="{{ supplier.business_name if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div class="form-error" id="business_name_error">Business name is required</div>
+            <label>GSTIN <input id="gstin" name="gstin" value="{{ supplier.gstin if supplier else '' }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div class="form-error" id="gstin_error">GSTIN looks invalid</div>
+            <label><input type="checkbox" name="request_verification"> Request verification</label>
+            <div style="display:flex;gap:8px;">
+                <button class="ad-button" type="submit">Save</button>
+                <a class="logout-btn" href="/supplier/profile">Cancel</a>
+            </div>
+        </form>
+        <hr>
+        <h4>Onboarding status</h4>
+        <p>Verification: <strong>{{ 'Verified' if supplier and supplier.verification_status else 'Not verified' }}</strong></p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const form = document.getElementById('onboardingForm');
+  if(!form) return;
+  const bn = document.getElementById('business_name');
+  const bne = document.getElementById('business_name_error');
+  const gst = document.getElementById('gstin');
+  const gste = document.getElementById('gstin_error');
+
+  form.addEventListener('submit', function(e){
+    let ok = true;
+    bne.style.display = 'none'; bn.classList.remove('input-error');
+    gste.style.display = 'none'; gst.classList.remove('input-error');
+
+    if(!bn.value.trim()){
+      e.preventDefault(); bne.style.display = 'block'; bn.classList.add('input-error'); bn.focus(); ok = false;
+    }
+
+    // simple GSTIN check (15 chars alphanumeric) if provided
+    if(gst && gst.value.trim() && !/^[A-Za-z0-9]{15}$/.test(gst.value.trim())){
+      e.preventDefault(); gste.style.display = 'block'; gst.classList.add('input-error'); if(ok) gst.focus(); ok = false;
+    }
+
+    return ok;
+  });
+});
+</script>
+
+{% endblock %}

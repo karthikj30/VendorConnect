@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Edit Warehouse - VendorConnect{% endblock %}
+{% block header %}Edit Warehouse{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <div class="content-card" style="max-width:800px;">
+        <h3>Edit Warehouse</h3>
+        <form method="post" id="warehouseEditForm" style="display:flex;flex-direction:column;gap:10px;">
+            <label>Name <input id="warehouse_name" name="name" value="{{ warehouse.name }}" required style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div class="form-error" id="warehouse_name_error">Warehouse name is required</div>
+            <label>Address <textarea id="warehouse_address" name="address" required style="padding:8px;border-radius:8px;border:1px solid #ddd;">{{ warehouse.address }}</textarea></label>
+            <div class="form-error" id="warehouse_address_error">Address is required</div>
+            <label>Phone <input name="phone" value="{{ warehouse.phone }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <label>Latitude <input name="latitude" value="{{ warehouse.latitude }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <label>Longitude <input name="longitude" value="{{ warehouse.longitude }}" style="padding:8px;border-radius:8px;border:1px solid #ddd;"></label>
+            <div style="display:flex;gap:8px;">
+                <button class="ad-button" type="submit">Save</button>
+                <a class="logout-btn" href="/supplier/warehouses">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const form = document.getElementById('warehouseEditForm');
+  if(!form) return;
+  const name = document.getElementById('warehouse_name'); const nameErr = document.getElementById('warehouse_name_error');
+  const addr = document.getElementById('warehouse_address'); const addrErr = document.getElementById('warehouse_address_error');
+  form.addEventListener('submit', function(e){
+    nameErr.style.display='none'; name.classList.remove('input-error');
+    addrErr.style.display='none'; addr.classList.remove('input-error');
+    let ok = true;
+    if(!name.value.trim()){
+      e.preventDefault(); nameErr.style.display='block'; name.classList.add('input-error'); name.focus(); ok=false;
+    }
+    if(!addr.value.trim()){
+      e.preventDefault(); addrErr.style.display='block'; addr.classList.add('input-error'); if(ok) addr.focus(); ok=false;
+    }
+    return ok;
+  });
+});
+</script>
+
+{% endblock %}

@@ -49,6 +49,10 @@ ROUTES = [
     '/supplier/analytics',
     '/supplier/reliability',
     '/supplier/common-features',
+    '/supplier/onboarding',
+    '/supplier/business',
+    '/supplier/warehouses',
+    '/supplier/service-areas',
 ]
 
 def test_routes_require_login(client):
@@ -74,3 +78,43 @@ def test_routes_render_with_session(client):
     # Profile should render
     resp = client.get('/supplier/profile')
     assert b'Profile Settings' in resp.data
+
+    # create a warehouse and a service area to ensure dashboard badges render
+    resp = client.post('/supplier/warehouses', data={'name': 'W-DB', 'address': 'AddrX'}, follow_redirects=True)
+    assert resp.status_code == 200
+    resp = client.post('/supplier/service-areas', data={'name': 'ZoneX', 'description': 'Desc'}, follow_redirects=True)
+    assert resp.status_code == 200
+
+    # Now check dashboard shows counts/badges
+    resp = client.get('/supplier/dashboard')
+    assert b'Warehouses' in resp.data
+    assert b'Service Areas' in resp.data
+
+    # Onboarding, business, warehouses and service-areas should render
+    resp = client.get('/supplier/onboarding')
+    assert resp.status_code == 200
+    resp = client.get('/supplier/business')
+    assert resp.status_code == 200
+    resp = client.get('/supplier/warehouses')
+    assert resp.status_code == 200
+    resp = client.get('/supplier/service-areas')
+    assert resp.status_code == 200
+
+
+def test_warehouse_and_service_area_crud(client):
+    with client.session_transaction() as sess:
+        sess['supplier_id'] = 1
+
+    # create warehouse
+    resp = client.post('/supplier/warehouses', data={'name': 'W1', 'address': 'Addr 1', 'phone': '123'})
+    assert resp.status_code in (301, 302)
+    # list warehouses
+    resp = client.get('/supplier/warehouses')
+    assert b'W1' in resp.data
+
+    # create service area
+    resp = client.post('/supplier/service-areas', data={'name': 'Zone A', 'description': 'Nearby', 'postal_codes': '560001,560002'})
+    assert resp.status_code in (301, 302)
+    resp = client.get('/supplier/service-areas')
+    assert b'Zone A' in resp.data
+
