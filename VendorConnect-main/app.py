@@ -495,7 +495,9 @@ def oauth_debug_info():
     # Do not mutate registration here; only inspect
     clients = getattr(oauth, 'clients', None) or getattr(oauth, '_clients', None) or {}
     cid = _sanitize_val(app.config.get('GOOGLE_CLIENT_ID', '')) or ''
-    secret_present = bool(_sanitize_val(app.config.get('GOOGLE_CLIENT_SECRET', '')))
+    secret_val = _sanitize_val(app.config.get('GOOGLE_CLIENT_SECRET', '')) or ''
+    secret_present = bool(secret_val)
+    secret_len = len(secret_val)
     info = {
         'client_id_present': bool(cid),
         'client_id_suffix': cid[-8:] if cid else '',
@@ -505,6 +507,7 @@ def oauth_debug_info():
         'oauth_client_registered': 'google' in clients,
         'client_kind': app.config.get('GOOGLE_CLIENT_KIND', ''),
         'client_source': app.config.get('GOOGLE_CLIENT_SOURCE', ''),
+        'secret_length': secret_len,
     }
     return jsonify({'success': True, 'info': info})
 
@@ -532,7 +535,14 @@ def exchange_google_auth_code(code, redirect_uri):
         }
         
         app.logger.info('Exchanging auth code for token: redirect_uri=%s', redirect_uri)
-        resp = requests.post(token_endpoint, data=payload)
+        # Some Google configurations prefer/require HTTP Basic auth with
+        # client_id:client_secret in addition to form params.
+        resp = requests.post(
+            token_endpoint,
+            data=payload,
+            auth=(client_id, client_secret),
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+        )
         if resp.status_code != 200:
             try:
                 app.logger.error('Token exchange failed: %s', resp.text)
