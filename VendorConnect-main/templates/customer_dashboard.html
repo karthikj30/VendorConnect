@@ -739,10 +739,10 @@
                 currentAd = promotions[0];
             }
 
-            const price = Number(currentAd.price_per_click);
-            const priceLabel = Number.isFinite(price) ? `₹${price.toFixed(2)} per click` : 'Sponsored';
+            const price = Number(currentAd.price_per_view);
+            const priceLabel = Number.isFinite(price) ? `₹${price.toFixed(2)} per view` : 'Sponsored';
             const location = [currentAd.vendor_name, currentAd.vendor_location].filter(Boolean).join(' • ');
-            const clicks = typeof currentAd.total_clicks === 'number' ? currentAd.total_clicks : 0;
+            const views = typeof currentAd.total_views === 'number' ? currentAd.total_views : 0;
             const embedUrl = getVideoEmbedUrl(currentAd.video_url);
             const watchUrl = getVideoWatchUrl(currentAd.video_url);
             const isLocal = isLocalVideo(currentAd.video_url);
@@ -781,11 +781,11 @@
             const promo = promotions.find(p => p.id === id);
             if (!promo) return;
 
-            promo.total_clicks = (promo.total_clicks || 0) + 1;
+            promo.total_views = (promo.total_views || 0) + 1;
             renderPromotions();
 
-            fetch(`/api/promotion/${id}/click`, { method: 'POST' })
-                .catch(err => console.error('Failed to record promotion click', err));
+            fetch(`/api/promotion/${id}/view`, { method: 'POST' })
+                .catch(err => console.error('Failed to record promotion view', err));
         }
 
         function weightedPick(items, weightFn) {
@@ -809,7 +809,7 @@
                 renderPromotions();
                 return;
             }
-            const chosen = weightedPick(promotions, p => p.price_per_click || 1) || promotions[0];
+            const chosen = weightedPick(promotions, p => p.price_per_view || 1) || promotions[0];
             currentAd = chosen;
             handlePromotionClick(chosen.id);
         }

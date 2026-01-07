@@ -679,17 +679,17 @@ class Promotion(db.Model):
     title = db.Column(db.String(150), nullable=False)
     description = db.Column(db.String(500), nullable=True)
     video_url = db.Column(db.String(500), nullable=False)
-    price_per_click = db.Column(db.Float, default=5.0)  # 5-10 per click
-    total_clicks = db.Column(db.Integer, default=0)
+    price_per_view = db.Column(db.Float, default=5.0)  # 5-10 per view
+    total_views = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=True)
 
-class PromotionClick(db.Model):
+class PromotionView(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     promotion_id = db.Column(db.Integer, db.ForeignKey('promotion.id'), nullable=False)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
-    clicked_at = db.Column(db.DateTime, default=datetime.utcnow)
+    viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # Sample data for demonstration
 def create_sample_data():
@@ -1764,7 +1764,7 @@ def vendor_promotions():
             # Handle file upload
             title = request.form.get('title', '').strip()
             description = request.form.get('description', '').strip()
-            price_per_click = request.form.get('price_per_click', 5.0)
+            price_per_view = request.form.get('price_per_view', 5.0)
             video_file = request.files.get('video_file')
             
             if not title:
@@ -1799,7 +1799,7 @@ def vendor_promotions():
             title = (data.get('title') or '').strip()
             description = (data.get('description') or '').strip()
             video_url = (data.get('video_url') or '').strip()
-            price_per_click = data.get('price_per_click', 5.0)
+            price_per_view = data.get('price_per_view', 5.0)
 
             if not title:
                 return jsonify({'success': False, 'message': 'Promotion title is required.'}), 400
@@ -1807,8 +1807,8 @@ def vendor_promotions():
                 return jsonify({'success': False, 'message': 'Video URL is required.'}), 400
 
         try:
-            price_per_click = float(price_per_click)
-            if price_per_click < 5 or price_per_click > 10:
+            price_per_view = float(price_per_view)
+            if price_per_view < 5 or price_per_view > 10:
                 return jsonify({'success': False, 'message': 'Price per click must be between 5-10.'}), 400
         except (TypeError, ValueError):
             return jsonify({'success': False, 'message': 'Price must be a number between 5-10.'}), 400
@@ -1819,7 +1819,7 @@ def vendor_promotions():
                 title=title,
                 description=description,
                 video_url=video_url,
-                price_per_click=price_per_click,
+                price_per_view=price_per_view,
                 is_active=True
             )
             db.session.add(new_promo)
@@ -1839,9 +1839,9 @@ def vendor_promotions():
                 'title': p.title,
                 'description': p.description or '',
                 'video_url': p.video_url,
-                'price_per_click': p.price_per_click,
-                'total_clicks': p.total_clicks,
-                'monthly_charge': p.total_clicks * p.price_per_click,
+                'price_per_view': p.price_per_view,
+                'total_views': p.total_views,
+                'monthly_charge': p.total_views * p.price_per_view,
                 'is_active': p.is_active,
                 'created_at': p.created_at.isoformat()
             } for p in promos
@@ -1893,8 +1893,8 @@ def get_public_promotions():
         })
     return jsonify(response)
 
-@app.route('/api/promotion/<int:promo_id>/click', methods=['POST'])
-def record_promotion_click(promo_id):
+@app.route('/api/promotion/<int:promo_id>/view', methods=['POST'])
+def record_promotion_view(promo_id):
     promo = db.session.get(Promotion, promo_id)
     if not promo:
         return jsonify({'success': False, 'message': 'Promotion not found'}), 404
@@ -1902,24 +1902,24 @@ def record_promotion_click(promo_id):
     vendor = db.session.get(Vendor, promo.vendor_id)
 
     customer_id = session.get('customer_id')
-    click = PromotionClick(
+    view = PromotionView(
         promotion_id=promo_id,
         customer_id=customer_id
     )
-    db.session.add(click)
-    promo.total_clicks += 1
+    db.session.add(view)
+    promo.total_views += 1
 
-    # Credit platform admin for the promotion click
+    # Credit platform admin for the promotion view
     admin = get_admin_account()
-    admin.balance = (admin.balance or 0) + (promo.price_per_click or 0)
+    admin.balance = (admin.balance or 0) + (promo.price_per_view or 0)
 
-    # Charge vendor for this click
+    # Charge vendor for this view
     if vendor:
-        vendor.promo_due = (vendor.promo_due or 0) + (promo.price_per_click or 0)
+        vendor.promo_due = (vendor.promo_due or 0) + (promo.price_per_view or 0)
 
     db.session.commit()
 
-    return jsonify({'success': True, 'message': 'Click recorded'})
+    return jsonify({'success': True, 'message': 'View recorded'})
 
 @app.route('/api/group-orders')
 def get_group_orders():

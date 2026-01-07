@@ -1684,7 +1684,7 @@
                             </div>
                             <div>
                                 <label for="promo-price" style="font-weight:600;">Price per Click (₹)</label>
-                                <input id="promo-price" name="price_per_click" type="number" step="0.01" min="5" max="10" value="5" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;" />
+                                <input id="promo-price" name="price_per_view" type="number" step="0.01" min="5" max="10" value="5" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;" />
                             </div>
                             <div style="grid-column:1 / -1;">
                                 <label for="promo-description" style="font-weight:600;">Description</label>
@@ -2718,7 +2718,7 @@
                     // Send as JSON for URL-based videos
                     const payload = {
                         title: titleEl.value.trim(),
-                        price_per_click: price,
+                        price_per_view: price,
                         description: descEl.value.trim(),
                         video_url: videoUrlEl.value.trim()
                     };
@@ -2732,7 +2732,7 @@
                     // Send as FormData for file uploads
                     const formData = new FormData();
                     formData.append('title', titleEl.value.trim());
-                    formData.append('price_per_click', price);
+                    formData.append('price_per_view', price);
                     formData.append('description', descEl.value.trim());
                     formData.append('video_file', videoFileEl.files[0]);
 
