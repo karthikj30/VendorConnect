@@ -11,12 +11,126 @@
         overflow-x: hidden;
     }
 
-    /* Ensure inputs and buttons are easily tappable */
-    input, button, select, textarea, a[role="button"] {
-        min-height: 44px;
-        min-width: 44px;
+    /* Input and Button Base Styles */
+    input, button, select, textarea, a[role="button"], [role="button"] {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        min-height: 48px;
+        min-width: 48px;
         padding: 12px 16px;
         font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid #ddd;
+        font-family: inherit;
+        touch-action: manipulation;
+    }
+
+    /* Text inputs */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="number"],
+    textarea,
+    select {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        font-size: 16px;
+        padding: 12px;
+        border: 2px solid #ddd;
+        border-radius: 8px;
+        background: white;
+        color: #333;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="password"]:focus,
+    input[type="search"]:focus,
+    input[type="tel"]:focus,
+    input[type="number"]:focus,
+    textarea:focus,
+    select:focus {
+        outline: none;
+        border-color: #667eea;
+        background: white;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* Select dropdown styling */
+    select {
+        background-image: url("data:image/svg+xml;utf8,%3Csvg%20fill%3D'%23333'%20height%3D'24'%20viewBox%3D'0%200%2024%2024'%20width%3D'24'%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%3E%3Cpath%20d%3D'M7%2010l5%205%205-5z'%2F%3E%3C%2Fsvg%3E");
+        background-repeat: no-repeat;
+        background-position: right 10px center;
+        background-size: 24px;
+        padding-right: 40px;
+        cursor: pointer;
+    }
+
+    /* Checkbox and Radio */
+    input[type="checkbox"],
+    input[type="radio"] {
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        accent-color: #667eea;
+    }
+
+    /* Button styling */
+    button, .btn, [role="button"], input[type="button"], input[type="submit"], input[type="reset"] {
+        min-height: 48px;
+        padding: 12px 24px;
+        font-size: 14px;
+        cursor: pointer;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+    }
+
+    button:active, 
+    .btn:active,
+    button:focus,
+    .btn:focus {
+        opacity: 0.8;
+        transform: scale(0.98);
+        outline: none;
+    }
+
+    /* Form elements spacing */
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    form label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    form .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    /* Ensure inputs and buttons are easily tappable */
+    input, button, select, textarea, a[role="button"] {
+        min-height: 48px;
+        min-width: 48px;
     }
 
     /* Fix touch targets */
