@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complete Your Signup - VendorConnect</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .signup-container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h2 {
+            color: #333;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+        }
+
+        .form-section-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #667eea;
+            font-size: 1.1rem;
+        }
+
+        .prefilled-info {
+            background: #f0f4ff;
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+        }
+
+        .prefilled-item {
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .prefilled-item strong {
+            color: #667eea;
+            display: inline-block;
+            width: 100px;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .required {
+            color: red;
+            margin-left: 2px;
+        }
+
+        .helper-text {
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 0.3rem;
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon input {
+            padding-right: 42px;
+        }
+
+        .toggle-password {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.04);
+            border: none;
+            cursor: pointer;
+            color: #667eea;
+            padding: 6px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+        }
+
+        .toggle-password:hover {
+            background: rgba(0,0,0,0.08);
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            display: none;
+        }
+
+        .alert-error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+
+        .alert-success {
+            background: #efe;
+            color: #3c3;
+            border: 1px solid #cfc;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #fff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .password-requirements {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .requirement {
+            margin: 0.2rem 0;
+        }
+
+        .requirement.met {
+            color: #28a745;
+        }
+
+        .requirement.unmet {
+            color: #dc3545;
+        }
+
+        .conditional-fields {
+            display: none;
+        }
+
+        .conditional-fields.show {
+            display: block;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .signup-container {
+                padding: 2rem;
+            }
+
+            .header h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="/" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Home
+    </a>
+
+    <div class="signup-container">
+        <div class="logo">
+            <i class="fas fa-utensils"></i> VendorConnect
+        </div>
+
+        <div class="header">
+            <h2>Complete Your Signup</h2>
+            <p>Fill in the remaining details to create your account</p>
+        </div>
+
+        <div class="alert alert-error" id="errorAlert"></div>
+        <div class="alert alert-success" id="successAlert"></div>
+
+        <!-- Google Data Pre-fill -->
+        <div class="form-section">
+            <div class="form-section-title">
+                <i class="fab fa-google" style="margin-right: 0.5rem;"></i>Google Account Info
+            </div>
+            <div class="prefilled-info">
+                <div class="prefilled-item">
+                    <strong>Email:</strong> {{ oauth_data.email }}
+                </div>
+                {% if oauth_data.name %}
+                <div class="prefilled-item">
+                    <strong>Name:</strong> {{ oauth_data.name }}
+                </div>
+                {% endif %}
+                {% if oauth_data.phone %}
+                <div class="prefilled-item">
+                    <strong>Phone:</strong> {{ oauth_data.phone }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <form id="signupForm" class="signup-form">
+            <!-- Role Selection -->
+            <div class="form-section">
+                <div class="form-section-title">Account Type</div>
+
+                <div class="form-group">
+                    <label for="role">Register As <span class="required">*</span></label>
+                    <select id="role" name="role" required>
+                        <option value="">Select your role</option>
+                        <option value="Vendor">Vendor (Food Stall)</option>
+                        <option value="Supplier">Supplier (Bulk Provider)</option>
+                        <option value="Delivery Agent">Delivery Agent</option>
+                        <option value="Customer">Customer (Buyer)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Personal Details Section -->
+            <div class="form-section">
+                <div class="form-section-title">Personal Details</div>
+
+                <div class="form-group">
+                    <label for="name">Full Name <span class="required">*</span></label>
+                    <input type="text" id="name" name="name" placeholder="Enter your full name" value="{{ oauth_data.name or '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Phone Number <span class="required">*</span></label>
+                    <input type="tel" id="phone" name="phone" placeholder="Enter 10-digit phone number" value="{{ oauth_data.phone or '' }}" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="location">Location/Area <span class="required">*</span></label>
+                    <input type="text" id="location" name="location" placeholder="e.g., Bandra West, Mumbai" required>
+                </div>
+            </div>
+
+            <!-- Vendor-Specific Fields -->
+            <div id="vendorFields" class="form-section conditional-fields">
+                <div class="form-section-title">Business Details (Vendor)</div>
+
+                <div class="form-group">
+                    <label for="businessType">Business Type <span class="required">*</span></label>
+                    <select id="businessType" name="business_type">
+                        <option value="">Select your stall type</option>
+                        <option value="chaat">Chaat Stall</option>
+                        <option value="dosa">Dosa Stall</option>
+                        <option value="samosa">Samosa Stall</option>
+                        <option value="vada_pav">Vada Pav Stall</option>
+                        <option value="tea">Tea Stall</option>
+                        <option value="juice">Juice Stall</option>
+                        <option value="ice_cream">Ice Cream Stall</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div id="otherBusinessGroup" class="form-group" style="display: none;">
+                    <label for="otherBusiness">Please specify your stall</label>
+                    <input type="text" id="otherBusiness" name="other_business" placeholder="e.g., Pav Bhaji Stall">
+                </div>
+
+                <div class="form-group">
+                    <label for="gstin">GSTIN (GST Identification Number) <span class="required">*</span></label>
+                    <input type="text" id="gstin" name="gstin" placeholder="e.g., 27AABCH1234A1Z0" maxlength="15">
+                    <div class="helper-text">15-character alphanumeric code (found on GST certificate)</div>
+                </div>
+            </div>
+
+            <!-- Supplier-Specific Fields -->
+            <div id="supplierFields" class="form-section conditional-fields">
+                <div class="form-section-title">Business Details (Supplier)</div>
+
+                <div class="form-group">
+                    <label for="businessName">Business Name</label>
+                    <input type="text" id="businessName" name="business_name" placeholder="Your business/company name">
+                </div>
+
+                <div class="form-group">
+                    <label for="gstinSupplier">GSTIN (Optional)</label>
+                    <input type="text" id="gstinSupplier" name="gstin" placeholder="e.g., 27AABCH1234A1Z0" maxlength="15">
+                    <div class="helper-text">Optional: Leave blank if you don't have GST registration</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="categories">Product Categories <span class="required">*</span></label>
+                    <input type="text" id="categories" name="categories" placeholder="e.g., Vegetables, Fruits, Grains" required>
+                    <div class="helper-text">Comma-separated list of product categories you supply</div>
+                </div>
+            </div>
+
+            <!-- Delivery Agent-Specific Fields -->
+            <div id="deliveryFields" class="form-section conditional-fields">
+                <div class="form-section-title">Vehicle Details (Delivery Agent)</div>
+
+                <div class="form-group">
+                    <label for="vehicleType">Vehicle Type <span class="required">*</span></label>
+                    <select id="vehicleType" name="vehicle_type">
+                        <option value="">Select vehicle type</option>
+                        <optgroup label="Small Vehicles (Individual Orders)">
+                            <option value="bike">🏍️ Bike</option>
+                            <option value="car">🚗 Car</option>
+                            <option value="auto">🛺 Auto/Tuk-Tuk</option>
+                        </optgroup>
+                        <optgroup label="Medium Vehicles (Group Orders)">
+                            <option value="van">🚐 Van</option>
+                            <option value="small_truck">🚚 Small Truck (500kg)</option>
+                        </optgroup>
+                        <optgroup label="Large Vehicles (Supplier Orders)">
+                            <option value="tempo">📦 Tempo Traveller</option>
+                            <option value="truck">🚛 Truck (1 Ton)</option>
+                            <option value="container">📮 Container Truck</option>
+                        </optgroup>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="vehicleInfo">Vehicle Registration Number <span class="required">*</span></label>
+                    <input type="text" id="vehicleInfo" name="vehicle_info" placeholder="e.g., KA01AB1234">
+                    <div class="helper-text">Format example: KA01AB1234</div>
+                </div>
+            </div>
+
+            <!-- Password Section -->
+            <div class="form-section">
+                <div class="form-section-title">Password Setup</div>
+
+                <div class="form-group">
+                    <label for="password">Password <span class="required">*</span></label>
+                    <div class="input-with-icon">
+                        <input type="password" id="password" name="password" placeholder="Create a strong password" required>
+                        <button type="button" class="toggle-password" data-target="password" aria-label="Toggle password visibility">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="password-requirements">
+                        <div class="requirement unmet" id="length">At least 8 characters</div>
+                        <div class="requirement unmet" id="uppercase">At least 1 uppercase letter</div>
+                        <div class="requirement unmet" id="lowercase">At least 1 lowercase letter</div>
+                        <div class="requirement unmet" id="number">At least 1 number</div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPassword">Confirm Password <span class="required">*</span></label>
+                    <div class="input-with-icon">
+                        <input type="password" id="confirmPassword" name="confirm_password" placeholder="Confirm your password" required>
+                        <button type="button" class="toggle-password" data-target="confirmPassword" aria-label="Toggle password visibility">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button type="submit" class="btn" id="submitBtn">
+                <span id="submitText">Complete Signup</span>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                </div>
+            </button>
+        </form>
+
+        <div style="text-align: center; margin-top: 2rem; color: #666;">
+            <p>Already have an account? <a href="/vendor/login" style="color: #667eea; text-decoration: none; font-weight: 600;">Login here</a></p>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('signupForm');
+        const roleSelect = document.getElementById('role');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const businessTypeSelect = document.getElementById('businessType');
+        const otherBusinessGroup = document.getElementById('otherBusinessGroup');
+        const vendorFields = document.getElementById('vendorFields');
+        const supplierFields = document.getElementById('supplierFields');
+        const deliveryFields = document.getElementById('deliveryFields');
+
+        // Password toggle functionality
+        document.querySelectorAll('.toggle-password').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const targetId = btn.getAttribute('data-target');
+                const input = document.getElementById(targetId);
+                const icon = btn.querySelector('i');
+
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        });
+
+        // Password validation
+        function validatePassword(pwd) {
+            const checks = {
+                length: pwd.length >= 8,
+                uppercase: /[A-Z]/.test(pwd),
+                lowercase: /[a-z]/.test(pwd),
+                number: /[0-9]/.test(pwd)
+            };
+
+            Object.entries(checks).forEach(([id, isValid]) => {
+                const el = document.getElementById(id);
+                if (isValid) {
+                    el.classList.remove('unmet');
+                    el.classList.add('met');
+                } else {
+                    el.classList.remove('met');
+                    el.classList.add('unmet');
+                }
+            });
+
+            return Object.values(checks).every(v => v);
+        }
+
+        passwordInput.addEventListener('input', (e) => {
+            validatePassword(e.target.value);
+        });
+
+        // Role change handling
+        function updateConditionalFields() {
+            const role = roleSelect.value.toLowerCase();
+
+            vendorFields.classList.remove('show');
+            supplierFields.classList.remove('show');
+            deliveryFields.classList.remove('show');
+
+            // Clear required attributes
+            document.querySelectorAll('[data-role-required]').forEach(el => {
+                el.removeAttribute('required');
+            });
+
+            if (role === 'vendor') {
+                vendorFields.classList.add('show');
+                document.getElementById('businessType').setAttribute('data-role-required', 'true');
+                document.getElementById('gstin').setAttribute('data-role-required', 'true');
+            } else if (role === 'supplier') {
+                supplierFields.classList.add('show');
+                document.getElementById('categories').setAttribute('data-role-required', 'true');
+            } else if (role === 'delivery agent') {
+                deliveryFields.classList.add('show');
+                document.getElementById('vehicleType').setAttribute('data-role-required', 'true');
+                document.getElementById('vehicleInfo').setAttribute('data-role-required', 'true');
+            }
+        }
+
+        roleSelect.addEventListener('change', updateConditionalFields);
+
+        // Business type change
+        businessTypeSelect.addEventListener('change', (e) => {
+            if (e.target.value === 'other') {
+                otherBusinessGroup.style.display = 'block';
+                document.getElementById('otherBusiness').setAttribute('required', 'required');
+            } else {
+                otherBusinessGroup.style.display = 'none';
+                document.getElementById('otherBusiness').removeAttribute('required');
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Show loading
+            document.getElementById('submitText').style.display = 'none';
+            document.getElementById('loading').style.display = 'flex';
+            document.getElementById('submitBtn').disabled = true;
+
+            // Validate passwords match
+            if (passwordInput.value !== confirmPasswordInput.value) {
+                showError('Passwords do not match');
+                resetButton();
+                return;
+            }
+
+            // Validate password strength
+            if (!validatePassword(passwordInput.value)) {
+                showError('Password does not meet requirements');
+                resetButton();
+                return;
+            }
+
+            // Validate role-specific required fields
+            const role = roleSelect.value.toLowerCase();
+            if (role === 'vendor' && !document.getElementById('gstin').value) {
+                showError('GSTIN is required for vendors');
+                resetButton();
+                return;
+            }
+
+            if (role === 'supplier' && !document.getElementById('categories').value) {
+                showError('Product categories are required for suppliers');
+                resetButton();
+                return;
+            }
+
+            if (role === 'delivery agent') {
+                if (!document.getElementById('vehicleType').value) {
+                    showError('Vehicle type is required');
+                    resetButton();
+                    return;
+                }
+                if (!document.getElementById('vehicleInfo').value) {
+                    showError('Vehicle registration number is required');
+                    resetButton();
+                    return;
+                }
+            }
+
+            try {
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData);
+
+                const response = await fetch('/signup/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showSuccess(result.message);
+                    setTimeout(() => {
+                        window.location.href = result.redirect;
+                    }, 1000);
+                } else {
+                    showError(result.message || 'Signup failed');
+                    resetButton();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('An unexpected error occurred. Please try again.');
+                resetButton();
+            }
+        });
+
+        function showError(message) {
+            const alert = document.getElementById('errorAlert');
+            alert.textContent = message;
+            alert.classList.add('show');
+            document.getElementById('successAlert').classList.remove('show');
+        }
+
+        function showSuccess(message) {
+            const alert = document.getElementById('successAlert');
+            alert.textContent = message;
+            alert.classList.add('show');
+            document.getElementById('errorAlert').classList.remove('show');
+        }
+
+        function resetButton() {
+            document.getElementById('submitText').style.display = 'inline';
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('submitBtn').disabled = false;
+        }
+    </script>
+</body>
+</html>

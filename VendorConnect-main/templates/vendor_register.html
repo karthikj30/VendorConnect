@@ -761,12 +761,12 @@
         }
     </script>
     <script>
-        // Server-side Google OAuth button: redirect to start route
+        // Server-side Google OAuth button: redirect to start route for signup
         document.addEventListener('DOMContentLoaded', function() {
             const wrapper = document.getElementById('gSignInWrapper');
             if (!wrapper) return;
             const btn = document.createElement('a');
-            btn.href = '/vendor/login/google';
+            btn.href = '/vendor/login/google'; // This now leads to signup completion form for new users
             btn.className = 'btn';
             btn.style.background = '#DB4437';
             btn.style.borderColor = '#DB4437';
@@ -777,7 +777,7 @@
             btn.style.textAlign = 'center';
             btn.style.padding = '10px 0';
             btn.style.borderRadius = '8px';
-            btn.innerHTML = '<i class="fab fa-google" style="margin-right:8px"></i> Sign in with Google';
+            btn.innerHTML = '<i class="fab fa-google" style="margin-right:8px"></i> Sign up with Google';
             wrapper.innerHTML = '';
             wrapper.appendChild(btn);
         });

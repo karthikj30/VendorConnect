@@ -180,6 +180,12 @@ app = Flask(__name__, instance_path=os.path.join(basedir, '../instance'))
 app.config['SECRET_KEY'] = 'vendorconnect_secret_key_2024'
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max upload size
 
+# Flask session configuration - REQUIRED for OAuth state management
+app.config['SESSION_COOKIE_SECURE'] = False  # Set to True for HTTPS only
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)  # Session expires in 7 days
+
 # Configure logging
 log_level = logging.DEBUG if os.environ.get('FLASK_DEBUG') in ('1', 'true', 'True') or os.environ.get('DEBUG') in ('1', 'true', 'True') else logging.INFO
 logging.basicConfig(level=log_level)
@@ -442,7 +448,54 @@ def ensure_oauth_registered(force=False):
 
     return True
 
-# Email helper functions
+def exchange_google_auth_code(code, redirect_uri):
+    """Manually exchange Google authorization code for access token.
+    
+    This bypasses Authlib's state validation which can fail when session
+    is not properly maintained across redirects.
+    """
+    try:
+        token_endpoint = 'https://oauth2.googleapis.com/token'
+        client_id = app.config.get('GOOGLE_CLIENT_ID')
+        client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+        
+        if not client_id or not client_secret:
+            app.logger.error('Google OAuth credentials not configured')
+            return None
+        
+        payload = {
+            'grant_type': 'authorization_code',
+            'code': code,
+            'redirect_uri': redirect_uri,
+            'client_id': client_id,
+            'client_secret': client_secret
+        }
+        
+        app.logger.info('Exchanging auth code for token: redirect_uri=%s', redirect_uri)
+        resp = requests.post(token_endpoint, data=payload)
+        resp.raise_for_status()
+        token_data = resp.json()
+        app.logger.info('Token exchange successful, access_token=%s...', token_data.get('access_token', '')[:20])
+        return token_data
+    except Exception as e:
+        app.logger.exception('Error exchanging authorization code for token:')
+        return None
+
+def fetch_google_userinfo(access_token):
+    """Fetch user info from Google using access token"""
+    try:
+        userinfo_endpoint = 'https://www.googleapis.com/oauth2/v2/userinfo'
+        headers = {'Authorization': f'Bearer {access_token}'}
+        resp = requests.get(userinfo_endpoint, headers=headers)
+        resp.raise_for_status()
+        user_info = resp.json()
+        app.logger.info('Userinfo fetched: email=%s, name=%s', user_info.get('email'), user_info.get('name'))
+        return user_info
+    except Exception as e:
+        app.logger.exception('Error fetching userinfo from Google:')
+        return None
+
+
 def send_otp_email(email, otp):
     """Send OTP email to user"""
     try:
@@ -1425,29 +1478,48 @@ def vendor_login_google():
 
 @app.route('/vendor/login/google/callback')
 def vendor_login_google_callback():
-    """Handle OAuth2 callback from Google using Authlib, create or reuse vendor, set session/JWT."""
-    try:
-        token = oauth.google.authorize_access_token()
-    except Exception as e:
-        app.logger.exception('Authlib authorize_access_token error:')
-        return 'Authorization failed', 400
+    """Handle OAuth2 callback from Google for existing vendors (login flow)"""
+    app.logger.info('Callback URL: %s', request.url)
+    app.logger.info('Request args: %s', dict(request.args))
+    
+    # Get the authorization code and state from Google
+    code = request.args.get('code')
+    state = request.args.get('state')
+    error = request.args.get('error')
+    
+    if error:
+        app.logger.error('Google OAuth error: %s', error)
+        error_desc = request.args.get('error_description', error)
+        return render_template('login_error.html', error=f'Google OAuth error: {error_desc}'), 400
+    
+    if not code:
+        app.logger.error('No authorization code received from Google')
+        return render_template('login_error.html', error='No authorization code received. Please try again.'), 400
+    
+    # Exchange the authorization code for an access token
+    redirect_uri = app.config.get('GOOGLE_REDIRECT_URI', url_for('vendor_login_google_callback', _external=True))
+    token_data = exchange_google_auth_code(code, redirect_uri)
+    
+    if not token_data:
+        return render_template('login_error.html', error='Failed to exchange authorization code. Please try again.'), 500
+    
+    access_token = token_data.get('access_token')
+    if not access_token:
+        app.logger.error('No access token in token response: %s', token_data)
+        return render_template('login_error.html', error='Failed to obtain access token.'), 500
+    
+    # Fetch user info from Google
+    info = fetch_google_userinfo(access_token)
+    
+    if not info:
+        return render_template('login_error.html', error='Failed to fetch user information from Google.'), 500
 
-    # Get user info from userinfo endpoint
-    try:
-        resp = oauth.google.get('userinfo')
-        resp.raise_for_status()
-        info = resp.json()
-    except Exception as e:
-        app.logger.exception('Failed fetching userinfo:')
-        return 'Failed to fetch user info', 500
-
-    email = info.get('email')
-    name = info.get('name') or info.get('given_name') or ''
-
+    email = info.get('email', '').strip()
+    
     if not email:
-        return 'Google account has no email', 400
+        return render_template('login_error.html', error='Google account has no email'), 400
 
-    # Reuse existing vendor if present
+    # Check if vendor exists
     vendor = Vendor.query.filter_by(email=email).first()
     if vendor:
         session['vendor_id'] = vendor.id
@@ -1457,41 +1529,251 @@ def vendor_login_google_callback():
             'email': vendor.email,
             'exp': datetime.now(timezone.utc) + timedelta(seconds=app.config.get('JWT_EXP_DELTA_SECONDS'))
         }
-        token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm=app.config['JWT_ALGORITHM'])
+        jwt_token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm=app.config['JWT_ALGORITHM'])
         redirect_to = session.pop('oauth_next', url_for('vendor_dashboard'))
         resp = redirect(redirect_to)
-        resp.set_cookie('access_token', token, httponly=True, samesite='Lax')
+        resp.set_cookie('access_token', jwt_token, httponly=True, samesite='Lax')
         return resp
-
-    # Create new vendor (avoid duplicate phone by using a generated placeholder)
-    placeholder_phone = 'g' + secrets.token_hex(6)
-    # Ensure uniqueness
-    while Vendor.query.filter_by(phone=placeholder_phone).first():
-        placeholder_phone = 'g' + secrets.token_hex(6)
-
-    random_pw = secrets.token_urlsafe(16)
-    vendor = Vendor(
-        name=name or email.split('@')[0],
-        phone=placeholder_phone,
-        email=email,
-        location='',
-        business_type='other',
-        password_hash=generate_password_hash(random_pw)
-    )
-    db.session.add(vendor)
-    db.session.commit()
-
-    session['vendor_id'] = vendor.id
-    payload = {
-        'vendor_id': vendor.id,
-        'email': vendor.email,
-        'exp': datetime.now(timezone.utc) + timedelta(seconds=app.config.get('JWT_EXP_DELTA_SECONDS'))
+    
+    # If vendor doesn't exist, redirect to signup completion
+    name = (info.get('name') or '').strip()
+    phone = info.get('phone', '').strip()
+    
+    session['oauth_user_data'] = {
+        'email': email,
+        'name': name,
+        'phone': phone,
+        'google_id': info.get('id', ''),
     }
-    token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm=app.config['JWT_ALGORITHM'])
-    redirect_to = session.pop('oauth_next', url_for('vendor_dashboard'))
-    resp = redirect(redirect_to)
-    resp.set_cookie('access_token', token, httponly=True, samesite='Lax')
-    return resp
+    
+    return redirect(url_for('signup_complete'))
+
+@app.route('/auth/google/callback', methods=['GET'])
+def google_oauth_callback():
+    """Handle Google OAuth callback for multi-role signup with data pre-fill"""
+    app.logger.info('Auth callback URL: %s', request.url)
+    app.logger.info('Request args: %s', dict(request.args))
+    
+    # Get the authorization code and state from Google
+    code = request.args.get('code')
+    state = request.args.get('state')
+    error = request.args.get('error')
+    
+    if error:
+        app.logger.error('Google OAuth error: %s', error)
+        error_desc = request.args.get('error_description', error)
+        return render_template('signup_error.html', error=f'Google OAuth error: {error_desc}'), 400
+    
+    if not code:
+        app.logger.error('No authorization code received from Google')
+        return render_template('signup_error.html', error='No authorization code received. Please try again.'), 400
+    
+    # Exchange the authorization code for an access token
+    redirect_uri = app.config.get('GOOGLE_REDIRECT_URI', url_for('google_oauth_callback', _external=True))
+    token_data = exchange_google_auth_code(code, redirect_uri)
+    
+    if not token_data:
+        return render_template('signup_error.html', error='Failed to exchange authorization code. Please try again.'), 500
+    
+    access_token = token_data.get('access_token')
+    if not access_token:
+        app.logger.error('No access token in token response: %s', token_data)
+        return render_template('signup_error.html', error='Failed to obtain access token.'), 500
+    
+    # Fetch user info from Google
+    info = fetch_google_userinfo(access_token)
+    
+    if not info:
+        return render_template('signup_error.html', error='Failed to fetch user information from Google.'), 500
+
+    email = info.get('email', '').strip()
+    name = (info.get('name') or '').strip()
+    phone = info.get('phone', '').strip()
+    
+    if not email:
+        return render_template('signup_error.html', error='Google account has no email address.'), 400
+
+    # Store OAuth data in session for next step
+    session['oauth_user_data'] = {
+        'email': email,
+        'name': name,
+        'phone': phone,
+        'google_id': info.get('id', ''),  # Google's unique ID
+    }
+    
+    # Redirect to signup completion form
+    return redirect(url_for('signup_complete'))
+
+
+@app.route('/signup/complete', methods=['GET', 'POST'])
+def signup_complete():
+    """Complete signup with additional details for multi-role registration"""
+    
+    # Check if user has Google OAuth data in session
+    oauth_data = session.get('oauth_user_data')
+    if not oauth_data:
+        return render_template('signup_error.html', error='Session expired. Please sign in with Google again.'), 400
+    
+    if request.method == 'POST':
+        try:
+            data = request.get_json() or request.form.to_dict()
+            
+            role = (data.get('role') or 'Vendor').strip().lower()
+            name = (data.get('name') or oauth_data.get('name') or '').strip()
+            phone = (data.get('phone') or oauth_data.get('phone') or '').strip()
+            email = oauth_data.get('email', '').strip()
+            location = (data.get('location') or '').strip()
+            password = (data.get('password') or '').strip()
+            
+            # Validation
+            if not name or len(name) < 2:
+                return jsonify({'success': False, 'message': 'Please enter a valid name'}), 400
+            
+            if not phone or len(phone) < 10:
+                return jsonify({'success': False, 'message': 'Please enter a valid phone number'}), 400
+            
+            if not password or len(password) < 8:
+                return jsonify({'success': False, 'message': 'Password must be at least 8 characters'}), 400
+            
+            if role not in ['vendor', 'supplier', 'delivery agent', 'customer']:
+                return jsonify({'success': False, 'message': 'Invalid role'}), 400
+            
+            # Check if email or phone already exists
+            existing_user = (
+                Vendor.query.filter_by(email=email).first() or
+                Supplier.query.filter_by(email=email).first() or
+                DeliveryAgent.query.filter_by(email=email).first() or
+                Customer.query.filter_by(email=email).first() or
+                Vendor.query.filter_by(phone=phone).first() or
+                Supplier.query.filter_by(phone=phone).first() or
+                DeliveryAgent.query.filter_by(phone=phone).first() or
+                Customer.query.filter_by(phone=phone).first()
+            )
+            
+            if existing_user:
+                return jsonify({'success': False, 'message': 'An account with this email or phone already exists'}), 409
+            
+            pw_hash = generate_password_hash(password)
+            
+            # Create user based on role
+            if role == 'vendor':
+                gstin = (data.get('gstin') or '').strip()
+                business_type = (data.get('business_type') or 'other').strip()
+                
+                if not gstin:
+                    return jsonify({'success': False, 'message': 'GSTIN is required for vendors'}), 400
+                
+                if Vendor.query.filter_by(gstin=gstin).first():
+                    return jsonify({'success': False, 'message': 'A vendor with this GSTIN already exists'}), 409
+                
+                user = Vendor(
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    location=location or 'Not specified',
+                    business_type=business_type,
+                    gstin=gstin,
+                    password_hash=pw_hash
+                )
+            
+            elif role == 'supplier':
+                business_name = (data.get('business_name') or '').strip()
+                gstin = (data.get('gstin') or '').strip()
+                
+                user = Supplier(
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    business_name=business_name or name,
+                    location=location or 'Not specified',
+                    gstin=gstin or None,
+                    password_hash=pw_hash
+                )
+            
+            elif role == 'delivery agent':
+                vehicle_type = (data.get('vehicle_type') or '').strip()
+                vehicle_info = (data.get('vehicle_info') or '').strip()
+                
+                if not vehicle_type or not vehicle_info:
+                    return jsonify({'success': False, 'message': 'Vehicle information is required for delivery agents'}), 400
+                
+                user = DeliveryAgent(
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    vehicle_type=vehicle_type,
+                    vehicle_info=vehicle_info,
+                    location=location or 'Not specified',
+                    password_hash=pw_hash
+                )
+            
+            elif role == 'customer':
+                user = Customer(
+                    name=name,
+                    phone=phone,
+                    email=email,
+                    location=location or 'Not specified',
+                    password_hash=pw_hash
+                )
+            
+            # Save to database
+            db.session.add(user)
+            db.session.commit()
+            
+            # Clear session
+            session.pop('oauth_user_data', None)
+            
+            # Log user in
+            user_id = user.id
+            if role == 'vendor':
+                session['vendor_id'] = user_id
+            elif role == 'supplier':
+                session['supplier_id'] = user_id
+            elif role == 'delivery agent':
+                session['delivery_agent_id'] = user_id
+            elif role == 'customer':
+                session['customer_id'] = user_id
+            
+            # Issue JWT token
+            payload = {
+                'user_id': user_id,
+                'role': role,
+                'email': email,
+                'exp': datetime.now(timezone.utc) + timedelta(seconds=app.config.get('JWT_EXP_DELTA_SECONDS'))
+            }
+            jwt_token = jwt.encode(payload, app.config['JWT_SECRET_KEY'], algorithm=app.config['JWT_ALGORITHM'])
+            
+            # Determine redirect based on role
+            redirect_map = {
+                'vendor': 'vendor_dashboard',
+                'supplier': 'supplier_dashboard',
+                'delivery agent': 'delivery_dashboard',
+                'customer': 'customer_dashboard'
+            }
+            
+            redirect_url = url_for(redirect_map.get(role, 'vendor_dashboard'))
+            
+            resp_data = {
+                'success': True,
+                'message': f'{role.title()} registration successful!',
+                'redirect': redirect_url
+            }
+            
+            # If AJAX request, return JSON; else return redirect
+            if request.is_json:
+                return jsonify(resp_data)
+            
+            return redirect(redirect_url)
+        
+        except Exception as e:
+            app.logger.exception('Error during signup completion:')
+            error_msg = str(e) if str(e) else 'An unexpected error occurred'
+            if request.is_json:
+                return jsonify({'success': False, 'message': error_msg}), 500
+            return render_template('signup_error.html', error=error_msg), 500
+    
+    # GET request - show signup completion form with pre-filled data
+    return render_template('signup_complete.html', oauth_data=oauth_data, GOOGLE_CLIENT_ID=app.config.get('GOOGLE_CLIENT_ID'))
 
 @app.route('/vendor/forgot-password', methods=['POST'])
 def vendor_forgot_password():
