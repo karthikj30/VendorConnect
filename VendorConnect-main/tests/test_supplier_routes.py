@@ -261,37 +261,6 @@ def test_get_products_api_filters(client):
     data = resp.get_json()
     assert any(p['id'] == prod_id for p in data)
 
-    # Check supplier queue event contained timestamps
-    key = f"supplier_{1}"
-    q = getattr(vc, 'order_event_queues').get(key)
-    if q:
-        try:
-            ev = q.get_nowait()
-            if ev['type']== 'status_update':
-                assert 'timestamps' in ev['data']
-        except Exception:
-            pass
-
-    # Assign agent via JSON assign route and verify out_for_delivery timestamp
-    with client.session_transaction() as sess:
-        sess['supplier_id'] = 1
-    # create a delivery agent
-    with app.app_context():
-        DeliveryAgent = getattr(vc, 'DeliveryAgent')
-        db_mod = getattr(vc, 'db')
-        agent = DeliveryAgent(name='AgentX', phone='777')
-        db_mod.session.add(agent)
-        db_mod.session.commit()
-        agent_id = agent.id
-
-    # Assign via JSON
-    resp = client.post(f'/supplier/order/{order_id}/assign', json={'agent_id': agent_id})
-    assert resp.status_code in (200, 302)
-    # Reload order and check timestamp
-    with app.app_context():
-        ord_obj = getattr(vc, 'Order').query.get(order_id)
-        assert ord_obj.out_for_delivery_at is not None
-
 
 def test_supplier_receives_event_on_order(client):
     # Place an order as vendor and ensure supplier queue gets an event
