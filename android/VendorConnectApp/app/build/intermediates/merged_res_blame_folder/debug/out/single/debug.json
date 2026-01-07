@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.vendorconnect.app-merged_res-36:/xml_network_security_config.xml.flat",
+        "source": "com.vendorconnect.app-main-38:/xml/network_security_config.xml"
+    },
+    {
+        "merged": "com.vendorconnect.app-merged_res-36:/layout_activity_main.xml.flat",
+        "source": "com.vendorconnect.app-main-38:/layout/activity_main.xml"
+    }
+]
