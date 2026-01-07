@@ -10,6 +10,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -63,6 +64,18 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Handle back button using new API
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (webView.canGoBack()) {
+                    webView.goBack()
+                } else {
+                    isEnabled = false
+                    onBackPressedDispatcher.onBackPressed()
+                }
+            }
+        })
+
         val baseUrl = intent.getStringExtra("BASE_URL") ?: getString(R.string.app_base_url)
         webView.loadUrl(baseUrl)
     }
@@ -79,14 +92,6 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ))
-        }
-    }
-
-    override fun onBackPressed() {
-        if (this::webView.isInitialized && webView.canGoBack()) {
-            webView.goBack()
-        } else {
-            super.onBackPressed()
         }
     }
 }
