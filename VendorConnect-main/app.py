@@ -1887,8 +1887,8 @@ def get_public_promotions():
             'vendor_id': p.vendor_id,
             'vendor_name': vendor.name if vendor else 'Vendor',
             'vendor_location': vendor.location if vendor else '',
-            'price_per_click': p.price_per_click,
-            'total_clicks': p.total_clicks,
+            'price_per_view': p.price_per_view,
+            'total_views': p.total_views,
             'created_at': p.created_at.isoformat()
         })
     return jsonify(response)
