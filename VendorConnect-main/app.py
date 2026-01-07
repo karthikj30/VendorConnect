@@ -292,6 +292,7 @@ def _load_google_client_from_file():
     if raw_secret_env and isinstance(raw_secret_env, str) and raw_secret_env.strip().startswith('{'):
         try:
             data = json.loads(raw_secret_env)
+            kind = 'web' if data.get('web') else ('installed' if data.get('installed') else 'raw')
             creds = data.get('web') or data.get('installed') or data
             cid = creds.get('client_id')
             csec = creds.get('client_secret')
@@ -299,6 +300,8 @@ def _load_google_client_from_file():
                 app.config['GOOGLE_CLIENT_ID'] = _sanitize_val(cid)
             if csec:
                 app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(csec)
+            app.config['GOOGLE_CLIENT_KIND'] = kind
+            app.config['GOOGLE_CLIENT_SOURCE'] = 'env_json'
             if cid or csec:
                 app.logger.info('Loaded Google client credentials from GOOGLE_CLIENT_SECRET env JSON')
                 return
@@ -315,6 +318,7 @@ def _load_google_client_from_file():
             with open(os.path.join(basedir, fname), 'r') as f:
                 data = json.load(f)
                 # support both {"web": {...}} and root object
+                kind = 'web' if data.get('web') else ('installed' if data.get('installed') else 'raw')
                 creds = data.get('web') or data.get('installed') or data
                 cid = creds.get('client_id')
                 csec = creds.get('client_secret')
@@ -322,6 +326,8 @@ def _load_google_client_from_file():
                     app.config['GOOGLE_CLIENT_ID'] = _sanitize_val(cid)
                 if csec:
                     app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(csec)
+                app.config['GOOGLE_CLIENT_KIND'] = kind
+                app.config['GOOGLE_CLIENT_SOURCE'] = f'file:{fname}'
                 if cid or csec:
                     app.logger.info('Loaded Google client credentials from %s', fname)
                     return
@@ -496,7 +502,9 @@ def oauth_debug_info():
         'secret_present': secret_present,
         'redirect_uri_config': app.config.get('GOOGLE_REDIRECT_URI'),
         'redirect_uri_url_for': url_for('vendor_login_google_callback', _external=True),
-        'oauth_client_registered': 'google' in clients
+        'oauth_client_registered': 'google' in clients,
+        'client_kind': app.config.get('GOOGLE_CLIENT_KIND', ''),
+        'client_source': app.config.get('GOOGLE_CLIENT_SOURCE', ''),
     }
     return jsonify({'success': True, 'info': info})
 
