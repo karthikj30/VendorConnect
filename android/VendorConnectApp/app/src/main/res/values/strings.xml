@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VendorConnect</string>
-    <!-- Default base URL. Use 10.0.2.2 for Android emulator to reach host machine. -->
-    <string name="app_base_url">http://10.0.2.2:5000/customer/dashboard</string>
+    <!-- Production URL on Render -->
+    <string name="app_base_url">https://vendorconnect-gkhy.onrender.com/customer/dashboard</string>
 </resources>
