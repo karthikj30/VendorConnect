@@ -145,6 +145,24 @@
             text-decoration: none;
         }
 
+        /* Open/Closed toggle button */
+        .open-status-btn {
+            border: none;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        .open-status-open {
+            background: #2ecc71;
+            color: #fff;
+        }
+        .open-status-closed {
+            background: #95a5a6;
+            color: #fff;
+        }
+
         /* Cart Modal */
         .cart-modal {
             display: none;
@@ -1247,6 +1265,7 @@
                         <span class="cart-count" id="cart-count">0</span>
                     </div>
                     <span>{{ vendor.location }}</span>
+                    <button id="openStatusBtn" class="open-status-btn" onclick="toggleOpenStatus()">Loading...</button>
                     <a href="/logout" class="logout-btn">Logout</a>
                 </div>
             </div>
@@ -3975,6 +3994,8 @@
             loadDashboardData();
             showBusinessSpecial();
             updateCartCount(); // Initialize cart count
+            // Load initial open/closed status
+            loadOpenStatus();
             
             // Add keyboard shortcut for voice search (Ctrl+Shift+V)
             document.addEventListener('keydown', function(e) {
@@ -4025,6 +4046,46 @@
             // Check voice recognition support on load
             checkVoiceSupport();
         });
+
+        async function loadOpenStatus() {
+            try {
+                const res = await fetch('/api/vendor/open-status');
+                const data = await res.json();
+                if (data && data.success) {
+                    updateOpenStatusButton(data.is_open);
+                } else {
+                    updateOpenStatusButton(true);
+                }
+            } catch (e) {
+                console.error('Failed to load open status', e);
+                updateOpenStatusButton(true);
+            }
+        }
+
+        async function toggleOpenStatus() {
+            try {
+                const res = await fetch('/api/vendor/open-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ toggle: true })
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    updateOpenStatusButton(data.is_open);
+                }
+            } catch (e) {
+                console.error('Failed to toggle open status', e);
+            }
+        }
+
+        function updateOpenStatusButton(isOpen) {
+            const btn = document.getElementById('openStatusBtn');
+            if (!btn) return;
+            btn.textContent = isOpen ? 'Open' : 'Closed';
+            btn.classList.remove('open-status-open', 'open-status-closed');
+            btn.classList.add(isOpen ? 'open-status-open' : 'open-status-closed');
+            btn.title = isOpen ? 'Customers can see your menu' : 'Customers cannot see your menu';
+        }
         
         // Check voice recognition support
         function checkVoiceSupport() {

@@ -501,6 +501,8 @@ class Vendor(db.Model):
     logo = db.Column(db.String(300), nullable=True)
     hero_image = db.Column(db.String(300), nullable=True)
     promo_due = db.Column(db.Float, default=0.0)
+    # Open/Closed status to control menu visibility for customers
+    is_open = db.Column(db.Boolean, default=True)
     password_hash = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -1676,7 +1678,8 @@ def all_menus():
     response = []
     for item in items:
         vendor = db.session.get(Vendor, item.vendor_id)
-        if vendor:
+        # Only include menu items from vendors who are currently open
+        if vendor and (getattr(vendor, 'is_open', True)):
             cuisine_map = {
                 'dosa': 'South Indian',
                 'ice_cream': 'Desserts',
@@ -1707,6 +1710,41 @@ def all_menus():
                 'created_at': item.created_at.isoformat()
             })
     return jsonify(response)
+
+@app.route('/api/vendor/open-status', methods=['GET', 'POST'])
+def vendor_open_status():
+    """Get or update the vendor's open/closed status.
+
+    GET: Returns current status {success, is_open}
+    POST: Accepts JSON {is_open: bool} to set, or {toggle: true} to flip.
+    """
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    vendor = db.session.get(Vendor, session['vendor_id'])
+    if not vendor:
+        session.clear()
+        return jsonify({'success': False, 'message': 'Session expired. Please login again.'}), 401
+
+    if request.method == 'GET':
+        return jsonify({'success': True, 'is_open': bool(getattr(vendor, 'is_open', True))})
+
+    data = {}
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        data = {}
+
+    if 'toggle' in data and data['toggle']:
+        vendor.is_open = not bool(getattr(vendor, 'is_open', True))
+    elif 'is_open' in data:
+        vendor.is_open = bool(data['is_open'])
+    else:
+        # Default to toggle if no explicit value provided
+        vendor.is_open = not bool(getattr(vendor, 'is_open', True))
+
+    db.session.commit()
+    return jsonify({'success': True, 'is_open': vendor.is_open})
 
 @app.route('/api/vendor/promotions', methods=['GET', 'POST'])
 def vendor_promotions():
