@@ -28,12 +28,24 @@
                 try {
                     const response = await fetch('/api/config/maps');
                     const config = await response.json();
-                    if (config.success && config.googleMapsApiKey) {
+                    const rawKey = config && typeof config.googleMapsApiKey === 'string' ? config.googleMapsApiKey.trim() : '';
+                    const isValidKey = config && config.success &&
+                        rawKey.startsWith('AIza') &&
+                        rawKey.length >= 30 && rawKey.length <= 80 &&
+                        /^[A-Za-z0-9_\-]+$/.test(rawKey);
+
+                    if (isValidKey) {
                         const script = document.getElementById('google-maps-script');
-                        script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMapsApiKey}&libraries=geometry`;
-                        script.onerror = window.gm_authFailure;
+                        if (script) {
+                            const encodedKey = encodeURIComponent(rawKey);
+                            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodedKey}&libraries=geometry`;
+                            script.onerror = window.gm_authFailure;
+                        } else {
+                            console.warn('Google Maps script tag not found.');
+                            window.gm_authFailure();
+                        }
                     } else {
-                        console.warn('Google Maps API key not configured. Delivery tracking will show GPS coordinates only.');
+                        console.warn('Invalid or missing Google Maps API key received. Falling back to GPS-only tracking.');
                         window.gm_authFailure();
                     }
                 } catch (error) {

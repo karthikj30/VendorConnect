@@ -211,7 +211,7 @@ Google Maps API is **FREE** for basic usage with usage limits:
 ## Files Modified
 
 - `app.py` (lines 205, 3874-3887): Added GOOGLE_MAPS_API_KEY config and API endpoint
-- `customer_dashboard.html` (lines 18-41): Dynamic Maps API loading
+ - `customer_dashboard.html` (lines 20, 26-50): Dynamic Maps API loading
 
 ## Testing
 
