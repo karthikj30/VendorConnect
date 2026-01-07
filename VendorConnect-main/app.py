@@ -528,7 +528,7 @@ class Supplier(db.Model):
     password_hash = db.Column(db.String(200), nullable=True)
     # Business details
     business_name = db.Column(db.String(200), nullable=True)
-    gstin = db.Column(db.String(20), unique=False, nullable=True)
+    gstin = db.Column(db.String(20), unique=True, nullable=True)
     # Path to uploaded certification file
     certification = db.Column(db.String(300), nullable=True)
 
