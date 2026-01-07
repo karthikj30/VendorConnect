@@ -777,15 +777,32 @@
             `;
         }
 
+        let viewedPromotions = new Set(); // Track viewed promotions per account
+
         function handlePromotionClick(id) {
             const promo = promotions.find(p => p.id === id);
             if (!promo) return;
 
+            // Only record view if not already viewed by this account
+            if (viewedPromotions.has(id)) {
+                return; // Already viewed
+            }
+
+            viewedPromotions.add(id);
             promo.total_views = (promo.total_views || 0) + 1;
             renderPromotions();
 
             fetch(`/api/promotion/${id}/view`, { method: 'POST' })
-                .catch(err => console.error('Failed to record promotion view', err));
+                .then(res => res.json())
+                .then(data => {
+                    if (!data.success) {
+                        viewedPromotions.delete(id); // Remove from tracked if failed
+                    }
+                })
+                .catch(err => {
+                    console.error('Failed to record promotion view', err);
+                    viewedPromotions.delete(id); // Remove from tracked if failed
+                });
         }
 
         function weightedPick(items, weightFn) {

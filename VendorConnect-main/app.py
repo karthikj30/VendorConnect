@@ -1900,8 +1900,19 @@ def record_promotion_view(promo_id):
         return jsonify({'success': False, 'message': 'Promotion not found'}), 404
 
     vendor = db.session.get(Vendor, promo.vendor_id)
-
     customer_id = session.get('customer_id')
+
+    # Check if this customer has already viewed this promotion
+    existing_view = PromotionView.query.filter_by(
+        promotion_id=promo_id,
+        customer_id=customer_id
+    ).first()
+
+    # Only count the view if this is the first time this customer views this promotion
+    if existing_view:
+        return jsonify({'success': True, 'message': 'View already counted for this account', 'view_count': promo.total_views})
+
+    # Create new view record
     view = PromotionView(
         promotion_id=promo_id,
         customer_id=customer_id
