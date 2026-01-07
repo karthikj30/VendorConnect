@@ -1,0 +1,35 @@
+# Android SDK (local, not committed)
+android-sdk/
+
+# Android project build artifacts
+android/VendorConnectApp/.gradle/
+android/VendorConnectApp/build/
+android/VendorConnectApp/app/build/
+android/VendorConnectApp/local.properties
+*.apk
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+
+# Build outputs
+*.class
+*.jar
+*.dex
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.env
+.venv/
+venv/
+
+# Instance folder (local uploads/cookies)
+instance/
+
+# OS files
+.DS_Store
+._.DS_Store
+Thumbs.db
