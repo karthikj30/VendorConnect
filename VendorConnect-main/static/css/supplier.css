@@ -511,21 +511,124 @@ html[data-theme="dark"] .section-title {
 }
 
 @media (max-width: 768px) {
-    .features-grid { grid-template-columns: repeat(1, 1fr); }
-    .top-actions { justify-content: flex-end; }
-
-    /* Collapse sidebar on small screens */
-    .sidebar { 
-        position: relative; 
-        width: 100%; 
-        height: auto; 
-        border-right: none; 
-        box-shadow: none; 
+    .features-grid { 
+        grid-template-columns: repeat(1, 1fr) !important; 
+        gap: 12px;
     }
-    .main-content { margin-left: 0; }
-    .dashboard > ul { display: none; }
-    
+    .top-actions { 
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    /* Mobile-friendly sidebar */
+    .sidebar { 
+        position: fixed !important;
+        left: -100%;
+        width: 100%;
+        height: 100vh;
+        top: 0;
+        bottom: auto;
+        border-right: none;
+        box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        z-index: 1000;
+        transition: left 0.3s ease;
+        border: none;
+    }
+
+    .sidebar.mobile-active {
+        left: 0;
+    }
+
+    .main-content { 
+        margin-left: 0 !important;
+        width: 100%;
+    }
+
+    .dashboard {
+        flex-direction: column;
+    }
+
+    /* Hide menu button if exists */
+    .sidebar-toggle {
+        display: block;
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 999;
+        background: var(--current-bg-secondary);
+        border: 1px solid var(--current-border);
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 18px;
+    }
+
+    /* Analytics grid */
     .analytics-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Feature cards adjustments */
+    .feature-card {
+        padding: 14px !important;
+    }
+
+    .feature-card .card-pills {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .feature-card .card-pills .badge-pill {
+        font-size: 10px;
+        padding: 4px 6px;
+    }
+}
+
+@media (max-width: 480px) {
+    .sidebar {
+        width: 85vw;
+    }
+
+    .sidebar-header h3 {
+        font-size: 16px;
+    }
+
+    .nav-link {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+
+    .feature-card {
+        padding: 12px !important;
+        border-radius: 8px;
+    }
+
+    .top-actions {
+        gap: 6px;
+    }
+
+    .top-actions .btn,
+    .top-actions .action-btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+
+    .badge-pill {
+        font-size: 9px;
+        padding: 3px 5px;
+    }
+
+    /* Hide non-essential sidebar content */
+    .sidebar-stats {
+        font-size: 12px;
+    }
+
+    /* Responsive table */
+    table {
+        font-size: 12px;
+    }
+
+    table th, table td {
+        padding: 8px;
     }
 }

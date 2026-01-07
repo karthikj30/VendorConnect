@@ -45,6 +45,22 @@ class MainActivity : AppCompatActivity() {
         webSettings.loadsImagesAutomatically = true
         webSettings.javaScriptCanOpenWindowsAutomatically = false
         webSettings.setSupportZoom(false)
+        
+        // Mobile optimizations
+        webSettings.useWideViewPort = true
+        webSettings.loadWithOverviewMode = true
+        webSettings.builtInZoomControls = false
+        webSettings.defaultTextEncodingName = "utf-8"
+        webSettings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+        
+        // Performance optimizations
+        webSettings.blockNetworkImage = false
+        webSettings.blockNetworkLoads = false
+        webSettings.cacheMode = android.webkit.WebSettings.LOAD_DEFAULT
+        
+        // Viewport meta tag support
+        webSettings.setSupportZoom(false)
+        webSettings.layoutAlgorithm = android.webkit.WebSettings.LayoutAlgorithm.SINGLE_COLUMN
 
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
