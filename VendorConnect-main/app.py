@@ -255,8 +255,16 @@ app.config['SUPPLIER_UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads'
 os.makedirs(app.config['SUPPLIER_UPLOAD_FOLDER'], exist_ok=True)
 
 # Google OAuth client ID (set via environment variable `GOOGLE_CLIENT_ID`)
-app.config['GOOGLE_CLIENT_ID'] = os.environ.get('GOOGLE_CLIENT_ID', '')
-app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET', '')
+def _sanitize_val(v):
+    if not isinstance(v, str):
+        return v
+    s = v.strip()
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1].strip()
+    return s
+
+app.config['GOOGLE_CLIENT_ID'] = _sanitize_val(os.environ.get('GOOGLE_CLIENT_ID', ''))
+app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(os.environ.get('GOOGLE_CLIENT_SECRET', ''))
 # Redirect URI for OAuth callbacks (set to your deployed callback or localhost for testing)
 app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/vendor/login/google/callback')
 
@@ -288,9 +296,9 @@ def _load_google_client_from_file():
             cid = creds.get('client_id')
             csec = creds.get('client_secret')
             if cid:
-                app.config['GOOGLE_CLIENT_ID'] = cid
+                app.config['GOOGLE_CLIENT_ID'] = _sanitize_val(cid)
             if csec:
-                app.config['GOOGLE_CLIENT_SECRET'] = csec
+                app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(csec)
             if cid or csec:
                 app.logger.info('Loaded Google client credentials from GOOGLE_CLIENT_SECRET env JSON')
                 return
@@ -311,9 +319,9 @@ def _load_google_client_from_file():
                 cid = creds.get('client_id')
                 csec = creds.get('client_secret')
                 if cid:
-                    app.config['GOOGLE_CLIENT_ID'] = cid
+                    app.config['GOOGLE_CLIENT_ID'] = _sanitize_val(cid)
                 if csec:
-                    app.config['GOOGLE_CLIENT_SECRET'] = csec
+                    app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(csec)
                 if cid or csec:
                     app.logger.info('Loaded Google client credentials from %s', fname)
                     return
@@ -420,8 +428,11 @@ def ensure_oauth_registered(force=False):
     if clients:
         registered = 'google' in clients
 
-    client_id = app.config.get('GOOGLE_CLIENT_ID')
-    client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+    client_id = _sanitize_val(app.config.get('GOOGLE_CLIENT_ID'))
+    client_secret = _sanitize_val(app.config.get('GOOGLE_CLIENT_SECRET'))
+    # Persist sanitized versions
+    app.config['GOOGLE_CLIENT_ID'] = client_id or ''
+    app.config['GOOGLE_CLIENT_SECRET'] = client_secret or ''
 
     # Validate presence and types
     if not client_id or not isinstance(client_id, str) or not client_id.strip():
@@ -459,6 +470,36 @@ def ensure_oauth_registered(force=False):
 
     return True
 
+def _is_local_debug_request():
+    try:
+        if os.environ.get('FLASK_DEBUG') in ('1', 'true', 'True') or os.environ.get('DEBUG') in ('1', 'true', 'True'):
+            return True
+        ra = request.remote_addr or ''
+        # Allow localhost and common private ranges
+        return ra.startswith('127.') or ra == '::1' or ra.startswith('10.') or ra.startswith('192.168.') or ra.startswith('172.16.')
+    except Exception:
+        return False
+
+@app.route('/_debug/oauth', methods=['GET'])
+def oauth_debug_info():
+    """Return redacted OAuth config for local debugging only."""
+    if not _is_local_debug_request():
+        return jsonify({'success': False, 'message': 'Forbidden'}), 403
+
+    # Do not mutate registration here; only inspect
+    clients = getattr(oauth, 'clients', None) or getattr(oauth, '_clients', None) or {}
+    cid = _sanitize_val(app.config.get('GOOGLE_CLIENT_ID', '')) or ''
+    secret_present = bool(_sanitize_val(app.config.get('GOOGLE_CLIENT_SECRET', '')))
+    info = {
+        'client_id_present': bool(cid),
+        'client_id_suffix': cid[-8:] if cid else '',
+        'secret_present': secret_present,
+        'redirect_uri_config': app.config.get('GOOGLE_REDIRECT_URI'),
+        'redirect_uri_url_for': url_for('vendor_login_google_callback', _external=True),
+        'oauth_client_registered': 'google' in clients
+    }
+    return jsonify({'success': True, 'info': info})
+
 def exchange_google_auth_code(code, redirect_uri):
     """Manually exchange Google authorization code for access token.
     
@@ -467,8 +508,8 @@ def exchange_google_auth_code(code, redirect_uri):
     """
     try:
         token_endpoint = 'https://oauth2.googleapis.com/token'
-        client_id = app.config.get('GOOGLE_CLIENT_ID')
-        client_secret = app.config.get('GOOGLE_CLIENT_SECRET')
+        client_id = _sanitize_val(app.config.get('GOOGLE_CLIENT_ID'))
+        client_secret = _sanitize_val(app.config.get('GOOGLE_CLIENT_SECRET'))
         
         if not client_id or not client_secret:
             app.logger.error('Google OAuth credentials not configured')
