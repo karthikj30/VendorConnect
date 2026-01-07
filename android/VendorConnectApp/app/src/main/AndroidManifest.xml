@@ -8,6 +8,7 @@
 
     <application
         android:label="@string/app_name"
+        android:theme="@style/Theme.VendorConnect"
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:allowBackup="true"

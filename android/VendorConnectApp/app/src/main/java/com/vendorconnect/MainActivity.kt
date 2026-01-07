@@ -95,3 +95,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
+
+// Pairing instructions for adb
+// $HOME/android-sdk/platform-tools/adb pair <pairing_host:pairing_port>
+// # When prompted, enter the 6-digit pairing code

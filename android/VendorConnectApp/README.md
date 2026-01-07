@@ -1,4 +1,4 @@
-# VendorConnect Android APK (WebView)
+adb devices# VendorConnect Android APK (WebView)
 
 This Android app wraps the VendorConnect web app in a secure WebView, enabling mobile users to access the customer dashboard and delivery tracking (including Google Maps).
 
@@ -50,4 +50,14 @@ The output APK will be at:
 - Blank page: verify base URL is reachable from device/emulator
 - Map auth overlay: confirm your Google Maps key is valid and billing enabled
 - Geolocation prompts do not appear: ensure runtime permissions are granted
+
+## Debugging with ADB
+For debugging, use Android Debug Bridge (ADB) commands:
+```bash
+adb pair <pairing_host:pairing_port>   # enter code
+adb connect <device_host:device_port>
+adb devices
+adb logcat -c
+adb logcat | grep -i AndroidRuntime
+```
 
