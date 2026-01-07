@@ -17,11 +17,37 @@
             }
         };
     </script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&libraries=geometry" onerror="window.gm_authFailure()"></script>
+    <script id="google-maps-script"></script>
     <script>
         // Server-side Jinja2 template - renders as JSON object at runtime
         // noinspection JSUnresolvedVariable
         const customerData = {{ customer_data|tojson|safe }};
+        
+            // Load Google Maps API key from backend and initialize
+            async function initializeGoogleMaps() {
+                try {
+                    const response = await fetch('/api/config/maps');
+                    const config = await response.json();
+                    if (config.success && config.googleMapsApiKey) {
+                        const script = document.getElementById('google-maps-script');
+                        script.src = `https://maps.googleapis.com/maps/api/js?key=${config.googleMapsApiKey}&libraries=geometry`;
+                        script.onerror = window.gm_authFailure;
+                    } else {
+                        console.warn('Google Maps API key not configured. Delivery tracking will show GPS coordinates only.');
+                        window.gm_authFailure();
+                    }
+                } catch (error) {
+                    console.error('Failed to load Google Maps configuration:', error);
+                    window.gm_authFailure();
+                }
+            }
+        
+            // Initialize Google Maps when page loads
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeGoogleMaps);
+            } else {
+                initializeGoogleMaps();
+            }
     </script>
 </head>
 

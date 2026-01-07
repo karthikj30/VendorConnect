@@ -201,6 +201,9 @@ app.config['GOOGLE_CLIENT_SECRET'] = os.environ.get('GOOGLE_CLIENT_SECRET', '')
 # Redirect URI for OAuth callbacks (set to your deployed callback or localhost for testing)
 app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/vendor/login/google/callback')
 
+# Google Maps API Key for delivery tracking and location services
+app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+
 # JWT configuration
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.environ.get('SECRET_KEY', 'change-me-jwt-secret'))
 app.config['JWT_ALGORITHM'] = 'HS256'
@@ -3857,6 +3860,19 @@ def customer_dashboard():
 
 # =============================================
 # REAL-TIME DELIVERY TRACKING API
+
+@app.route('/api/config/maps', methods=['GET'])
+def get_maps_config():
+    """Return Google Maps API key for frontend use"""
+    try:
+        return jsonify({
+            'success': True,
+            'googleMapsApiKey': app.config.get('GOOGLE_MAPS_API_KEY', '')
+        })
+    except Exception as e:
+        app.logger.error(f"Error getting maps config: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 # =============================================
 
 @app.route('/api/delivery/location/update', methods=['POST'])
