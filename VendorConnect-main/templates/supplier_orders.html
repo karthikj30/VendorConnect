@@ -47,20 +47,33 @@
                     {% if orders and orders|length > 0 %}
                         <ul style="list-style:none;padding:0;margin-top:12px;">
                         {% for o in orders %}
-                            <li style="padding:12px;border-bottom:1px solid #f1f1f1;display:flex;justify-content:space-between;align-items:center;">
-                                <div>
-                                    <strong>Order #{{ o.id }}</strong> — {{ o.total_amount }} — <em>{{ o.status }}</em><br>
-                                    <small>Created: {{ o.created_at }}</small>
-                                </div>
-                                <div style="display:flex;gap:8px;align-items:center;">
-                                    <form method="post" action="/supplier/order/{{ o.id }}/action" style="display:inline-block;">
-                                        <input type="hidden" name="action" value="accept">
-                                        <button class="ad-button" type="submit">Accept</button>
-                                    </form>
-                                    <form method="post" action="/supplier/order/{{ o.id }}/action" style="display:inline-block;">
-                                        <input type="hidden" name="action" value="reject">
-                                        <button class="logout-btn" type="submit">Reject</button>
-                                    </form>
+                            <li id="order-{{ o.id }}" style="padding:16px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:12px;background:#fafafa;">
+                                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:12px;">
+                                    <div style="flex:1;">
+                                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                                            <strong style="font-size:16px;">Order #{{ o.id }}</strong>
+                                            <span class="status-badge badge-{{ o.status }}">{{ o.status }}</span>
+                                        </div>
+                                        <div style="font-size:14px;color:#666;margin-bottom:8px;">
+                                            <strong>Total:</strong> ₹{{ o.total_amount }}
+                                        </div>
+                                        <div style="font-size:13px;color:var(--muted-color);">
+                                          <small class="order-created">Created: {{ o.created_at.strftime('%Y-%m-%d %I:%M %p') if o.created_at else 'N/A' }}</small>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;gap:8px;align-items:center;">
+                                        {% if o.status == 'pending' %}
+                                        <button class="ad-button supplier-action" data-order-id="{{ o.id }}" data-action="accept">Accept</button>
+                                        <button class="logout-btn supplier-action" data-order-id="{{ o.id }}" data-action="reject">Reject</button>
+                                        {% elif o.status == 'confirmed' %}
+                                        <button class="ad-button supplier-action" data-order-id="{{ o.id }}" data-action="mark_preparing">Start Preparing</button>
+                                        {% elif o.status == 'preparing' %}
+                                        <button class="ad-button supplier-action" data-order-id="{{ o.id }}" data-action="mark_ready">Mark Ready</button>
+                                        {% elif o.status == 'ready' %}
+                                        <button class="ad-button supplier-action" data-order-id="{{ o.id }}" data-action="out_for_delivery">Out for Delivery</button>
+                                        {% endif %}
+                                        <a href="/supplier/order/{{ o.id }}" class="ad-button" style="text-decoration:none;display:inline-block;">View Details</a>
+                                    </div>
                                 </div>
                             </li>
                         {% endfor %}
@@ -104,6 +117,90 @@
       lightBtn.addEventListener('click', () => setTheme('light'));
       darkBtn.addEventListener('click', () => setTheme('dark'));
       
+      // Supplier actions via JSON + SSE for live updates
+      document.addEventListener('DOMContentLoaded', () => {
+        // Attach click handlers for actions
+        document.querySelectorAll('.supplier-action').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const orderId = btn.getAttribute('data-order-id');
+            const action = btn.getAttribute('data-action');
+            try {
+              const res = await fetch(`/api/supplier/orders/${orderId}/action`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action})
+              });
+              const data = await res.json();
+              if (data.success) {
+                const el = document.querySelector(`#order-${orderId} .order-status`);
+                if (el) el.textContent = data.status;
+              } else {
+                alert('Action failed: ' + (data.message || 'Unknown'));
+              }
+            } catch (err) {
+              console.error('Action error', err);
+              alert('Could not perform action');
+            }
+          });
+        });
+
+        // Open supplier SSE channel to receive events for orders
+        try {
+          const es = new EventSource('/api/supplier/events');
+          es.onmessage = (evt) => {
+            try {
+              const ev = JSON.parse(evt.data);
+              // If event includes order id, update that order row
+              const oid = ev.data.order_id || ev.data.orderId || ev.data.orderId;
+              if (oid) {
+                const row = document.getElementById(`order-${oid}`);
+                if (row && ev.data.status) {
+                  // Update badge and plain status text
+                  const badge = row.querySelector('.status-badge');
+                  if (badge) {
+                    badge.textContent = ev.data.status;
+                    // update badge class (remove previous badge-*)
+                    badge.className = 'status-badge badge-' + ev.data.status;
+                  }
+
+                  // Update timestamps if provided
+                  const ts = ev.data.timestamps || {};
+                  if (ts.confirmed) {
+                    const el = row.querySelector('.ts-confirmed');
+                    if (el) el.textContent = 'Confirmed: ' + new Date(ts.confirmed).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+                    row.classList.add('has-confirmed');
+                  }
+                  if (ts.preparing) {
+                    const el = row.querySelector('.ts-preparing');
+                    if (el) el.textContent = 'Preparing: ' + new Date(ts.preparing).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+                    row.classList.add('has-preparing');
+                  }
+                  if (ts.out_for_delivery) {
+                    const el = row.querySelector('.ts-out');
+                    if (el) el.textContent = 'Out: ' + new Date(ts.out_for_delivery).toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+                    row.classList.add('has-out');
+                  }
+                }
+              }
+            } catch (e) { console.error('Invalid supplier SSE', e); }
+          };
+          es.onerror = (e) => { console.warn('Supplier SSE error', e); };
+        } catch (e) { console.warn('Could not open supplier SSE', e); }
+      });
+
+      // Add basic badge styles for statuses
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .status-badge { padding: 2px 8px; border-radius: 12px; font-size: 12px; color: #fff; }
+        .badge-confirmed { background: #2b8a3e; }
+        .badge-preparing { background: #ff9f1c; }
+        .badge-ready { background: #0aa6ff; }
+        .badge-out_for_delivery { background: #ff6b6b; }
+        .badge-delivered { background: #6c757d; }
+      `;
+      document.head.appendChild(style);
+
       updateThemeButtons();
     </script>
 

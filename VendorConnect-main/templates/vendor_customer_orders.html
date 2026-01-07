@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Orders - Vendor</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; background:#f5f7fa; color:#333; }
+    .container { max-width:1100px; margin: 20px auto; background:#fff; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); padding:16px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .btn { background:#667eea; color:#fff; border:none; border-radius:8px; padding:8px 12px; cursor:pointer; }
+    .btn.secondary { background:#34495e; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; }
+    th { background:#fafbff; font-weight:600; }
+    .status { padding:4px 8px; border-radius:12px; font-size:12px; display:inline-block; }
+    .status.pending { background:#fde2e2; color:#a33; }
+    .status.confirmed { background:#e6f4ea; color:#2b7a2e; }
+    .status.preparing { background:#fff4e5; color:#a77000; }
+    .status.ready { background:#e6f0ff; color:#1f4ed8; }
+    .status.out_for_delivery { background:#eaf6ff; color:#145a8b; }
+    .status.delivered { background:#e8fff0; color:#1e7a3c; }
+    .actions { display:flex; gap:6px; }
+    .items { font-size:12px; color:#555; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-list"></i> Customer Orders</h1>
+      <div>
+        <a href="/vendor/dashboard" class="btn secondary"><i class="fas fa-arrow-left"></i> Back</a>
+        <button class="btn" onclick="loadOrders()"><i class="fas fa-sync"></i> Refresh</button>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Order</th>
+          <th>Customer</th>
+          <th>Items</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="ordersBody">
+        <tr><td colspan="6">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+async function loadOrders() {
+  const body = document.getElementById('ordersBody');
+  body.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+  try {
+    const res = await fetch('/api/vendor/customer-orders');
+    const data = await res.json();
+    if (!data.success) { body.innerHTML = '<tr><td colspan="6">Failed to load</td></tr>'; return; }
+    if (!data.orders || data.orders.length === 0) { body.innerHTML = '<tr><td colspan="6">No orders yet</td></tr>'; return; }
+    body.innerHTML = data.orders.map(o => {
+      const items = (o.items || []).map(i => `${i.name} x${i.quantity}`).join(', ');
+      const statusClass = `status ${o.status || 'pending'}`;
+      return `
+        <tr>
+          <td>#${o.id}<br><small>${new Date(o.created_at).toLocaleString()}</small></td>
+          <td>${o.customer_name || ''}<br><small>${o.customer_phone || ''}</small><br><small>${o.delivery_address || ''}</small></td>
+          <td class="items">${items}</td>
+          <td>₹${(o.vendor_subtotal || 0).toFixed(2)}</td>
+          <td><span class="${statusClass}">${(o.status || '').replaceAll('_',' ')}</span></td>
+          <td class="actions">
+            ${renderActions(o)}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="6">Error loading orders</td></tr>';
+  }
+}
+
+function renderActions(o) {
+  const s = o.status;
+  const buttons = [];
+  if (s === 'pending') buttons.push(actionBtn(o.id,'confirm','Confirm'));
+  if (s === 'confirmed') buttons.push(actionBtn(o.id,'preparing','Preparing'));
+  if (s === 'preparing') buttons.push(actionBtn(o.id,'ready','Ready'));
+  if (s === 'ready') buttons.push(actionBtn(o.id,'out_for_delivery','Dispatch'));
+  if (s === 'out_for_delivery') buttons.push(actionBtn(o.id,'delivered','Delivered'));
+  if (s !== 'delivered' && s !== 'cancelled') buttons.push(actionBtn(o.id,'cancel','Cancel','secondary'));
+  return buttons.join('');
+}
+
+function actionBtn(id, action, label, cls='') {
+  return `<button class="btn ${cls}" onclick="updateStatus(${id}, '${action}')">${label}</button>`;
+}
+
+async function updateStatus(orderId, action) {
+  try {
+    const res = await fetch(`/api/vendor/customer-orders/${orderId}/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action })
+    });
+    const data = await res.json();
+    if (data.success) {
+      loadOrders();
+    } else {
+      alert(data.message || 'Action failed');
+    }
+  } catch (e) {
+    alert('Network error');
+  }
+}
+
+loadOrders();
+</script>
+</body>
+</html>

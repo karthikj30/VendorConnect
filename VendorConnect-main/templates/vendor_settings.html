@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vendor Settings</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', sans-serif; background: #f5f7fa; color: #333; }
+    .container { max-width: 960px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); padding: 24px; }
+    .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+    .header h1 { font-size: 1.4rem; }
+    .btn { display:inline-block; background:#667eea; color:#fff; padding:10px 14px; border-radius:8px; text-decoration:none; border:none; cursor:pointer; }
+    .btn.secondary { background:#34495e; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; }
+    .card { background:#fafbff; border:1px solid #e7e9f3; border-radius:12px; padding:16px; }
+    .card h3 { display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:1rem; }
+    .form-group { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+    label { font-weight:600; font-size: 0.9rem; }
+    input, select { padding:10px; border:1px solid #dcdcdc; border-radius:8px; font-size:0.95rem; }
+    .row-actions { display:flex; gap:8px; }
+    .alert { padding:10px; border-radius:8px; margin-bottom:12px; }
+    .alert.error { background:#fde2e2; color:#a33; border:1px solid #f5b5b5; }
+    .alert.success { background:#e6f4ea; color:#2b7a2e; border:1px solid #b7e1bd; }
+    .preview { height:120px; border:1px dashed #dcdcdc; border-radius:10px; display:flex; align-items:center; justify-content:center; background:#f8f9fb; overflow:hidden; }
+    .footer-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1><i class="fas fa-cog"></i> Vendor Settings</h1>
+      <div class="row-actions">
+        <a href="/vendor/dashboard" class="btn secondary"><i class="fas fa-arrow-left"></i> Back to Dashboard</a>
+      </div>
+    </div>
+
+    {% if error %}
+      <div class="alert error"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>
+    {% endif %}
+    {% if success %}
+      <div class="alert success"><i class="fas fa-check-circle"></i> {{ success }}</div>
+    {% endif %}
+
+    <form method="POST" action="/vendor/settings">
+      <div class="grid">
+        <div class="card">
+          <h3><i class="fas fa-id-badge"></i> Profile</h3>
+          <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" value="{{ vendor.name }}" required>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="phone" value="{{ vendor.phone }}" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ vendor.email or '' }}">
+          </div>
+          <div class="form-group">
+            <label for="location">Location</label>
+            <input type="text" id="location" name="location" value="{{ vendor.location }}" required>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-store"></i> Business</h3>
+          <div class="form-group">
+            <label for="business_type">Business Type</label>
+            <select id="business_type" name="business_type" required>
+              {% set bt = (vendor.business_type or 'other') %}
+              <option value="">Select your business type</option>
+              <option value="chaat" {{ 'selected' if bt=='chaat' else '' }}>Chaat Stall</option>
+              <option value="dosa" {{ 'selected' if bt=='dosa' else '' }}>Dosa Stall</option>
+              <option value="samosa" {{ 'selected' if bt=='samosa' else '' }}>Samosa Stall</option>
+              <option value="vada_pav" {{ 'selected' if bt=='vada_pav' else '' }}>Vada Pav Stall</option>
+              <option value="tea" {{ 'selected' if bt=='tea' else '' }}>Tea Stall</option>
+              <option value="juice" {{ 'selected' if bt=='juice' else '' }}>Juice Stall</option>
+              <option value="ice_cream" {{ 'selected' if bt=='ice_cream' else '' }}>Ice Cream Stall</option>
+              <option value="other" {{ 'selected' if bt=='other' else '' }}>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="gstin">GSTIN</label>
+            <input type="text" id="gstin" name="gstin" maxlength="15" value="{{ vendor.gstin or '' }}" placeholder="e.g., 27AABCH1234A1Z0">
+          </div>
+          <div class="form-group" style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="is_open" name="is_open" {{ 'checked' if vendor.is_open else '' }}>
+            <label for="is_open" style="margin:0;">Open for orders</label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3><i class="fas fa-image"></i> Brand Images</h3>
+          <div class="form-group">
+            <label>Logo</label>
+            <div class="preview">
+              {% if vendor.logo %}
+                <img src="{{ url_for('static', filename=vendor.logo) }}" alt="Logo" style="width:120px;height:120px;object-fit:cover;">
+              {% else %}
+                <span style="font-size:48px;">🍽️</span>
+              {% endif %}
+            </div>
+            <input type="file" id="logo" accept="image/*">
+          </div>
+          <div class="form-group">
+            <label>Hero / Cover Image</label>
+            <div class="preview" style="height:160px;">
+              {% if vendor.hero_image %}
+                <img src="{{ url_for('static', filename=vendor.hero_image) }}" alt="Hero" style="width:160px;height:160px;object-fit:cover;">
+              {% else %}
+                <span style="font-size:32px;">Upload a cover image</span>
+              {% endif %}
+            </div>
+            <input type="file" id="hero_image" accept="image/*">
+          </div>
+          <button type="button" class="btn" onclick="uploadBrand()"><i class="fas fa-upload"></i> Upload Images</button>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <a href="/vendor/dashboard" class="btn secondary">Cancel</a>
+        <button type="submit" class="btn"><i class="fas fa-save"></i> Save Settings</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    async function uploadBrand() {
+      const logoFile = document.getElementById('logo').files[0];
+      const heroFile = document.getElementById('hero_image').files[0];
+      if (!logoFile && !heroFile) { alert('Please select logo or hero image.'); return; }
+      const fd = new FormData();
+      if (logoFile) fd.append('logo', logoFile);
+      if (heroFile) fd.append('hero_image', heroFile);
+      try {
+        const res = await fetch('/api/vendor/brand', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (data.success) {
+          alert('Brand images updated.');
+          window.location.reload();
+        } else {
+          alert(data.message || 'Upload failed');
+        }
+      } catch (e) {
+        alert('Network error during upload');
+      }
+    }
+  </script>
+</body>
+</html>

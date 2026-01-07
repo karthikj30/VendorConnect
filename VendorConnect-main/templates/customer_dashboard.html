@@ -2483,6 +2483,47 @@
         }
 
         async function startDeliveryTracking(orderId) {
+            // Close any previous EventSource
+            if (window.currentCustomerOrderEventSource) {
+                try { window.currentCustomerOrderEventSource.close(); } catch (e) { console.warn('Could not close previous event source', e); }
+                window.currentCustomerOrderEventSource = null;
+            }
+
+            // Open SSE for customer order events (status updates, location updates)
+            try {
+                const es = new EventSource(`/api/customer/order/${orderId}/events`);
+                es.onmessage = (evt) => {
+                    try {
+                        const ev = JSON.parse(evt.data);
+                        if (ev.type === 'status_update') {
+                            const status = ev.data.status;
+                            const loc = ev.data.location;
+                            const timestamps = ev.data.timestamps || null;
+                            // Update UI status
+                            updateDeliveryStatus(status, ev.data.notes || null, timestamps || {});
+                            // Update map marker if location provided
+                            if (loc && loc.latitude && loc.longitude) {
+                                // If delivery map exists, update marker directly
+                                if (deliveryMap) {
+                                    if (!deliveryMarker) {
+                                        // Initialize map pointing to agent location and customer location
+                                        initializeMap(loc.latitude, loc.longitude, (customerLocation && customerLocation.lat) ? customerLocation.lat : null, (customerLocation && customerLocation.lng) ? customerLocation.lng : null);
+                                    } else {
+                                        updateMapMarker(loc.latitude, loc.longitude);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Invalid SSE event', e);
+                    }
+                };
+                es.onerror = (e) => { console.warn('SSE Error', e); /* Keep polling as fallback */ };
+                window.currentCustomerOrderEventSource = es;
+            } catch (e) {
+                console.warn('Could not open SSE for customer order', e);
+            }
+
             // Fetch location immediately
             await updateDeliveryLocation(orderId);
             

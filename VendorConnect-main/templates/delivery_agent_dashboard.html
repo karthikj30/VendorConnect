@@ -156,6 +156,18 @@
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
             text-align: center;
             transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
         }
 
         .stat-card:hover {
@@ -172,12 +184,17 @@
             color: var(--text);
             font-size: 14px;
             margin-bottom: 8px;
+            font-weight: 500;
         }
 
         .stat-value {
             font-size: 28px;
             font-weight: bold;
             color: var(--primary);
+        }
+
+        .stat-card.loading .stat-value {
+            color: #bdc3c7;
         }
 
         /* Deliveries Section */
@@ -195,6 +212,40 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            justify-content: space-between;
+        }
+
+        .refresh-btn {
+            padding: 8px 16px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .refresh-btn i {
+            transition: transform 0.5s;
+        }
+
+        .refresh-btn.spinning i {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         .delivery-item {
@@ -251,6 +302,7 @@
             font-size: 12px;
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .status-pending {
@@ -268,7 +320,7 @@
             color: white;
         }
 
-        .status-ready {
+        .status-ready, .status-ready-for-pickup {
             background: #74b9ff;
             color: white;
         }
@@ -281,6 +333,54 @@
         .status-delivered {
             background: #55efc4;
             color: #00b894;
+        }
+
+        .status-cancelled {
+            background: #95a5a6;
+            color: white;
+        }
+
+        /* Filter tabs */
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tab {
+            padding: 10px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 20px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            color: var(--text);
+        }
+
+        .filter-tab:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .filter-tab.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .filter-count {
+            background: rgba(255,255,255,0.3);
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 5px;
+            font-size: 12px;
+        }
+
+        .filter-tab.active .filter-count {
+            background: rgba(255,255,255,0.3);
         }
 
         .delivery-actions {
@@ -563,37 +663,59 @@
 
         <!-- Stats -->
         <div class="stats-grid">
-            <div class="stat-card">
+            <div class="stat-card loading">
                 <div class="stat-icon">📦</div>
                 <div class="stat-label">Total Deliveries</div>
-                <div class="stat-value" id="totalDeliveries">0</div>
+                <div class="stat-value" id="totalDeliveries"><i class="fas fa-spinner fa-spin"></i></div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card loading">
                 <div class="stat-icon">🚚</div>
                 <div class="stat-label">In Transit</div>
-                <div class="stat-value" id="inTransitCount">0</div>
+                <div class="stat-value" id="inTransitCount"><i class="fas fa-spinner fa-spin"></i></div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card loading">
                 <div class="stat-icon">✓</div>
                 <div class="stat-label">Completed</div>
-                <div class="stat-value" id="completedCount">0</div>
+                <div class="stat-value" id="completedCount"><i class="fas fa-spinner fa-spin"></i></div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card loading">
                 <div class="stat-icon">⭐</div>
                 <div class="stat-label">Rating</div>
-                <div class="stat-value" id="ratingValue">4.8</div>
+                <div class="stat-value" id="ratingValue"><i class="fas fa-spinner fa-spin"></i></div>
             </div>
         </div>
 
         <!-- Deliveries List -->
         <div class="deliveries-section">
             <div class="section-title">
-                <i class="fas fa-box"></i> Your Assigned Deliveries
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-box"></i> Your Assigned Deliveries
+                </div>
+                <button class="refresh-btn" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
             </div>
+            
+            <!-- Status Filter Tabs -->
+            <div class="filter-tabs">
+                <button class="filter-tab active" onclick="filterDeliveries('all')">
+                    All <span class="filter-count" id="countAll">0</span>
+                </button>
+                <button class="filter-tab" onclick="filterDeliveries('ready')">
+                    Ready <span class="filter-count" id="countReady">0</span>
+                </button>
+                <button class="filter-tab" onclick="filterDeliveries('In Transit')">
+                    In Transit <span class="filter-count" id="countInTransit">0</span>
+                </button>
+                <button class="filter-tab" onclick="filterDeliveries('Delivered')">
+                    Delivered <span class="filter-count" id="countDelivered">0</span>
+                </button>
+            </div>
+            
             <div id="deliveriesList">
                 <div class="empty-state">
-                    <div class="empty-icon">📦</div>
-                    <p>No deliveries assigned yet</p>
+                    <div class="empty-icon"><i class="fas fa-spinner fa-spin" style="font-size: 48px; color: var(--primary);"></i></div>
+                    <p>Loading deliveries...</p>
                 </div>
             </div>
         </div>
@@ -697,6 +819,7 @@
     <script>
         let currentAgent = null;
         let currentDeliveries = [];
+        let currentFilter = 'all';
 
         // Load agent data on page load
         document.addEventListener('DOMContentLoaded', () => {
@@ -721,14 +844,24 @@
                     document.getElementById('profileVehicle').value = currentAgent.vehicle_info || '';
                     document.getElementById('profileLocation').value = currentAgent.location;
                     
-                    // Update stats
+                    // Update stats with animation
+                    document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('loading'));
                     document.getElementById('totalDeliveries').textContent = currentAgent.total_deliveries || 0;
                     document.getElementById('completedCount').textContent = currentAgent.completed_deliveries || 0;
                     document.getElementById('inTransitCount').textContent = currentAgent.in_transit_deliveries || 0;
                     document.getElementById('ratingValue').textContent = (currentAgent.rating || 4.8).toFixed(1);
+                } else {
+                    showToast(data.message || 'Failed to load agent data', 'error');
                 }
             } catch (error) {
                 console.error('Error loading agent data:', error);
+                showToast('Error loading agent data', 'error');
+                // Show error state in stats
+                document.querySelectorAll('.stat-card').forEach(card => card.classList.remove('loading'));
+                document.getElementById('totalDeliveries').textContent = '0';
+                document.getElementById('completedCount').textContent = '0';
+                document.getElementById('inTransitCount').textContent = '0';
+                document.getElementById('ratingValue').textContent = '4.8';
             }
         }
 
@@ -740,36 +873,89 @@
                 if (data.success) {
                     currentDeliveries = data.deliveries || [];
                     renderDeliveries();
+                } else {
+                    showToast(data.message || 'Failed to load deliveries', 'error');
+                    currentDeliveries = [];
+                    renderDeliveries();
                 }
             } catch (error) {
                 console.error('Error loading deliveries:', error);
+                showToast('Error loading deliveries', 'error');
+                currentDeliveries = [];
+                renderDeliveries();
             }
         }
 
-        function renderDeliveries() {
+        function refreshData() {
+            const btn = document.querySelector('.refresh-btn');
+            btn.classList.add('spinning');
+            
+            Promise.all([loadAgentData(), loadDeliveries()]).then(() => {
+                btn.classList.remove('spinning');
+                showToast('Data refreshed successfully!', 'success');
+            }).catch(() => {
+                btn.classList.remove('spinning');
+            });
+        }
+
+        function renderDeliveries(filter = currentFilter) {
             const list = document.getElementById('deliveriesList');
             
-            if (!currentDeliveries || currentDeliveries.length === 0) {
+            // Update filter counts
+            const readyCount = currentDeliveries.filter(d => d.status === 'Ready for Pickup' || d.status === 'Ready').length;
+            const inTransitCount = currentDeliveries.filter(d => d.status === 'In Transit').length;
+            const deliveredCount = currentDeliveries.filter(d => d.status === 'Delivered').length;
+            
+            document.getElementById('countAll').textContent = currentDeliveries.length;
+            document.getElementById('countReady').textContent = readyCount;
+            document.getElementById('countInTransit').textContent = inTransitCount;
+            document.getElementById('countDelivered').textContent = deliveredCount;
+            
+            // Filter deliveries
+            let filteredDeliveries = currentDeliveries;
+            if (filter !== 'all') {
+                if (filter === 'ready') {
+                    filteredDeliveries = currentDeliveries.filter(d => d.status === 'Ready for Pickup' || d.status === 'Ready');
+                } else {
+                    filteredDeliveries = currentDeliveries.filter(d => d.status === filter);
+                }
+            }
+            
+            if (!filteredDeliveries || filteredDeliveries.length === 0) {
+                const filterText = filter === 'all' ? 'assigned yet' : `in "${filter}" status`;
                 list.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-icon">📦</div>
-                        <p>No deliveries assigned yet</p>
+                        <p>No deliveries ${filterText}</p>
                     </div>
                 `;
                 return;
             }
 
-            list.innerHTML = currentDeliveries.map(delivery => {
-                const statusClass = `status-${delivery.status.toLowerCase().replace(' ', '-')}`;
+            list.innerHTML = filteredDeliveries.map(delivery => {
+                const statusClass = `status-${delivery.status.toLowerCase().replace(/ /g, '-').replace(/[^a-z0-9-]/g, '')}`;
+                const itemText = delivery.items_count === 1 ? 'item' : 'items';
+                const orderTypeLabel = delivery.order_type === 'supplier' ? '🏪 Supplier Order' : '👤 Customer Order';
+                const orderTypeBadge = delivery.order_type === 'supplier' 
+                    ? '<span style="background:#fff3cd;color:#856404;padding:4px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:8px;">Supplier</span>'
+                    : '<span style="background:#d1ecf1;color:#0c5460;padding:4px 8px;border-radius:12px;font-size:11px;font-weight:600;margin-left:8px;">Customer</span>';
+                
                 return `
                     <div class="delivery-item">
                         <div class="delivery-info">
-                            <div class="delivery-id">Order #${delivery.order_id}</div>
+                            <div class="delivery-id">
+                                Order #${delivery.order_id} ${orderTypeBadge}
+                                <span style="color: #95a5a6; font-weight: normal; font-size: 14px;">(${delivery.items_count} ${itemText})</span>
+                            </div>
                             <div class="delivery-customer">
                                 <i class="fas fa-user"></i> ${delivery.customer_name}
                             </div>
+                            ${delivery.customer_phone ? `
+                            <div class="delivery-customer">
+                                <i class="fas fa-phone"></i> <a href="tel:${delivery.customer_phone}" style="color: var(--primary); text-decoration: none;">${delivery.customer_phone}</a>
+                            </div>` : ''}
                             <div class="delivery-address">
-                                <i class="fas fa-map-marker-alt"></i> ${delivery.delivery_address}
+                                <i class="fas fa-map-marker-alt"></i> ${delivery.delivery_address || 'Address not provided'}
                             </div>
                             <div class="delivery-time">
                                 <i class="fas fa-clock"></i> ${new Date(delivery.created_at).toLocaleString()}
@@ -778,20 +964,34 @@
                         <div>
                             <span class="status-badge ${statusClass}">${delivery.status}</span>
                         </div>
-                        <div style="text-align: center; color: #e74c3c; font-weight: bold;">
-                            ₹${delivery.total_amount}
+                        <div style="text-align: center;">
+                            <div style="color: #e74c3c; font-weight: bold; font-size: 18px;">₹${delivery.total_amount}</div>
                         </div>
                         <div class="delivery-actions">
-                            <button class="action-btn action-btn-view" onclick="viewDeliveryDetails(${delivery.order_id})">
+                            <button class="action-btn action-btn-view" onclick="viewDeliveryDetails(${delivery.order_id}, '${delivery.order_type}')">
                                 <i class="fas fa-eye"></i> View
                             </button>
-                            <button class="action-btn action-btn-update" onclick="openStatusModalForOrder(${delivery.order_id})">
+                            ${delivery.status !== 'Delivered' && delivery.status !== 'cancelled' ? `
+                            <button class="action-btn action-btn-update" onclick="openStatusModalForOrder(${delivery.order_id}, '${delivery.order_type}')">
                                 <i class="fas fa-sync"></i> Update
                             </button>
+                            ` : ''}
                         </div>
                     </div>
                 `;
             }).join('');
+        }
+
+        function filterDeliveries(filter) {
+            currentFilter = filter;
+            
+            // Update active tab
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.closest('.filter-tab').classList.add('active');
+            
+            renderDeliveries(filter);
         }
 
         function autoDetectLocation() {
@@ -887,15 +1087,98 @@
             }
         }
 
-        function viewDeliveryDetails(orderId) {
-            const delivery = currentDeliveries.find(d => d.order_id === orderId);
+        function viewDeliveryDetails(orderId, orderType) {
+            const delivery = currentDeliveries.find(d => d.order_id === orderId && d.order_type === orderType);
             if (delivery) {
-                alert(`Order #${orderId}\nCustomer: ${delivery.customer_name}\nAmount: ₹${delivery.total_amount}\nStatus: ${delivery.status}\nAddress: ${delivery.delivery_address}`);
+                const itemText = delivery.items_count === 1 ? 'item' : 'items';
+                const orderTypeLabel = delivery.order_type === 'supplier' ? '🏪 Supplier Order' : '👤 Customer Order';
+                const detailsHTML = `
+                    <div style="line-height: 1.8;">
+                        <h3 style="color: var(--primary); margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+                            📦 Order #${orderId} <span style="font-size: 14px; color: #7f8c8d;">${orderTypeLabel}</span>
+                        </h3>
+                        
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">${delivery.order_type === 'supplier' ? 'Deliver to:' : 'Customer:'}</strong> ${delivery.customer_name}
+                        </p>
+                        
+                        ${delivery.customer_phone ? `
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Phone:</strong> 
+                            <a href="tel:${delivery.customer_phone}" style="color: var(--primary); text-decoration: none;">
+                                ${delivery.customer_phone}
+                            </a>
+                        </p>` : ''}
+                        
+                        ${delivery.customer_email ? `
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Email:</strong> ${delivery.customer_email}
+                        </p>` : ''}
+                        
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Delivery Address:</strong><br>
+                            <span style="color: #7f8c8d;">${delivery.delivery_address || 'Address not provided'}</span>
+                        </p>
+                        
+                        ${delivery.delivery_instructions ? `
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Instructions:</strong><br>
+                            <span style="color: #7f8c8d; font-style: italic;">${delivery.delivery_instructions}</span>
+                        </p>` : ''}
+                        
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Items:</strong> ${delivery.items_count} ${itemText}
+                        </p>
+                        
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Amount:</strong> 
+                            <span style="color: var(--danger); font-size: 20px; font-weight: bold;">₹${delivery.total_amount}</span>
+                        </p>
+                        
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Status:</strong> 
+                            <span class="status-badge status-${delivery.status.toLowerCase().replace(/ /g, '-')}">${delivery.status}</span>
+                        </p>
+                        
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Order Time:</strong> ${new Date(delivery.created_at).toLocaleString()}
+                        </p>
+                        
+                        ${delivery.estimated_delivery_time ? `
+                        <p style="margin-bottom: 10px;">
+                            <strong style="color: var(--dark);">Estimated Delivery:</strong> ${new Date(delivery.estimated_delivery_time).toLocaleString()}
+                        </p>` : ''}
+                    </div>
+                `;
+                
+                // Create a temporary modal to show details
+                const modal = document.createElement('div');
+                modal.className = 'modal active';
+                modal.innerHTML = `
+                    <div class="modal-content" style="max-width: 600px;">
+                        ${detailsHTML}
+                        <div class="modal-footer" style="margin-top: 20px;">
+                            ${delivery.customer_phone ? `
+                            <a href="tel:${delivery.customer_phone}" class="btn btn-primary" style="text-decoration: none;">
+                                <i class="fas fa-phone"></i> Call Customer
+                            </a>` : ''}
+                            <button class="btn btn-secondary" onclick="this.closest('.modal').remove()">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                modal.onclick = (e) => {
+                    if (e.target === modal) modal.remove();
+                };
+                document.body.appendChild(modal);
             }
         }
 
-        function openStatusModalForOrder(orderId) {
+        function openStatusModalForOrder(orderId, orderType) {
             document.getElementById('statusOrderId').value = orderId;
+            // Store order type for later use if needed
+            document.getElementById('statusModal').setAttribute('data-order-type', orderType);
             openStatusModal();
         }
 

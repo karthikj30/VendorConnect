@@ -534,12 +534,22 @@
         // Load active deliveries
         async function loadActiveOrders() {
             try {
-                const response = await fetch('/api/delivery-agent/my-deliveries');
+                // Use the aliased endpoint for better compatibility
+                const response = await fetch('/api/delivery-agent/deliveries');
                 const data = await response.json();
                 
                 if (data.success && data.deliveries && data.deliveries.length > 0) {
-                    activeOrdersList = data.deliveries;
-                    renderActiveOrders(data.deliveries);
+                    activeOrdersList = data.deliveries.map(d => ({
+                        id: d.order_id,
+                        order_id: d.order_id,
+                        customer_name: d.customer_name,
+                        customer_phone: d.customer_phone,
+                        delivery_address: d.delivery_address,
+                        total_amount: d.total_amount,
+                        status: d.status_raw,
+                        delivery_instructions: d.delivery_instructions
+                    }));
+                    renderActiveOrders(activeOrdersList);
                     // Immediately push location for any active orders
                     sendOrderLocations();
                 } else {
@@ -620,9 +630,35 @@
         }
         
         // Update delivery status
-        function updateStatus(orderId, currentStatus) {
-            // Implementation for status updates
-            alert('Status update feature - integrate with existing update-status endpoint');
+        async function updateStatus(orderId, currentStatus) {
+            const statusOptions = ['picked_up', 'in_transit', 'arrived', 'delivered'];
+            const currentIndex = statusOptions.indexOf(currentStatus);
+            const nextStatus = statusOptions[currentIndex + 1] || 'delivered';
+            
+            try {
+                const response = await fetch('/api/delivery-agent/update-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        order_id: orderId,
+                        status: nextStatus,
+                        latitude: currentLocation?.latitude,
+                        longitude: currentLocation?.longitude,
+                        notes: `Status updated to ${nextStatus}`
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert(`Order ${orderId} status updated to ${data.order_status}`);
+                    loadActiveOrders();
+                } else {
+                    alert('Failed to update status: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Status update error:', error);
+                alert('Failed to update status. Please try again.');
+            }
         }
         
         // Initialize on page load

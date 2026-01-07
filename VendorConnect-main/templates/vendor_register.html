@@ -376,8 +376,35 @@
             </div>
             
             <div class="form-group" id="vehicle_info_group" style="display:none;">
-                <label for="vehicle_info">Vehicle Info (for Delivery Agents)</label>
-                <input type="text" id="vehicle_info" name="vehicle_info" placeholder="e.g., Bike - KA01AB1234">
+                <label for="vehicle_info">Vehicle Registration Number <span style="color: red;">*</span></label>
+                <input type="text" id="vehicle_info" name="vehicle_info" placeholder="e.g., KA01AB1234">
+                <small style="color: #666; display: block; margin-top: 5px;">Example: KA01AB1234</small>
+            </div>
+            
+            <div class="form-group" id="vehicle_type_group" style="display:none;">
+                <label for="vehicle_type">Vehicle Type <span style="color: red;">*</span></label>
+                <select id="vehicle_type" name="vehicle_type">
+                    <option value="">Select vehicle type</option>
+                    <optgroup label="Small Vehicles (Individual Orders)">
+                        <option value="bike">🏍️ Bike</option>
+                        <option value="car">🚗 Car</option>
+                        <option value="auto">🛺 Auto/Tuk-Tuk</option>
+                    </optgroup>
+                    <optgroup label="Medium Vehicles (Group Orders)">
+                        <option value="van">🚐 Van</option>
+                        <option value="small_truck">🚚 Small Truck (500kg)</option>
+                    </optgroup>
+                    <optgroup label="Large Vehicles (Supplier Orders)">
+                        <option value="tempo">📦 Tempo Traveller</option>
+                        <option value="truck">🚛 Truck (1 Ton)</option>
+                        <option value="container">📮 Container Truck</option>
+                    </optgroup>
+                </select>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    <strong>Small vehicles:</strong> Individual customer orders<br>
+                    <strong>Medium vehicles:</strong> Group orders with multiple items<br>
+                    <strong>Large vehicles:</strong> Supplier and wholesale orders
+                </small>
             </div>
             
             <div class="form-group">
@@ -479,6 +506,7 @@
             const businessType = document.getElementById('business_type').value;
             const otherBusiness = document.getElementById('other_business') ? document.getElementById('other_business').value.trim() : '';
             const vehicleInfo = document.getElementById('vehicle_info') ? document.getElementById('vehicle_info').value.trim() : '';
+            const vehicleType = document.getElementById('vehicle_type') ? document.getElementById('vehicle_type').value.trim() : '';
             const gstin = document.getElementById('gstin') ? document.getElementById('gstin').value.trim().toUpperCase() : '';
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm_password').value;
@@ -500,6 +528,20 @@
                 document.getElementById('errorAlert').textContent = 'Please specify your stall type.';
                 document.getElementById('errorAlert').style.display = 'block';
                 return;
+            }
+
+            // Validation for Delivery Agents
+            if (role === 'Delivery Agent') {
+                if (!vehicleInfo) {
+                    document.getElementById('errorAlert').textContent = 'Vehicle registration number is required.';
+                    document.getElementById('errorAlert').style.display = 'block';
+                    return;
+                }
+                if (!vehicleType) {
+                    document.getElementById('errorAlert').textContent = 'Please select a vehicle type.';
+                    document.getElementById('errorAlert').style.display = 'block';
+                    return;
+                }
             }
 
             // GSTIN validation for vendors
@@ -540,6 +582,7 @@
             }
             if (role === 'Delivery Agent') {
                 payload.vehicle_info = vehicleInfo;
+                payload.vehicle_type = vehicleType;
             }
 
             try {
@@ -639,38 +682,51 @@
             e.target.value = value;
         });
 
-        // Show 'Other' stall input when Business Type = other
-        const businessSelect = document.getElementById('business_type');
-        const businessGroup = businessSelect ? businessSelect.closest('.form-group') : null;
-        const otherGroup = document.getElementById('other_business_group');
-        const otherInput = document.getElementById('other_business');
+        // Show/hide vehicle info when Delivery Agent selected
+        // Initialize DOM element references
         const roleSelect = document.getElementById('role');
+        const businessGroup = document.querySelector('.form-group:has(#business_type)');
+        const businessSelect = document.getElementById('business_type');
         const vehicleGroup = document.getElementById('vehicle_info_group');
+        const vehicleTypeGroup = document.getElementById('vehicle_type_group');
         const gstinGroup = document.getElementById('gstin_group');
         const gstinInput = document.getElementById('gstin');
-
-        // Show/hide vehicle info when Delivery Agent selected
+        const otherGroup = document.getElementById('other_business_group');
+        const otherInput = document.getElementById('other_business');
+        
         function updateRoleUI() {
             const r = roleSelect.value;
-            if (r === 'Delivery Agent') {
-                vehicleGroup.style.display = 'block';
+            const isVendor = r === 'Vendor';
+            const isDeliveryAgent = r === 'Delivery Agent';
+            
+            // Handle vehicle fields for Delivery Agent
+            if (isDeliveryAgent) {
+                if (vehicleGroup) vehicleGroup.style.display = 'block';
+                if (vehicleTypeGroup) vehicleTypeGroup.style.display = 'block';
+                document.getElementById('vehicle_info').setAttribute('required', 'required');
+                document.getElementById('vehicle_type').setAttribute('required', 'required');
             } else {
-                vehicleGroup.style.display = 'none';
+                if (vehicleGroup) vehicleGroup.style.display = 'none';
+                if (vehicleTypeGroup) vehicleTypeGroup.style.display = 'none';
+                document.getElementById('vehicle_info').removeAttribute('required');
+                document.getElementById('vehicle_type').removeAttribute('required');
             }
 
-            // business type and GSTIN only visible/required for Vendors
-            if (r === 'Vendor') {
+            // Handle business type and GSTIN for Vendor only
+            if (isVendor) {
                 if (businessGroup) businessGroup.style.display = 'block';
-                businessSelect.setAttribute('required', 'required');
-                gstinGroup.style.display = 'block';
+                if (businessSelect) businessSelect.setAttribute('required', 'required');
+                if (gstinGroup) gstinGroup.style.display = 'block';
                 if (gstinInput) gstinInput.setAttribute('required', 'required');
             } else {
                 if (businessGroup) businessGroup.style.display = 'none';
-                businessSelect.removeAttribute('required');
-                businessSelect.value = '';
+                if (businessSelect) {
+                    businessSelect.removeAttribute('required');
+                    businessSelect.value = '';
+                }
                 if (otherGroup) otherGroup.style.display = 'none';
                 if (otherInput) otherInput.removeAttribute('required');
-                gstinGroup.style.display = 'none';
+                if (gstinGroup) gstinGroup.style.display = 'none';
                 if (gstinInput) {
                     gstinInput.removeAttribute('required');
                     gstinInput.value = '';
