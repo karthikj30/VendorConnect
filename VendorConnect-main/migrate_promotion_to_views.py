@@ -10,12 +10,14 @@ from sqlalchemy import text, inspect
 def migrate_promotion_to_views():
     with app.app_context():
         try:
-            inspector = inspect(db.engine)
             dialect = db.engine.dialect.name
             print(f"\nDetected database dialect: {dialect}")
             
             # Start transaction
             with db.session.begin_nested():
+                # Create fresh inspector for current transaction
+                inspector = inspect(db.engine)
+                
                 # Check Promotion table columns
                 promo_columns = inspector.get_columns('promotion')
                 promo_col_names = {col['name'] for col in promo_columns}
@@ -62,6 +64,8 @@ def migrate_promotion_to_views():
                     print("✓ total_views column already exists in Promotion table")
                 
                 # Check if PromotionClick table exists and rename to PromotionView
+                # Refresh inspector to reflect any previous DDL changes
+                inspector = inspect(db.engine)
                 tables = inspector.get_table_names()
                 if 'promotion_click' in tables and 'promotion_view' not in tables:
                     print("Renaming promotion_click table to promotion_view...")
@@ -96,7 +100,8 @@ def migrate_promotion_to_views():
                         db.session.execute(text("ALTER TABLE promotion_click RENAME TO promotion_view"))
                     print("✓ Renamed promotion_click table to promotion_view")
                     
-                    # Recreate foreign keys
+                    # Recreate foreign keys - collect failures for reporting
+                    fk_recreation_failures = []
                     for fk in dropped_fks:
                         fk_name = fk.get('name')
                         referred_table = fk.get('referred_table')
@@ -115,12 +120,21 @@ def migrate_promotion_to_views():
                                 ))
                             print(f"  Recreated FK constraint: {fk_name}")
                         except Exception as e:
-                            print(f"  Warning: Could not recreate FK {fk_name}: {e}")
+                            error_msg = f"FK {fk_name}: {str(e)}"
+                            fk_recreation_failures.append(error_msg)
+                            print(f"  Error: Could not recreate FK {fk_name}: {e}")
+                    
+                    # Fail fast if any FK recreation failed
+                    if fk_recreation_failures:
+                        failure_summary = "\n  ".join(fk_recreation_failures)
+                        raise RuntimeError(f"Failed to recreate foreign key constraints:\n  {failure_summary}")
                     
                 elif 'promotion_view' in tables:
                     print("✓ promotion_view table already exists")
                 
                 # Rename clicked_at to viewed_at if promotion_view table exists
+                # Refresh inspector to reflect the renamed table
+                inspector = inspect(db.engine)
                 if 'promotion_view' in inspector.get_table_names():
                     view_columns = inspector.get_columns('promotion_view')
                     view_col_names = {col['name'] for col in view_columns}
@@ -151,6 +165,8 @@ def migrate_promotion_to_views():
         except Exception as exc:
             db.session.rollback()
             print(f"\n✗ Error migrating promotion tables: {exc}")
+            if "Failed to recreate foreign key" in str(exc):
+                print("\nForeign key recreation failures detected. Migration failed at constraint recreation step.")
             print("Transaction rolled back. Database remains in consistent state.")
             raise
 
