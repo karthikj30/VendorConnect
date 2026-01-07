@@ -4069,15 +4069,44 @@
                 if (data && data.success) {
                     updateOpenStatusButton(data.is_open);
                 } else {
-                    updateOpenStatusButton(true);
+                    setStatusUnknown('Failed to load status: ' + (data.message || 'Unknown error'));
                 }
             } catch (e) {
                 console.error('Failed to load open status', e);
-                updateOpenStatusButton(true);
+                setStatusUnknown('Network error: Unable to load status');
             }
         }
 
+        function setStatusUnknown(errorMsg) {
+            const btn = document.getElementById('openStatusBtn');
+            if (!btn) return;
+            btn.textContent = '⚠️ Error';
+            btn.classList.remove('open-status-open', 'open-status-closed');
+            btn.style.background = '#e67e22';
+            btn.style.color = '#fff';
+            btn.title = errorMsg + ' - Click to retry';
+            btn.onclick = function() {
+                btn.textContent = 'Loading...';
+                btn.style.background = '#95a5a6';
+                btn.onclick = null;
+                loadOpenStatus();
+            };
+        }
+
+        let isToggling = false;
+
         async function toggleOpenStatus() {
+            if (isToggling) return;
+            
+            const btn = document.getElementById('openStatusBtn');
+            if (!btn) return;
+            
+            // Disable button and show loading state
+            isToggling = true;
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = 'Updating...';
+            
             try {
                 const res = await fetch('/api/vendor/open-status', {
                     method: 'POST',
@@ -4087,9 +4116,19 @@
                 const data = await res.json();
                 if (data && data.success) {
                     updateOpenStatusButton(data.is_open);
+                } else {
+                    // Revert to original state and show error
+                    btn.textContent = originalText;
+                    alert('Failed to update status: ' + (data.message || 'Unknown error'));
                 }
             } catch (e) {
                 console.error('Failed to toggle open status', e);
+                // Revert to original state and show error
+                btn.textContent = originalText;
+                alert('Network error: Unable to update status. Please try again.');
+            } finally {
+                btn.disabled = false;
+                isToggling = false;
             }
         }
 
@@ -4100,6 +4139,9 @@
             btn.classList.remove('open-status-open', 'open-status-closed');
             btn.classList.add(isOpen ? 'open-status-open' : 'open-status-closed');
             btn.title = isOpen ? 'Customers can see your menu' : 'Customers cannot see your menu';
+            btn.style.background = '';
+            btn.style.color = '';
+            btn.onclick = toggleOpenStatus;
         }
         
         // Check voice recognition support

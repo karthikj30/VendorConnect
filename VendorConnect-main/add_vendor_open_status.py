@@ -2,14 +2,15 @@
 Migration script to add is_open column to Vendor table.
 """
 from app import app, db
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 
 def add_open_status_column():
     with app.app_context():
         try:
-            # Check if column already exists
-            existing = db.session.execute(text("SELECT name FROM pragma_table_info('vendor')")).fetchall()
-            column_names = {row[0] for row in existing}
+            # Check if column already exists using SQLAlchemy inspection API
+            inspector = inspect(db.engine)
+            columns = inspector.get_columns('vendor')
+            column_names = {col['name'] for col in columns}
 
             if 'is_open' in column_names:
                 print("\u2713 is_open column already exists in Vendor table")
