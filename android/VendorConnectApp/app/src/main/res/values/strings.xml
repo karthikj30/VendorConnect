@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VendorConnect</string>
-    <!-- Production URL on Render -->
-    <string name="app_base_url">https://vendorconnect-gkhy.onrender.com/customer/dashboard</string>
+    <!-- Production URL on Render - Start from vendor login -->
+    <string name="app_base_url">https://vendorconnect-gkhy.onrender.com/vendor/login</string>
 </resources>
