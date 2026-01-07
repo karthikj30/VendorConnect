@@ -270,11 +270,18 @@ app.config['JWT_EXP_DELTA_SECONDS'] = int(os.environ.get('JWT_EXP_DELTA_SECONDS'
 
 # Try to load Google client credentials from a local JSON file if env vars are not set
 def _load_google_client_from_file():
-    if app.config.get('GOOGLE_CLIENT_ID') and app.config.get('GOOGLE_CLIENT_SECRET'):
-        return
-    # First, check if GOOGLE_CLIENT_SECRET env var contains the JSON credentials
+    """Populate GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET safely.
+
+    Many setups export the entire Google client JSON as the value of
+    GOOGLE_CLIENT_SECRET. Previously we returned early if both env values
+    were present, which left the raw JSON string as the secret and caused
+    token exchange failures (invalid_client). Now we detect and parse the
+    JSON even when GOOGLE_CLIENT_ID is set.
+    """
+    # If the secret looks like JSON, prefer parsing it regardless of whether
+    # a client_id has been provided separately.
     raw_secret_env = os.environ.get('GOOGLE_CLIENT_SECRET', '')
-    if raw_secret_env and raw_secret_env.strip().startswith('{'):
+    if raw_secret_env and isinstance(raw_secret_env, str) and raw_secret_env.strip().startswith('{'):
         try:
             data = json.loads(raw_secret_env)
             creds = data.get('web') or data.get('installed') or data
@@ -289,6 +296,10 @@ def _load_google_client_from_file():
                 return
         except Exception as e:
             app.logger.exception('Failed to parse GOOGLE_CLIENT_SECRET env as JSON:')
+
+    # If both are already non-empty plain strings (not JSON), we are done.
+    if app.config.get('GOOGLE_CLIENT_ID') and app.config.get('GOOGLE_CLIENT_SECRET'):
+        return
 
     possible_files = ['client_secret.json', 'client_secrets.json', 'google_client_secret.json']
     for fname in possible_files:
@@ -473,6 +484,11 @@ def exchange_google_auth_code(code, redirect_uri):
         
         app.logger.info('Exchanging auth code for token: redirect_uri=%s', redirect_uri)
         resp = requests.post(token_endpoint, data=payload)
+        if resp.status_code != 200:
+            try:
+                app.logger.error('Token exchange failed: %s', resp.text)
+            except Exception:
+                pass
         resp.raise_for_status()
         token_data = resp.json()
         app.logger.info('Token exchange successful, access_token=%s...', token_data.get('access_token', '')[:20])
