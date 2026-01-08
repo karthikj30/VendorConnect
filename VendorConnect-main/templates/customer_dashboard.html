@@ -180,6 +180,15 @@
             <button class="category-btn" data-category="tea" onclick="filterCategory('tea', this)" id="catTea">🍵 <span class="cat-label">Tea</span></button>
             <button class="category-btn" data-category="juice" onclick="filterCategory('juice', this)" id="catJuice">🧃 <span class="cat-label">Juice</span></button>
         </div>
+        <div class="sort-controls" style="display: flex; gap: 15px; margin: 20px 0; align-items: center; flex-wrap: wrap;">
+            <label style="font-weight: 600;">Sort by:</label>
+            <select id="sortBy" onchange="applySort()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer;">
+                <option value="rating">⭐ Highest Rated</option>
+                <option value="newest">🆕 Newest</option>
+                <option value="reviews">💬 Most Reviews</option>
+                <option value="category">🏷️ By Category</option>
+            </select>
+        </div>
         <div class="vendors-grid" id="vendorsGrid"></div>
     </div>
 
@@ -238,6 +247,15 @@
             <i class="fas fa-box"></i> My Orders
         </div>
         
+        <div class="profile-menu-item" onclick="openWishlist()">
+            <i class="fas fa-heart"></i> Wishlist
+        </div>
+        <div class="profile-menu-item" onclick="openScheduledOrders()">
+            <i class="fas fa-calendar"></i> Scheduled Orders
+        </div>
+        <div class="profile-menu-item" onclick="openRecommendations()">
+            <i class="fas fa-lightbulb"></i> Recommendations
+        </div>
         <div class="profile-menu-item" onclick="openSettings()">
             <i class="fas fa-cog"></i> Settings
         </div>
@@ -657,6 +675,31 @@
             return div.innerHTML;
         }
 
+        // Modal helpers to ensure visibility across browsers/overlays with !important
+        function showModalById(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add('active');
+            // Use setProperty with !important to override external CSS
+            el.style.setProperty('display', 'flex', 'important');
+            el.style.setProperty('z-index', '1005', 'important');
+            el.style.setProperty('align-items', 'center', 'important');
+            el.style.setProperty('justify-content', 'center', 'important');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function hideModalById(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove('active');
+            // Use setProperty with !important to override external CSS
+            el.style.setProperty('display', 'none', 'important');
+            el.style.removeProperty('z-index');
+            el.style.removeProperty('align-items');
+            el.style.removeProperty('justify-content');
+            document.body.style.overflow = '';
+        }
+
         function getBusinessIcon(type) {
             return {
                 ice_cream: '🍦',
@@ -963,14 +1006,17 @@
                 const lang = currentLanguage || 'en';
 
                 grid.innerHTML = displayVendors.map(v => `
-        <div class="vendor-card" onclick="openVendorModal(${v.id})">
+        <div class="vendor-card" style="position: relative;" onclick="openVendorModal(${v.id})">
+            <button class="wishlist-btn" onclick="event.stopPropagation(); addToWishlist(${v.id})" style="position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.9); border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; z-index: 10;">
+                ❤️
+            </button>
             <div class="vendor-image" style="${v.hero_image ? `background-image:url('${v.hero_image}');background-size:cover;background-position:center;` : ''}">
                 ${v.logo ? `<img src="${v.logo}" alt="${v.name} logo" style="width:90px;height:90px;object-fit:cover;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 10px rgba(0,0,0,0.15);background:#fff;">` : `<div style="font-size:60px">${v.icon}</div>`}
             </div>
             <div class="vendor-info">
                 <div class="vendor-name">${v.name}</div>
                 <div>${v.cuisine}</div>
-                <div>⭐ ${v.rating} • ${v.time}</div>
+                <div>⭐ ${v.rating} (${v.review_count} reviews) • ${v.time}</div>
                 <div>${v.location}</div>
             </div>
             <div class="vendor-menu-preview">
@@ -1007,6 +1053,19 @@
                 modalIcon.textContent = v.icon;
             }
 
+            // Add vendor action buttons
+            const vendorMetaHtml = document.getElementById('modalVendorMeta');
+            vendorMetaHtml.innerHTML = `
+                <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                    <button onclick="openReviewModal(${v.id})" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-star"></i> Write Review
+                    </button>
+                    <button onclick="openScheduleModal()" style="padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-calendar"></i> Schedule
+                    </button>
+                </div>
+            `;
+
             document.getElementById('menuSection').innerHTML = v.menu.map(item => {
                 const cartItem = cart.find(c => c.name === item.name);
                 const qty = cartItem ? cartItem.qty : 0;
@@ -1041,11 +1100,11 @@
                 `;
             }).join('');
 
-            document.getElementById('vendorModal').classList.add('active');
+            showModalById('vendorModal');
         }
 
         function closeVendorModal() {
-            document.getElementById('vendorModal').classList.remove('active');
+            hideModalById('vendorModal');
         }
 
         /* =======================
@@ -2699,13 +2758,745 @@
             
             // Refresh notifications every 30 seconds
             setInterval(loadNotifications, 30000);
-            
-            // Demo: Show delivery tracker after 3 seconds
-            setTimeout(() => {
-                // Uncomment to see delivery tracker in action
-                // showDeliveryTracker(1);
-            }, 3000);
         });
+        </script>
+
+    <!-- Wishlist Modal -->
+    <div class="checkout-modal" id="wishlistModal">
+        <div class="checkout-content">
+            <div class="checkout-header">
+                <h2><i class="fas fa-heart"></i> My Wishlist</h2>
+                <button class="close-modal" onclick="closeWishlist()">&times;</button>
+            </div>
+            <div class="checkout-body" id="wishlistBody">
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">❤️</div>
+                    <p>Loading your wishlist...</p>
+                </div>
+            </div>
+            <div class="checkout-footer">
+                <button onclick="closeWishlist()" style="width: 100%; padding: 18px; background: #667eea; color: white; border: none; border-radius: 16px; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.3s; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <i class="fas fa-times"></i> Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scheduled Orders Modal -->
+    <div class="checkout-modal" id="scheduledOrdersModal">
+        <div class="checkout-content">
+            <div class="checkout-header">
+                <h2><i class="fas fa-calendar"></i> Scheduled Orders</h2>
+                <button class="close-modal" onclick="closeScheduledOrders()">&times;</button>
+            </div>
+            <div class="checkout-body" id="scheduledOrdersBody">
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
+                    <p>No scheduled orders yet</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recommendations Modal -->
+    <div class="checkout-modal" id="recommendationsModal">
+        <div class="checkout-content">
+            <div class="checkout-header">
+                <h2><i class="fas fa-lightbulb"></i> Recommended for You</h2>
+                <button class="close-modal" onclick="closeRecommendations()">&times;</button>
+            </div>
+            <div class="checkout-body" id="recommendationsBody">
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">✨</div>
+                    <p>Loading recommendations...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Modal -->
+    <div class="checkout-modal" id="reviewModal">
+        <div class="checkout-content">
+            <div class="checkout-header">
+                <h2><i class="fas fa-star"></i> Write a Review</h2>
+                <button class="close-modal" onclick="closeReviewModal()">&times;</button>
+            </div>
+            <div class="checkout-body">
+                <div class="form-group">
+                    <label>Overall Rating *</label>
+                    <div id="ratingStars" style="display: flex; gap: 10px; font-size: 30px; cursor: pointer;">
+                        <span data-rating="1">⭐</span>
+                        <span data-rating="2">⭐</span>
+                        <span data-rating="3">⭐</span>
+                        <span data-rating="4">⭐</span>
+                        <span data-rating="5">⭐</span>
+                    </div>
+                    <input type="hidden" id="reviewRating" value="5">
+                </div>
+                <div class="form-group">
+                    <label>Food Quality</label>
+                    <div id="foodQualityStars" style="display: flex; gap: 5px; font-size: 24px; cursor: pointer;">
+                        <span data-rating="1">⭐</span>
+                        <span data-rating="2">⭐</span>
+                        <span data-rating="3">⭐</span>
+                        <span data-rating="4">⭐</span>
+                        <span data-rating="5">⭐</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Delivery Speed</label>
+                    <div id="deliverySpeedStars" style="display: flex; gap: 5px; font-size: 24px; cursor: pointer;">
+                        <span data-rating="1">⭐</span>
+                        <span data-rating="2">⭐</span>
+                        <span data-rating="3">⭐</span>
+                        <span data-rating="4">⭐</span>
+                        <span data-rating="5">⭐</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Packaging</label>
+                    <div id="packagingStars" style="display: flex; gap: 5px; font-size: 24px; cursor: pointer;">
+                        <span data-rating="1">⭐</span>
+                        <span data-rating="2">⭐</span>
+                        <span data-rating="3">⭐</span>
+                        <span data-rating="4">⭐</span>
+                        <span data-rating="5">⭐</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Review Text</label>
+                    <textarea id="reviewText" rows="4" placeholder="Share your experience..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Upload Photo (Optional)</label>
+                    <input type="file" id="reviewImage" accept="image/*" style="padding: 10px;">
+                </div>
+            </div>
+            <div class="checkout-footer">
+                <button class="place-order-btn" onclick="submitReview()">Submit Review</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Order Modal -->
+    <div class="checkout-modal" id="scheduleOrderModal">
+        <div class="checkout-content">
+            <div class="checkout-header">
+                <h2><i class="fas fa-calendar-plus"></i> Schedule Order</h2>
+                <button class="close-modal" onclick="closeScheduleModal()">&times;</button>
+            </div>
+            <div class="checkout-body">
+                <!-- Order Items Summary -->
+                <div class="checkout-section">
+                    <h3 class="checkout-section-title"><i class="fas fa-shopping-bag"></i> Order Items</h3>
+                    <div id="scheduleOrderItems" style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px; max-height: 250px; overflow-y: auto;">
+                        <!-- Cart items will be displayed here -->
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fff; border: 2px solid #667eea; border-radius: 8px; font-weight: 700; font-size: 18px;">
+                        <span>Total Amount:</span>
+                        <span id="scheduleOrderTotal" style="color: #667eea;">₹0</span>
+                    </div>
+                </div>
+
+                <!-- Delivery Details -->
+                <div class="checkout-section" style="margin-top: 20px;">
+                    <h3 class="checkout-section-title"><i class="fas fa-map-marker-alt"></i> Delivery Details</h3>
+                    <div class="form-group">
+                        <label>Delivery Address *</label>
+                        <textarea id="scheduleAddress" rows="2" placeholder="Enter your delivery address..." required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Phone Number *</label>
+                        <input type="tel" id="schedulePhone" placeholder="Enter phone number..." required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%;">
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="checkout-section" style="margin-top: 20px;">
+                    <h3 class="checkout-section-title"><i class="fas fa-credit-card"></i> Payment Method</h3>
+                    <div class="payment-options">
+                        <div class="payment-option selected" onclick="selectSchedulePayment('cod')" id="schedulePaymentCOD">
+                            <i class="fas fa-money-bill-wave"></i>
+                            <span>Cash on Delivery</span>
+                        </div>
+                        <div class="payment-option" onclick="selectSchedulePayment('card')" id="schedulePaymentCard">
+                            <i class="fas fa-credit-card"></i>
+                            <span>Credit/Debit Card</span>
+                        </div>
+                        <div class="payment-option" onclick="selectSchedulePayment('upi')" id="schedulePaymentUPI">
+                            <i class="fas fa-mobile-alt"></i>
+                            <span>UPI</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Schedule Details -->
+                <div class="checkout-section" style="margin-top: 20px;">
+                    <h3 class="checkout-section-title"><i class="fas fa-calendar"></i> Schedule Details</h3>
+                    <div class="form-group">
+                        <label>Scheduled Date & Time *</label>
+                        <input type="datetime-local" id="scheduledDateTime" required style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Recurring Order</label>
+                        <select id="recurringType" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; width: 100%;">
+                            <option value="">One-time order</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Special Notes (Optional)</label>
+                        <textarea id="scheduleNotes" rows="3" placeholder="Any special instructions..." style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="checkout-footer" style="display: flex; gap: 12px;">
+                <button onclick="closeScheduleModal()" style="flex: 1; padding: 18px; background: #e0e0e0; color: #333; border: none; border-radius: 16px; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 0.3s;">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+                <button class="place-order-btn" onclick="scheduleCurrentOrder()" style="flex: 2;">
+                    <i class="fas fa-check"></i> Schedule Order
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Demo: Show delivery tracker after 3 seconds
+        setTimeout(() => {
+            // Uncomment to see delivery tracker in action
+            // showDeliveryTracker(1);
+        }, 3000);
+
+        // Initialize rating stars functionality
+        setupRatingStars();
+
+        // ==================== REVIEW FUNCTIONS ====================
+        let currentReviewVendorId = null;
+        let currentReviewOrderId = null;
+
+        function openReviewModal(vendorId, orderId = null) {
+            currentReviewVendorId = vendorId;
+            currentReviewOrderId = orderId;
+            showModalById('reviewModal');
+            setupRatingStars();
+        }
+
+        function closeReviewModal() {
+            hideModalById('reviewModal');
+        }
+
+        function setupRatingStars() {
+            // Overall rating
+            const ratingStars = document.querySelectorAll('#ratingStars span');
+            ratingStars.forEach(star => {
+                star.addEventListener('click', function() {
+                    const rating = this.dataset.rating;
+                    document.getElementById('reviewRating').value = rating;
+                    ratingStars.forEach((s, idx) => {
+                        s.style.opacity = idx < rating ? '1' : '0.3';
+                    });
+                });
+            });
+
+            // Food Quality
+            const foodStars = document.querySelectorAll('#foodQualityStars span');
+            foodStars.forEach(star => {
+                star.addEventListener('click', function() {
+                    foodStars.forEach((s, idx) => {
+                        s.style.opacity = idx < this.dataset.rating ? '1' : '0.3';
+                    });
+                });
+            });
+
+            // Delivery Speed
+            const deliveryStars = document.querySelectorAll('#deliverySpeedStars span');
+            deliveryStars.forEach(star => {
+                star.addEventListener('click', function() {
+                    deliveryStars.forEach((s, idx) => {
+                        s.style.opacity = idx < this.dataset.rating ? '1' : '0.3';
+                    });
+                });
+            });
+
+            // Packaging
+            const packagingStars = document.querySelectorAll('#packagingStars span');
+            packagingStars.forEach(star => {
+                star.addEventListener('click', function() {
+                    packagingStars.forEach((s, idx) => {
+                        s.style.opacity = idx < this.dataset.rating ? '1' : '0.3';
+                    });
+                });
+            });
+        }
+
+        async function submitReview() {
+            const vendorId = currentReviewVendorId;
+            const orderId = currentReviewOrderId;
+            const rating = parseInt(document.getElementById('reviewRating').value);
+            const foodQuality = getRatingValue('#foodQualityStars');
+            const deliverySpeed = getRatingValue('#deliverySpeedStars');
+            const packaging = getRatingValue('#packagingStars');
+            const reviewText = document.getElementById('reviewText').value;
+            const reviewImage = document.getElementById('reviewImage').files[0];
+
+            if (!vendorId) {
+                alert('Please select a vendor');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('vendor_id', vendorId);
+            formData.append('order_id', orderId);
+            formData.append('rating', rating);
+            formData.append('food_quality', foodQuality);
+            formData.append('delivery_speed', deliverySpeed);
+            formData.append('packaging', packaging);
+            formData.append('review_text', reviewText);
+            if (reviewImage) {
+                formData.append('image', reviewImage);
+            }
+
+            try {
+                const response = await fetch('/api/customer/reviews', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('✅ Review submitted successfully!');
+                    closeReviewModal();
+                    // Reset form
+                    document.getElementById('reviewText').value = '';
+                    document.getElementById('reviewImage').value = '';
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error submitting review:', error);
+                alert('❌ Error submitting review');
+            }
+        }
+
+        function getRatingValue(selector) {
+            const stars = document.querySelectorAll(selector + ' span');
+            let rating = 0;
+            stars.forEach((s, idx) => {
+                if (s.style.opacity !== '0.3' && s.style.opacity !== '') {
+                    rating = idx + 1;
+                }
+            });
+            return rating || null;
+        }
+
+        // ==================== WISHLIST FUNCTIONS ====================
+        async function openWishlist() {
+            const profile = document.getElementById('profileModal');
+            if (profile) profile.classList.remove('active');
+            showModalById('wishlistModal');
+            await loadWishlist();
+        }
+
+        function closeWishlist() {
+            hideModalById('wishlistModal');
+        }
+
+        async function loadWishlist() {
+            try {
+                const response = await fetch('/api/customer/wishlist');
+                const data = await response.json();
+
+                if (data.success && data.wishlist.length > 0) {
+                    const wishlistHtml = data.wishlist.map(item => `
+                        <div class="wishlist-item" style="padding: 20px; border: 2px solid #f093fb; border-radius: 12px; margin-bottom: 15px; background: var(--card-bg); box-shadow: var(--shadow-sm);">
+                            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                                <div style="flex: 1;">
+                                    <h3 style="color: var(--text-primary); margin-bottom: 8px; font-size: 18px;">
+                                        ${item.type === 'vendor' ? '<i class="fas fa-store"></i>' : '<i class="fas fa-utensils"></i>'} 
+                                        ${item.type === 'vendor' ? item.name : item.item_name}
+                                    </h3>
+                                    <p style="font-size: 14px; color: var(--text-secondary); margin: 4px 0;">
+                                        ${item.type === 'vendor' 
+                                            ? `<i class="fas fa-map-marker-alt"></i> ${item.location || 'Location not available'}` 
+                                            : `<i class="fas fa-store"></i> From: <strong>${item.vendor_name}</strong>`
+                                        }
+                                    </p>
+                                    ${item.type === 'item' && item.price ? `<p style="font-size: 16px; color: #667eea; font-weight: 700; margin: 4px 0;"><i class="fas fa-tag"></i> ₹${item.price}</p>` : ''}
+                                    <p style="font-size: 12px; color: var(--muted); margin-top: 8px;"><i class="fas fa-clock"></i> Added: ${new Date(item.added_at).toLocaleDateString('en-IN', { dateStyle: 'medium' })}</p>
+                                </div>
+                            </div>
+                            <button onclick="removeFromWishlist(${item.id})" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.3s;">
+                                <i class="fas fa-heart-broken"></i> Remove from Wishlist
+                            </button>
+                        </div>
+                    `).join('');
+
+                    document.getElementById('wishlistBody').innerHTML = wishlistHtml;
+                } else {
+                    document.getElementById('wishlistBody').innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">💔</div>
+                            <p>Your wishlist is empty</p>
+                            <p style="font-size: 14px; color: #666;">Click the heart icon on vendors to add them</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading wishlist:', error);
+            }
+        }
+
+        async function addToWishlist(vendorId) {
+            try {
+                const response = await fetch('/api/customer/wishlist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'vendor',
+                        vendor_id: vendorId
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('❤️ Added to wishlist!');
+                } else {
+                    alert('ℹ️ ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error adding to wishlist:', error);
+            }
+        }
+
+        async function removeFromWishlist(wishlistId) {
+            if (!confirm('💔 Remove this item from your wishlist?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/wishlist/${wishlistId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('✅ Removed from wishlist');
+                    await loadWishlist();
+                } else {
+                    alert('❌ Failed to remove: ' + (data.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error removing from wishlist:', error);
+                alert('❌ Error removing from wishlist');
+            }
+        }
+
+        // ==================== SCHEDULED ORDERS FUNCTIONS ====================
+        async function openScheduledOrders() {
+            const profile = document.getElementById('profileModal');
+            if (profile) profile.classList.remove('active');
+            showModalById('scheduledOrdersModal');
+            await loadScheduledOrders();
+        }
+
+        function closeScheduledOrders() {
+            hideModalById('scheduledOrdersModal');
+        }
+
+        async function loadScheduledOrders() {
+            try {
+                const response = await fetch('/api/customer/scheduled-orders');
+                const data = await response.json();
+
+                if (data.success && data.scheduled_orders.length > 0) {
+                    const ordersHtml = data.scheduled_orders.map(order => {
+                        // Parse order data if it's a string
+                        let orderData = {};
+                        try {
+                            orderData = typeof order.order_data === 'string' ? JSON.parse(order.order_data) : order.order_data;
+                        } catch (e) {
+                            orderData = order.order_data || {};
+                        }
+                        
+                        const items = orderData.items || [];
+                        const total = orderData.total || 0;
+                        
+                        return `
+                            <div class="scheduled-order-item" style="padding: 20px; border: 2px solid #667eea; border-radius: 12px; margin-bottom: 15px; background: var(--card-bg); box-shadow: var(--shadow-sm);">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 15px;">
+                                    <div style="flex: 1;">
+                                        <h3 style="color: #667eea; margin-bottom: 8px;">
+                                            <i class="fas fa-calendar-alt"></i> ${new Date(order.scheduled_time).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                        </h3>
+                                        ${order.recurring ? `<p style="font-size: 14px; color: var(--text-secondary); margin: 4px 0;"><i class="fas fa-redo"></i> Recurring: <strong>${order.recurring}</strong></p>` : ''}
+                                        <p style="font-size: 14px; color: var(--text-secondary); margin: 4px 0;"><i class="fas fa-wallet"></i> Payment: <strong>${order.payment_method ? order.payment_method.toUpperCase() : 'COD'}</strong></p>
+                                        ${order.delivery_address ? `<p style="font-size: 14px; color: var(--text-secondary); margin: 4px 0;"><i class="fas fa-map-marker-alt"></i> ${order.delivery_address}</p>` : ''}
+                                        ${order.phone ? `<p style="font-size: 14px; color: var(--text-secondary); margin: 4px 0;"><i class="fas fa-phone"></i> ${order.phone}</p>` : ''}
+                                        ${order.notes ? `<p style="font-size: 14px; color: var(--text-secondary); margin: 4px 0; font-style: italic;"><i class="fas fa-comment"></i> ${order.notes}</p>` : ''}
+                                    </div>
+                                </div>
+                                
+                                ${items.length > 0 ? `
+                                    <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 12px; border: 1px solid var(--border);">
+                                        <h4 style="font-size: 14px; color: var(--text-primary); margin-bottom: 8px;"><i class="fas fa-shopping-bag"></i> Order Items:</h4>
+                                        ${items.map(item => `
+                                            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border);">
+                                                <span style="color: var(--text-secondary);">${item.name} × ${item.qty || item.quantity || 1}</span>
+                                                <span style="font-weight: 600; color: #667eea;">₹${(item.price * (item.qty || item.quantity || 1))}</span>
+                                            </div>
+                                        `).join('')}
+                                        <div style="display: flex; justify-content: space-between; padding: 10px 0; margin-top: 8px; font-weight: 700; font-size: 16px; border-top: 2px solid #667eea;">
+                                            <span style="color: var(--text-primary);">Total:</span>
+                                            <span style="color: #667eea;">₹${total}</span>
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                <button onclick="cancelScheduledOrder(${order.id})" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f44336 0%, #e91e63 100%); color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; transition: all 0.3s;">
+                                    <i class="fas fa-times-circle"></i> Cancel This Scheduled Order
+                                </button>
+                            </div>
+                        `;
+                    }).join('');
+
+                    document.getElementById('scheduledOrdersBody').innerHTML = ordersHtml;
+                } else {
+                    document.getElementById('scheduledOrdersBody').innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <div style="font-size: 48px; margin-bottom: 20px;">📅</div>
+                            <p>No scheduled orders yet</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading scheduled orders:', error);
+            }
+        }
+
+        let selectedSchedulePayment = 'cod';
+
+        function selectSchedulePayment(method) {
+            selectedSchedulePayment = method;
+            document.querySelectorAll('#scheduleOrderModal .payment-option').forEach(el => el.classList.remove('selected'));
+            document.getElementById(`schedulePayment${method.toUpperCase()}`).classList.add('selected');
+        }
+
+        function openScheduleModal() {
+            // Check if cart has items
+            if (cart.length === 0) {
+                alert('⚠️ Your cart is empty! Please add items before scheduling an order.');
+                return;
+            }
+
+            // Display cart items in the schedule modal
+            const itemsContainer = document.getElementById('scheduleOrderItems');
+            const totalContainer = document.getElementById('scheduleOrderTotal');
+            
+            // Fix: Use 'qty' instead of 'quantity' to match cart structure
+            const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            
+            itemsContainer.innerHTML = cart.map(item => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--card-bg); margin-bottom: 8px; border-radius: 8px; box-shadow: var(--shadow-sm); border: 1px solid var(--border);">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: var(--text-primary);">${item.name}</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">₹${item.price} × ${item.qty}</div>
+                    </div>
+                    <div style="font-weight: 700; color: #667eea;">₹${item.price * item.qty}</div>
+                </div>
+            `).join('');
+            
+            totalContainer.textContent = `₹${total}`;
+
+            // Reset payment selection to COD
+            selectSchedulePayment('cod');
+
+            showModalById('scheduleOrderModal');
+        }
+
+        function closeScheduleModal() {
+            hideModalById('scheduleOrderModal');
+        }
+
+        async function scheduleCurrentOrder() {
+            const scheduledTime = document.getElementById('scheduledDateTime').value;
+            const recurring = document.getElementById('recurringType').value || null;
+            const notes = document.getElementById('scheduleNotes').value;
+            const address = document.getElementById('scheduleAddress').value;
+            const phone = document.getElementById('schedulePhone').value;
+
+            // Validation
+            if (!scheduledTime) {
+                alert('⚠️ Please select a date and time');
+                return;
+            }
+            if (!address.trim()) {
+                alert('⚠️ Please enter delivery address');
+                return;
+            }
+            if (!phone.trim()) {
+                alert('⚠️ Please enter phone number');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/customer/scheduled-orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scheduled_time: scheduledTime,
+                        recurring: recurring,
+                        notes: notes,
+                        delivery_address: address,
+                        phone: phone,
+                        payment_method: selectedSchedulePayment,
+                        order_data: {
+                            items: cart,
+                            total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0)
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('✅ Order scheduled successfully!');
+                    closeScheduleModal();
+                    // Clear form fields
+                    document.getElementById('scheduleAddress').value = '';
+                    document.getElementById('schedulePhone').value = '';
+                    document.getElementById('scheduledDateTime').value = '';
+                    document.getElementById('scheduleNotes').value = '';
+                    await loadScheduledOrders();
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error scheduling order:', error);
+                alert('❌ Error scheduling order');
+            }
+        }
+
+        async function cancelScheduledOrder(orderId) {
+            if (confirm('Are you sure you want to cancel this scheduled order?')) {
+                try {
+                    const response = await fetch(`/api/scheduled-order/${orderId}`, {
+                        method: 'DELETE'
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('✅ Scheduled order cancelled');
+                        await loadScheduledOrders();
+                    }
+                } catch (error) {
+                    console.error('Error cancelling scheduled order:', error);
+                }
+            }
+        }
+
+        // ==================== RECOMMENDATIONS FUNCTIONS ====================
+        async function openRecommendations() {
+            const profile = document.getElementById('profileModal');
+            if (profile) profile.classList.remove('active');
+            showModalById('recommendationsModal');
+            await loadRecommendations();
+        }
+
+        function closeRecommendations() {
+            hideModalById('recommendationsModal');
+        }
+
+        async function loadRecommendations() {
+            try {
+                const response = await fetch('/api/customer/recommendations');
+                const data = await response.json();
+
+                if (data.success) {
+                    const recs = data.recommendations;
+                    let html = '';
+
+                    if (recs.trending.length > 0) {
+                        html += '<h3 style="margin-top: 20px; margin-bottom: 15px;">🔥 Trending Now</h3>';
+                        html += recs.trending.map(item => `
+                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
+                                <p><strong>${item.name}</strong> - ₹${item.price}</p>
+                                <p style="font-size: 14px; color: #666;">${item.vendor_name}</p>
+                            </div>
+                        `).join('');
+                    }
+
+                    if (recs.based_on_history.length > 0) {
+                        html += '<h3 style="margin-top: 20px; margin-bottom: 15px;">📊 Based on Your History</h3>';
+                        html += recs.based_on_history.map(item => `
+                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
+                                <p><strong>${item.name}</strong> - ₹${item.price}</p>
+                                <p style="font-size: 14px; color: #666;">${item.vendor_name}</p>
+                            </div>
+                        `).join('');
+                    }
+
+                    if (recs.similar_to_favorites.length > 0) {
+                        html += '<h3 style="margin-top: 20px; margin-bottom: 15px;">🎯 Similar to Your Favorites</h3>';
+                        html += recs.similar_to_favorites.map(item => `
+                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
+                                <p><strong>${item.name}</strong> - ₹${item.price}</p>
+                                <p style="font-size: 14px; color: #666;">${item.vendor_name}</p>
+                            </div>
+                        `).join('');
+                    }
+
+                    if (!html) {
+                        html = '<p style="text-align: center; padding: 40px;">No recommendations yet. Start ordering to get personalized suggestions!</p>';
+                    }
+
+                    document.getElementById('recommendationsBody').innerHTML = html;
+                }
+            } catch (error) {
+                console.error('Error loading recommendations:', error);
+            }
+        }
+
+        // ==================== SORTING FUNCTIONS ====================
+        async function applySort() {
+            const sortBy = document.getElementById('sortBy').value;
+            
+            // Sort vendors locally instead of fetching from API
+            // This preserves the menu data and prevents "no vendors" issue
+            if (!vendors || vendors.length === 0) {
+                console.warn('No vendors to sort');
+                return;
+            }
+
+            // Create a copy to sort
+            let sortedVendors = [...vendors];
+
+            switch(sortBy) {
+                case 'rating_high':
+                    sortedVendors.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+                    break;
+                case 'rating_low':
+                    sortedVendors.sort((a, b) => parseFloat(a.rating) - parseFloat(b.rating));
+                    break;
+                case 'name_asc':
+                    sortedVendors.sort((a, b) => a.name.localeCompare(b.name));
+                    break;
+                case 'name_desc':
+                    sortedVendors.sort((a, b) => b.name.localeCompare(a.name));
+                    break;
+                case 'nearest':
+                    // For now, keep original order (could implement geolocation later)
+                    break;
+                default:
+                    // Default: highest rating
+                    sortedVendors.sort((a, b) => parseFloat(b.rating) - parseFloat(a.rating));
+            }
+
+            vendors = sortedVendors;
+            renderVendors();
+        }
+
     </script>
 </body>
 

@@ -919,6 +919,41 @@ class PromotionView(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class CustomerReview(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
+    order_id = db.Column(db.Integer, db.ForeignKey('customer_order.id'), nullable=True)
+    rating = db.Column(db.Integer, nullable=False)  # 1-5 stars
+    food_quality = db.Column(db.Integer, nullable=True)  # 1-5
+    delivery_speed = db.Column(db.Integer, nullable=True)  # 1-5
+    packaging = db.Column(db.Integer, nullable=True)  # 1-5
+    review_text = db.Column(db.Text, nullable=True)
+    image = db.Column(db.String(300), nullable=True)
+    helpful_votes = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Wishlist(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=True)
+    menu_item_id = db.Column(db.Integer, db.ForeignKey('menu_item.id'), nullable=True)
+    item_type = db.Column(db.String(20), default='vendor')  # 'vendor' or 'item'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class ScheduledOrder(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
+    order_data = db.Column(db.Text, nullable=False)  # JSON string with order details
+    scheduled_time = db.Column(db.DateTime, nullable=False)
+    status = db.Column(db.String(20), default='pending')  # pending, confirmed, cancelled, completed
+    recurring = db.Column(db.String(20), nullable=True)  # daily, weekly, monthly, or None for one-time
+    next_occurrence = db.Column(db.DateTime, nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 # Sample data for demonstration
 def create_sample_data():
     # Create sample suppliers
@@ -7209,6 +7244,649 @@ def get_intelligent_default_response(language, vendor, message, context):
 def chatbot_page():
     """Dedicated chatbot page for testing"""
     return render_template('chatbot.html')
+
+# ==================== REVIEWS & RATINGS ====================
+
+@app.route('/api/customer/reviews', methods=['POST'])
+@customer_api_required
+def submit_review():
+    """Submit a review for a vendor"""
+    try:
+        customer_id = session['customer_id']
+        data = request.get_json() or {}
+        
+        vendor_id = data.get('vendor_id')
+        order_id = data.get('order_id')
+        rating = data.get('rating', 5)
+        food_quality = data.get('food_quality')
+        delivery_speed = data.get('delivery_speed')
+        packaging = data.get('packaging')
+        review_text = (data.get('review_text') or '').strip()
+        
+        if not vendor_id or rating < 1 or rating > 5:
+            return jsonify({'success': False, 'message': 'Invalid rating or vendor'}), 400
+        
+        # Check if vendor exists
+        vendor = db.session.get(Vendor, vendor_id)
+        if not vendor:
+            return jsonify({'success': False, 'message': 'Vendor not found'}), 404
+        
+        # Check if customer already reviewed this order
+        if order_id:
+            existing = CustomerReview.query.filter_by(
+                customer_id=customer_id,
+                order_id=order_id
+            ).first()
+            if existing:
+                return jsonify({'success': False, 'message': 'You already reviewed this order'}), 409
+        
+        # Handle image upload
+        image_path = None
+        if 'image' in request.files:
+            image_file = request.files['image']
+            if image_file and is_allowed_image(image_file.filename):
+                upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'reviews')
+                os.makedirs(upload_dir, exist_ok=True)
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                safe_filename = secure_filename(image_file.filename)
+                unique_name = f"{customer_id}_{timestamp}_{safe_filename}"
+                image_path_full = os.path.join(upload_dir, unique_name)
+                image_file.save(image_path_full)
+                image_path = f"uploads/reviews/{unique_name}"
+        
+        review = CustomerReview(
+            customer_id=customer_id,
+            vendor_id=vendor_id,
+            order_id=order_id,
+            rating=rating,
+            food_quality=food_quality,
+            delivery_speed=delivery_speed,
+            packaging=packaging,
+            review_text=review_text,
+            image=image_path
+        )
+        
+        db.session.add(review)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Review submitted successfully',
+            'review_id': review.id
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error submitting review: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/api/vendor/<int:vendor_id>/reviews', methods=['GET'])
+def get_vendor_reviews(vendor_id):
+    """Get reviews for a vendor"""
+    try:
+        # Get all reviews for this vendor
+        reviews = CustomerReview.query.filter_by(vendor_id=vendor_id).order_by(
+            CustomerReview.created_at.desc()
+        ).all()
+        
+        reviews_data = []
+        for review in reviews:
+            customer = db.session.get(Customer, review.customer_id)
+            reviews_data.append({
+                'id': review.id,
+                'rating': review.rating,
+                'food_quality': review.food_quality,
+                'delivery_speed': review.delivery_speed,
+                'packaging': review.packaging,
+                'review_text': review.review_text,
+                'image': review.image,
+                'helpful_votes': review.helpful_votes,
+                'customer_name': customer.name if customer else 'Anonymous',
+                'created_at': format_ist_time(review.created_at, '%d %b %Y')
+            })
+        
+        # Calculate average ratings
+        all_reviews = CustomerReview.query.filter_by(vendor_id=vendor_id).all()
+        avg_overall = sum(r.rating for r in all_reviews) / len(all_reviews) if all_reviews else 0
+        avg_food = sum(r.food_quality for r in all_reviews if r.food_quality) / len([r for r in all_reviews if r.food_quality]) if any(r.food_quality for r in all_reviews) else 0
+        avg_delivery = sum(r.delivery_speed for r in all_reviews if r.delivery_speed) / len([r for r in all_reviews if r.delivery_speed]) if any(r.delivery_speed for r in all_reviews) else 0
+        avg_packaging = sum(r.packaging for r in all_reviews if r.packaging) / len([r for r in all_reviews if r.packaging]) if any(r.packaging for r in all_reviews) else 0
+        
+        return jsonify({
+            'success': True,
+            'reviews': reviews_data,
+            'total_reviews': len(reviews_data),
+            'averages': {
+                'overall': round(avg_overall, 1),
+                'food_quality': round(avg_food, 1),
+                'delivery_speed': round(avg_delivery, 1),
+                'packaging': round(avg_packaging, 1)
+            }
+        })
+    
+    except Exception as e:
+        app.logger.error(f'Error fetching reviews: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/api/review/<int:review_id>/helpful', methods=['POST'])
+def mark_review_helpful(review_id):
+    """Mark a review as helpful"""
+    try:
+        review = db.session.get(CustomerReview, review_id)
+        if not review:
+            return jsonify({'success': False, 'message': 'Review not found'}), 404
+        
+        review.helpful_votes += 1
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'helpful_votes': review.helpful_votes
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error marking review helpful: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+# ==================== WISHLIST ====================
+
+@app.route('/api/customer/wishlist', methods=['GET', 'POST'])
+@customer_api_required
+def customer_wishlist():
+    """Get or add to customer wishlist"""
+    customer_id = session['customer_id']
+    
+    if request.method == 'GET':
+        try:
+            wishlist = Wishlist.query.filter_by(customer_id=customer_id).all()
+            items = []
+            
+            for w in wishlist:
+                if w.item_type == 'vendor':
+                    vendor = db.session.get(Vendor, w.vendor_id)
+                    if vendor:
+                        items.append({
+                            'id': w.id,
+                            'type': 'vendor',
+                            'vendor_id': vendor.id,
+                            'name': vendor.name,
+                            'location': vendor.location,
+                            'cuisine': vendor.business_type,
+                            'logo': vendor.logo or '',
+                            'added_at': format_ist_time(w.created_at, '%d %b %Y')
+                        })
+                else:  # menu_item
+                    item = db.session.get(MenuItem, w.menu_item_id)
+                    vendor = db.session.get(Vendor, item.vendor_id) if item else None
+                    if item and vendor:
+                        items.append({
+                            'id': w.id,
+                            'type': 'item',
+                            'item_id': item.id,
+                            'item_name': item.name,
+                            'vendor_id': vendor.id,
+                            'vendor_name': vendor.name,
+                            'price': item.price,
+                            'image': item.image or '',
+                            'added_at': format_ist_time(w.created_at, '%d %b %Y')
+                        })
+            
+            return jsonify({'success': True, 'wishlist': items})
+        
+        except Exception as e:
+            app.logger.error(f'Error fetching wishlist: {str(e)}')
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    
+    else:  # POST
+        try:
+            data = request.get_json() or {}
+            item_type = data.get('type', 'vendor')  # 'vendor' or 'item'
+            
+            if item_type == 'vendor':
+                vendor_id = data.get('vendor_id')
+                if not vendor_id:
+                    return jsonify({'success': False, 'message': 'Vendor ID required'}), 400
+                
+                # Check if already in wishlist
+                existing = Wishlist.query.filter_by(
+                    customer_id=customer_id,
+                    vendor_id=vendor_id,
+                    item_type='vendor'
+                ).first()
+                
+                if existing:
+                    return jsonify({'success': False, 'message': 'Already in wishlist'}), 409
+                
+                wishlist_item = Wishlist(
+                    customer_id=customer_id,
+                    vendor_id=vendor_id,
+                    item_type='vendor'
+                )
+            
+            else:  # item
+                item_id = data.get('item_id')
+                if not item_id:
+                    return jsonify({'success': False, 'message': 'Item ID required'}), 400
+                
+                # Check if already in wishlist
+                existing = Wishlist.query.filter_by(
+                    customer_id=customer_id,
+                    menu_item_id=item_id,
+                    item_type='item'
+                ).first()
+                
+                if existing:
+                    return jsonify({'success': False, 'message': 'Already in wishlist'}), 409
+                
+                wishlist_item = Wishlist(
+                    customer_id=customer_id,
+                    menu_item_id=item_id,
+                    item_type='item'
+                )
+            
+            db.session.add(wishlist_item)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Added to wishlist',
+                'wishlist_id': wishlist_item.id
+            })
+        
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Error adding to wishlist: {str(e)}')
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/api/wishlist/<int:wishlist_id>', methods=['DELETE'])
+@customer_api_required
+def remove_from_wishlist(wishlist_id):
+    """Remove item from wishlist"""
+    try:
+        customer_id = session['customer_id']
+        wishlist_item = db.session.get(Wishlist, wishlist_id)
+        
+        if not wishlist_item or wishlist_item.customer_id != customer_id:
+            return jsonify({'success': False, 'message': 'Item not found'}), 404
+        
+        db.session.delete(wishlist_item)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Removed from wishlist'})
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error removing from wishlist: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/api/customer/wishlist/<int:vendor_id>/check', methods=['GET'])
+@customer_api_required
+def check_in_wishlist(vendor_id):
+    """Check if vendor is in wishlist"""
+    customer_id = session['customer_id']
+    exists = Wishlist.query.filter_by(
+        customer_id=customer_id,
+        vendor_id=vendor_id,
+        item_type='vendor'
+    ).first()
+    
+    return jsonify({'in_wishlist': bool(exists)})
+
+# ==================== SCHEDULED ORDERS ====================
+
+@app.route('/api/customer/scheduled-orders', methods=['GET', 'POST'])
+@customer_api_required
+def customer_scheduled_orders():
+    """Get or create scheduled orders"""
+    customer_id = session['customer_id']
+    
+    if request.method == 'GET':
+        try:
+            orders = ScheduledOrder.query.filter_by(
+                customer_id=customer_id,
+                status='pending'
+            ).order_by(ScheduledOrder.scheduled_time.asc()).all()
+            
+            scheduled_orders = []
+            for order in orders:
+                scheduled_orders.append({
+                    'id': order.id,
+                    'scheduled_time': format_ist_time(order.scheduled_time, '%d %b %Y, %I:%M %p'),
+                    'recurring': order.recurring,
+                    'notes': order.notes,
+                    'order_data': json.loads(order.order_data),
+                    'status': order.status,
+                    'created_at': format_ist_time(order.created_at, '%d %b %Y')
+                })
+            
+            return jsonify({
+                'success': True,
+                'scheduled_orders': scheduled_orders
+            })
+        
+        except Exception as e:
+            app.logger.error(f'Error fetching scheduled orders: {str(e)}')
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+    
+    else:  # POST
+        try:
+            data = request.get_json() or {}
+            
+            scheduled_time_str = data.get('scheduled_time')
+            if not scheduled_time_str:
+                return jsonify({'success': False, 'message': 'Scheduled time required'}), 400
+            
+            # Parse datetime
+            try:
+                scheduled_time = datetime.fromisoformat(scheduled_time_str)
+            except ValueError:
+                return jsonify({'success': False, 'message': 'Invalid datetime format'}), 400
+            
+            order_data = data.get('order_data', {})
+            recurring = data.get('recurring')  # None, 'daily', 'weekly', 'monthly'
+            notes = (data.get('notes') or '').strip()
+            
+            scheduled_order = ScheduledOrder(
+                customer_id=customer_id,
+                order_data=json.dumps(order_data),
+                scheduled_time=scheduled_time,
+                recurring=recurring,
+                notes=notes,
+                status='pending'
+            )
+            
+            db.session.add(scheduled_order)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': 'Order scheduled successfully',
+                'order_id': scheduled_order.id
+            })
+        
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f'Error scheduling order: {str(e)}')
+            return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/api/scheduled-order/<int:order_id>', methods=['DELETE', 'PUT'])
+@customer_api_required
+def manage_scheduled_order(order_id):
+    """Cancel or update scheduled order"""
+    try:
+        customer_id = session['customer_id']
+        order = db.session.get(ScheduledOrder, order_id)
+        
+        if not order or order.customer_id != customer_id:
+            return jsonify({'success': False, 'message': 'Order not found'}), 404
+        
+        if request.method == 'DELETE':
+            order.status = 'cancelled'
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Order cancelled'})
+        
+        else:  # PUT
+            data = request.get_json() or {}
+            if 'scheduled_time' in data:
+                try:
+                    order.scheduled_time = datetime.fromisoformat(data['scheduled_time'])
+                except ValueError:
+                    return jsonify({'success': False, 'message': 'Invalid datetime format'}), 400
+            
+            if 'notes' in data:
+                order.notes = (data['notes'] or '').strip()
+            
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Order updated'})
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f'Error managing scheduled order: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+# ==================== SMART RECOMMENDATIONS ====================
+
+@app.route('/api/customer/recommendations', methods=['GET'])
+@customer_api_required
+def get_recommendations():
+    """Get personalized recommendations based on order history"""
+    try:
+        customer_id = session['customer_id']
+        
+        # Get customer's past orders
+        past_orders = CustomerOrder.query.filter_by(
+            customer_id=customer_id
+        ).order_by(CustomerOrder.created_at.desc()).limit(10).all()
+        
+        # Get favorite vendors from order history
+        favorite_vendors = {}
+        for order in past_orders:
+            order_items = CustomerOrderItem.query.filter_by(order_id=order.id).all()
+            for item in order_items:
+                menu_item = db.session.get(MenuItem, item.menu_item_id)
+                if menu_item:
+                    vendor_id = menu_item.vendor_id
+                    favorite_vendors[vendor_id] = favorite_vendors.get(vendor_id, 0) + 1
+        
+        recommendations = {
+            'trending': [],
+            'based_on_history': [],
+            'similar_to_favorites': [],
+            'new_from_favorites': []
+        }
+        
+        # 1. Trending items (most ordered recently)
+        all_items = db.session.query(MenuItem).order_by(MenuItem.created_at.desc()).limit(20).all()
+        for item in all_items[:5]:
+            vendor = db.session.get(Vendor, item.vendor_id)
+            if vendor and vendor.is_open:
+                recommendations['trending'].append({
+                    'id': item.id,
+                    'name': item.name,
+                    'price': item.price,
+                    'image': item.image or '',
+                    'vendor_id': vendor.id,
+                    'vendor_name': vendor.name,
+                    'reason': 'Trending now'
+                })
+        
+        # 2. Similar items from favorite vendors
+        if favorite_vendors:
+            top_vendor_id = max(favorite_vendors, key=favorite_vendors.get)
+            vendor_items = MenuItem.query.filter_by(vendor_id=top_vendor_id).limit(5).all()
+            for item in vendor_items:
+                vendor = db.session.get(Vendor, item.vendor_id)
+                if vendor and vendor.is_open:
+                    recommendations['based_on_history'].append({
+                        'id': item.id,
+                        'name': item.name,
+                        'price': item.price,
+                        'image': item.image or '',
+                        'vendor_id': vendor.id,
+                        'vendor_name': vendor.name,
+                        'reason': f'More from your favorite vendor'
+                    })
+        
+        # 3. Similar items from similar business types
+        if favorite_vendors:
+            top_vendor = db.session.get(Vendor, max(favorite_vendors, key=favorite_vendors.get))
+            if top_vendor:
+                similar_vendors = Vendor.query.filter_by(
+                    business_type=top_vendor.business_type
+                ).filter(Vendor.id != top_vendor.id).limit(3).all()
+                
+                for vendor in similar_vendors:
+                    if vendor.is_open:
+                        items = MenuItem.query.filter_by(vendor_id=vendor.id).limit(3).all()
+                        for item in items:
+                            recommendations['similar_to_favorites'].append({
+                                'id': item.id,
+                                'name': item.name,
+                                'price': item.price,
+                                'image': item.image or '',
+                                'vendor_id': vendor.id,
+                                'vendor_name': vendor.name,
+                                'reason': f'Similar to {top_vendor.name}'
+                            })
+        
+        # 4. New items from favorite vendors
+        if favorite_vendors:
+            for vendor_id, _ in sorted(favorite_vendors.items(), key=lambda x: x[1], reverse=True)[:2]:
+                vendor = db.session.get(Vendor, vendor_id)
+                if vendor and vendor.is_open:
+                    new_items = MenuItem.query.filter_by(vendor_id=vendor_id).order_by(
+                        MenuItem.created_at.desc()
+                    ).limit(3).all()
+                    
+                    for item in new_items:
+                        recommendations['new_from_favorites'].append({
+                            'id': item.id,
+                            'name': item.name,
+                            'price': item.price,
+                            'image': item.image or '',
+                            'vendor_id': vendor.id,
+                            'vendor_name': vendor.name,
+                            'reason': f'New at {vendor.name}'
+                        })
+        
+        return jsonify({
+            'success': True,
+            'recommendations': recommendations
+        })
+    
+    except Exception as e:
+        app.logger.error(f'Error generating recommendations: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+# ==================== SORTING & FILTERING ====================
+
+@app.route('/api/vendors/sorted', methods=['GET'])
+def get_sorted_vendors():
+    """Get vendors sorted by rating, category, or distance"""
+    try:
+        sort_by = request.args.get('sort_by', 'rating')  # rating, category, distance, newest
+        category = request.args.get('category', '')
+        search = request.args.get('search', '').strip()
+        
+        query = Vendor.query.filter_by(is_open=True)
+        
+        # Filter by search
+        if search:
+            query = query.filter(
+                db.or_(
+                    Vendor.name.ilike(f'%{search}%'),
+                    Vendor.location.ilike(f'%{search}%')
+                )
+            )
+        
+        # Filter by category
+        if category:
+            query = query.filter_by(business_type=category)
+        
+        vendors = query.all()
+        vendors_data = []
+        
+        for vendor in vendors:
+            # Calculate average rating from reviews
+            reviews = CustomerReview.query.filter_by(vendor_id=vendor.id).all()
+            avg_rating = sum(r.rating for r in reviews) / len(reviews) if reviews else 0
+            review_count = len(reviews)
+            
+            vendors_data.append({
+                'id': vendor.id,
+                'name': vendor.name,
+                'location': vendor.location,
+                'cuisine': vendor.business_type,
+                'logo': vendor.logo or '',
+                'hero_image': vendor.hero_image or '',
+                'rating': round(avg_rating, 1),
+                'review_count': review_count,
+                'created_at': vendor.created_at
+            })
+        
+        # Sort based on criteria
+        if sort_by == 'rating':
+            vendors_data.sort(key=lambda x: (x['rating'], x['review_count']), reverse=True)
+        elif sort_by == 'category':
+            vendors_data.sort(key=lambda x: x['cuisine'])
+        elif sort_by == 'newest':
+            vendors_data.sort(key=lambda x: x['created_at'], reverse=True)
+        elif sort_by == 'reviews':
+            vendors_data.sort(key=lambda x: x['review_count'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'vendors': vendors_data,
+            'total': len(vendors_data)
+        })
+    
+    except Exception as e:
+        app.logger.error(f'Error sorting vendors: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/api/menu/sorted', methods=['GET'])
+def get_sorted_menu():
+    """Get menu items sorted by rating, category, price"""
+    try:
+        sort_by = request.args.get('sort_by', 'price')  # rating, price, newest, popularity
+        category = request.args.get('category', '')
+        vendor_id = request.args.get('vendor_id', '')
+        search = request.args.get('search', '').strip()
+        
+        query = MenuItem.query
+        
+        # Filter by vendor
+        if vendor_id:
+            query = query.filter_by(vendor_id=vendor_id)
+        
+        # Filter by search
+        if search:
+            query = query.filter(MenuItem.name.ilike(f'%{search}%'))
+        
+        items = query.all()
+        items_data = []
+        
+        for item in items:
+            vendor = db.session.get(Vendor, item.vendor_id)
+            if not vendor or not vendor.is_open:
+                continue
+            
+            # Get reviews for this vendor (for rating)
+            reviews = CustomerReview.query.filter_by(vendor_id=vendor.id).all()
+            vendor_rating = sum(r.rating for r in reviews) / len(reviews) if reviews else 0
+            
+            items_data.append({
+                'id': item.id,
+                'name': item.name,
+                'price': item.price,
+                'description': item.description or '',
+                'image': item.image or '',
+                'vendor_id': vendor.id,
+                'vendor_name': vendor.name,
+                'vendor_rating': round(vendor_rating, 1),
+                'created_at': item.created_at
+            })
+        
+        # Sort based on criteria
+        if sort_by == 'rating':
+            items_data.sort(key=lambda x: x['vendor_rating'], reverse=True)
+        elif sort_by == 'price_low':
+            items_data.sort(key=lambda x: x['price'])
+        elif sort_by == 'price_high':
+            items_data.sort(key=lambda x: x['price'], reverse=True)
+        elif sort_by == 'newest':
+            items_data.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'items': items_data,
+            'total': len(items_data)
+        })
+    
+    except Exception as e:
+        app.logger.error(f'Error sorting menu: {str(e)}')
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 if __name__ == '__main__':
     with app.app_context():

@@ -41,6 +41,19 @@
 /* Apply new background and base text colors */
 body { background: var(--bg); color: var(--text-primary); }
 
+/* Light Theme Variables (default) */
+body.light-theme {
+    --bg: #f4f7fa;
+    --card-bg: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --muted: #94a3b8;
+    --border: #e6eef6;
+    --shadow-sm: 0 4px 12px rgba(28, 37, 65, 0.06);
+    --shadow-md: 0 8px 28px rgba(28, 37, 65, 0.08);
+    --shadow-lg: 0 16px 48px rgba(28, 37, 65, 0.10);
+    --shadow-xl: 0 20px 60px rgba(28, 37, 65, 0.12);
+}
 
 /* Dark Theme Variables */
 body.dark-theme {
@@ -66,7 +79,15 @@ body.dark-theme .modal-content,
 body.dark-theme .checkout-content,
 body.dark-theme .order-card,
 body.dark-theme .notification-item,
-body.dark-theme .promotion-card {
+body.dark-theme .promotion-card,
+body.dark-theme .header,
+body.dark-theme .category-filter,
+body.dark-theme .ads-section,
+body.dark-theme .ad-card,
+body.dark-theme .wishlist-item,
+body.dark-theme .scheduled-order-item,
+body.dark-theme .profile-modal,
+body.dark-theme .notifications-panel {
     background: var(--card-bg);
     color: var(--text-primary);
     border-color: var(--border);
@@ -83,6 +104,98 @@ body.dark-theme select {
 body.dark-theme .menu-item {
     background: var(--card-bg);
     border-color: var(--border);
+}
+
+body.dark-theme .category-btn {
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    border-color: var(--border);
+}
+
+body.dark-theme .category-btn.active {
+    background: var(--primary);
+    color: white;
+}
+
+body.dark-theme .search-bar input {
+    background: #2a2a3a;
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+body.dark-theme .icon-btn {
+    background: #2a2a3a;
+    color: var(--text-primary);
+}
+
+body.dark-theme .vendor-name,
+body.dark-theme .modal-header h1,
+body.dark-theme .checkout-section-title,
+body.dark-theme h1, body.dark-theme h2, body.dark-theme h3, body.dark-theme h4 {
+    color: var(--text-primary);
+}
+
+body.dark-theme .cart-item,
+body.dark-theme .payment-option {
+    background: var(--card-bg);
+    border-color: var(--border);
+}
+
+body.dark-theme .setting-item {
+    background: var(--card-bg);
+    border-color: var(--border);
+}
+
+body.dark-theme .setting-item:hover {
+    background: #252535;
+}
+
+body.dark-theme .modal {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+body.dark-theme .checkout-modal {
+    background: rgba(0, 0, 0, 0.85);
+}
+
+/* Dark Theme Hover States */
+body.dark-theme .menu-item:hover {
+    background: #252535;
+    border-color: var(--border);
+}
+
+body.dark-theme .cart-item:hover {
+    background: #252535;
+    border-color: #667eea;
+}
+
+body.dark-theme .profile-menu-item:hover {
+    background: #252535;
+}
+
+body.dark-theme .notification-item:hover {
+    background: #252535;
+}
+
+body.dark-theme .vendor-card:hover {
+    background: var(--card-bg);
+}
+
+body.dark-theme .category-btn:hover {
+    background: #252535;
+}
+
+body.dark-theme .payment-option:hover {
+    background: #252535;
+}
+
+body.dark-theme .ad-card:hover {
+    background: #252535;
+}
+
+body.dark-theme .icon-btn:hover {
+    background: var(--primary);
+    color: white;
 }
 
 body {
