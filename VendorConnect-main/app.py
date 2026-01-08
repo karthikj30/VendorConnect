@@ -266,7 +266,7 @@ def _sanitize_val(v):
 app.config['GOOGLE_CLIENT_ID'] = _sanitize_val(os.environ.get('GOOGLE_CLIENT_ID', ''))
 app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(os.environ.get('GOOGLE_CLIENT_SECRET', ''))
 # Redirect URI for OAuth callbacks (set to your deployed callback or localhost for testing)
-app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/vendor/login/google/callback')
+app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/auth/google/callback')
 
 # Google Maps API Key for delivery tracking and location services
 app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY', '')
@@ -1691,7 +1691,12 @@ def signup_complete():
     
     if request.method == 'POST':
         try:
+            app.logger.info('=== SIGNUP COMPLETE POST REQUEST RECEIVED ===')
+            app.logger.info(f'Content-Type: {request.content_type}')
+            app.logger.info(f'Is JSON: {request.is_json}')
+            
             data = request.get_json() or request.form.to_dict()
+            app.logger.info(f'Parsed data keys: {list(data.keys())}')
             
             role = (data.get('role') or 'Vendor').strip().lower()
             name = (data.get('name') or oauth_data.get('name') or '').strip()
@@ -1699,6 +1704,8 @@ def signup_complete():
             email = oauth_data.get('email', '').strip()
             location = (data.get('location') or '').strip()
             password = (data.get('password') or '').strip()
+            
+            app.logger.info(f'Processing signup: role={role}, name={name}, email={email}, phone={phone}')
             
             # Validation
             if not name or len(name) < 2:
@@ -1793,7 +1800,13 @@ def signup_complete():
             
             # Save to database
             db.session.add(user)
-            db.session.commit()
+            try:
+                db.session.commit()
+                app.logger.info(f'Successfully created {role} user with email: {email}')
+            except Exception as db_error:
+                db.session.rollback()
+                app.logger.exception('Database error during user creation:')
+                raise Exception(f'Database error: {str(db_error)}')
             
             # Clear session
             session.pop('oauth_user_data', None)

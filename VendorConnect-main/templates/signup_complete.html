@@ -405,7 +405,7 @@
 
                 <div class="form-group">
                     <label for="categories">Product Categories <span class="required">*</span></label>
-                    <input type="text" id="categories" name="categories" placeholder="e.g., Vegetables, Fruits, Grains" required>
+                    <input type="text" id="categories" name="categories" placeholder="e.g., Vegetables, Fruits, Grains">
                     <div class="helper-text">Comma-separated list of product categories you supply</div>
                 </div>
             </div>
@@ -553,22 +553,24 @@
             supplierFields.classList.remove('show');
             deliveryFields.classList.remove('show');
 
-            // Clear required attributes
-            document.querySelectorAll('[data-role-required]').forEach(el => {
-                el.removeAttribute('required');
-            });
+            // Clear ALL required attributes from conditional fields
+            document.getElementById('businessType').removeAttribute('required');
+            document.getElementById('gstin').removeAttribute('required');
+            document.getElementById('categories').removeAttribute('required');
+            document.getElementById('vehicleType').removeAttribute('required');
+            document.getElementById('vehicleInfo').removeAttribute('required');
 
             if (role === 'vendor') {
                 vendorFields.classList.add('show');
-                document.getElementById('businessType').setAttribute('data-role-required', 'true');
-                document.getElementById('gstin').setAttribute('data-role-required', 'true');
+                document.getElementById('businessType').setAttribute('required', 'required');
+                document.getElementById('gstin').setAttribute('required', 'required');
             } else if (role === 'supplier') {
                 supplierFields.classList.add('show');
-                document.getElementById('categories').setAttribute('data-role-required', 'true');
+                document.getElementById('categories').setAttribute('required', 'required');
             } else if (role === 'delivery agent') {
                 deliveryFields.classList.add('show');
-                document.getElementById('vehicleType').setAttribute('data-role-required', 'true');
-                document.getElementById('vehicleInfo').setAttribute('data-role-required', 'true');
+                document.getElementById('vehicleType').setAttribute('required', 'required');
+                document.getElementById('vehicleInfo').setAttribute('required', 'required');
             }
         }
 
@@ -588,6 +590,9 @@
         // Form submission
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
+            console.log('Form submit triggered');
+            console.log('Role selected:', roleSelect.value);
 
             // Show loading
             document.getElementById('submitText').style.display = 'none';
@@ -596,6 +601,7 @@
 
             // Validate passwords match
             if (passwordInput.value !== confirmPasswordInput.value) {
+                console.error('Passwords do not match');
                 showError('Passwords do not match');
                 resetButton();
                 return;
@@ -603,6 +609,7 @@
 
             // Validate password strength
             if (!validatePassword(passwordInput.value)) {
+                console.error('Password validation failed');
                 showError('Password does not meet requirements');
                 resetButton();
                 return;
@@ -610,13 +617,24 @@
 
             // Validate role-specific required fields
             const role = roleSelect.value.toLowerCase();
+            console.log('Role (lowercase):', role);
+            
+            if (!role || role === '') {
+                console.error('No role selected');
+                showError('Please select your role');
+                resetButton();
+                return;
+            }
+            
             if (role === 'vendor' && !document.getElementById('gstin').value) {
+                console.error('GSTIN missing for vendor');
                 showError('GSTIN is required for vendors');
                 resetButton();
                 return;
             }
 
             if (role === 'supplier' && !document.getElementById('categories').value) {
+                console.error('Categories missing for supplier');
                 showError('Product categories are required for suppliers');
                 resetButton();
                 return;
@@ -624,20 +642,26 @@
 
             if (role === 'delivery agent') {
                 if (!document.getElementById('vehicleType').value) {
+                    console.error('Vehicle type missing');
                     showError('Vehicle type is required');
                     resetButton();
                     return;
                 }
                 if (!document.getElementById('vehicleInfo').value) {
+                    console.error('Vehicle info missing');
                     showError('Vehicle registration number is required');
                     resetButton();
                     return;
                 }
             }
+            
+            console.log('All validations passed, proceeding with submission');
 
             try {
                 const formData = new FormData(form);
                 const data = Object.fromEntries(formData);
+                
+                console.log('Submitting signup data:', data);
 
                 const response = await fetch('/signup/complete', {
                     method: 'POST',
@@ -646,8 +670,22 @@
                     },
                     body: JSON.stringify(data)
                 });
+                
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+
+                // Check if response is JSON
+                const contentType = response.headers.get('content-type');
+                console.log('Response content-type:', contentType);
+                
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await response.text();
+                    console.error('Non-JSON response received:', text);
+                    throw new Error('Server returned non-JSON response');
+                }
 
                 const result = await response.json();
+                console.log('Response data:', result);
 
                 if (result.success) {
                     showSuccess(result.message);
@@ -660,7 +698,7 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                showError('An unexpected error occurred. Please try again.');
+                showError('An unexpected error occurred. Please try again. Check console for details.');
                 resetButton();
             }
         });
@@ -684,6 +722,17 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('submitBtn').disabled = false;
         }
+    </script>
+    
+    <!-- Global error handler for debugging -->
+    <script>
+        window.addEventListener('error', function(e) {
+            console.error('Global error caught:', e.error);
+        });
+        
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e.reason);
+        });
     </script>
 </body>
 </html>
