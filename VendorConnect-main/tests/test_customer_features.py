@@ -4,9 +4,31 @@ Testing script for new customer features
 Tests all endpoints and database operations
 """
 
-from app import app, db, Customer, CustomerReview, Wishlist, ScheduledOrder, Vendor, MenuItem
+import importlib.util
+import os
 from datetime import datetime, timedelta
 import json
+
+# Load the app module by path so tests can import the Flask app variable even though
+# the project folder has a hyphen in its name.
+APP_PATH = os.path.join(os.path.dirname(__file__), '..', 'app.py')
+spec = importlib.util.spec_from_file_location('vc_app', APP_PATH)
+vc = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(vc)
+
+# Import all required objects from the app module
+app = getattr(vc, 'app')
+db = getattr(vc, 'db')
+Customer = getattr(vc, 'Customer')
+CustomerReview = getattr(vc, 'CustomerReview')
+Wishlist = getattr(vc, 'Wishlist')
+ScheduledOrder = getattr(vc, 'ScheduledOrder')
+Vendor = getattr(vc, 'Vendor')
+MenuItem = getattr(vc, 'MenuItem')
+
+# Ensure Flask knows the correct templates folder when module is loaded via importlib
+app.template_folder = os.path.join(os.path.dirname(APP_PATH), 'templates')
+app.static_folder = os.path.join(os.path.dirname(APP_PATH), 'static')
 
 def test_features():
     """Test all new customer features"""
