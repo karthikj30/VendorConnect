@@ -3359,7 +3359,7 @@ def place_order_customer():
         order_items = []
         missing_items = []
         
-        for item in data['items']:
+        for item in items:
             if 'id' not in item or 'qty' not in item:
                 return jsonify({'success': False, 'message': 'Invalid item data'}), 400
 
@@ -3395,14 +3395,41 @@ def place_order_customer():
         # Warn if some items were missing but order can proceed with available items
         order_response_data = {'missing_items': missing_items} if missing_items else {}
 
-        # Calculate fees
-        delivery_type = data.get('delivery_type', 'delivery').lower()  # delivery or self_pickup
+        # Validate and extract delivery type
+        delivery_type = data.get('delivery_type', 'delivery').lower()
+        allowed_delivery_types = ['delivery', 'self_pickup']
+        if delivery_type not in allowed_delivery_types:
+            return jsonify({
+                'success': False,
+                'type': 'https://example.com/problems/invalid-delivery-type',
+                'title': 'Invalid Delivery Type',
+                'status': 422,
+                'detail': f'Delivery type must be one of: {", ".join(allowed_delivery_types)}',
+                'instance': '/api/place-order-customer',
+                'invalid_field': 'delivery_type',
+                'allowed_values': allowed_delivery_types
+            }), 422
         
-        # No delivery fee for self-pickup orders
+        # Calculate delivery fee based on delivery type
         if delivery_type == 'self_pickup':
             delivery_fee = 0.0
         else:
             delivery_fee = 40.0 if subtotal < 300 else 0.0  # Free delivery above ₹300
+        
+        # Validate payment method
+        payment_method = data.get('payment', 'cod').lower()
+        allowed_payment_methods = ['cod', 'card', 'upi']
+        if payment_method not in allowed_payment_methods:
+            return jsonify({
+                'success': False,
+                'type': 'https://example.com/problems/invalid-payment-method',
+                'title': 'Invalid Payment Method',
+                'status': 422,
+                'detail': f'Payment method must be one of: {", ".join(allowed_payment_methods)}',
+                'instance': '/api/place-order-customer',
+                'invalid_field': 'payment',
+                'allowed_values': allowed_payment_methods
+            }), 422
         
         tax_amount = round(subtotal * 0.05, 2)  # 5% GST
         total_amount = subtotal + delivery_fee + tax_amount
@@ -3433,8 +3460,8 @@ def place_order_customer():
             tax_amount=tax_amount,
             status='pending',
             delivery_type=delivery_type,
-            payment_method=data.get('payment', 'cod'),
-            payment_status='pending' if data.get('payment', 'cod') != 'cod' else 'paid',
+            payment_method=payment_method,
+            payment_status='offline_pending' if payment_method == 'cod' else 'pending',
             delivery_address=data['address'],
             delivery_latitude=delivery_lat,
             delivery_longitude=delivery_lon,
@@ -3469,15 +3496,23 @@ def place_order_customer():
             )
             db.session.add(order_item)
 
-        db.session.commit()
-
-        # Update order status to confirmed and set timestamp
+        # Update order status and timestamps before committing
         current_time = datetime.utcnow()
         order.status = 'confirmed'
         order.confirmed_at = current_time
         # Auto-set preparing timestamp a minute later
         order.preparing_at = current_time + timedelta(minutes=1)
-        db.session.commit()
+
+        # Single atomic commit with rollback on error
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.exception(f"Database error while persisting order: {str(e)}")
+            return jsonify({
+                'success': False,
+                'message': 'An error occurred while placing your order. Please try again or contact support.'
+            }), 500
 
         # Publish customer order status update for real-time clients
         try:
@@ -3523,8 +3558,7 @@ def place_order_customer():
         app.logger.exception(f"Error placing customer order: {str(e)}")
         return jsonify({
             'success': False,
-            'message': f'An error occurred while placing your order. Please try again or contact support.',
-            'error': str(e) if app.debug else 'Server error'
+            'message': 'An error occurred while placing your order. Please try again or contact support.'
         }), 500
 
 

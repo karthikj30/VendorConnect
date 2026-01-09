@@ -1717,15 +1717,35 @@
                     }, 2000);
                 } else {
                     const errorMsg = data.message || 'Unknown error occurred';
-                    console.error('Order placement error:', data);
-                    alert('❌ Error placing order: ' + errorMsg);
-                    if (data.missing_items && data.missing_items.length > 0) {
-                        alert('Please refresh your cart and remove the unavailable items.');
+                    const hasMissingItems = data.missing_items && data.missing_items.length > 0;
+                    
+                    // Log only sanitized error info (no full data object)
+                    console.error('Order placement failed:', {
+                        message: errorMsg,
+                        hasMissingItems: hasMissingItems,
+                        missingItemCount: hasMissingItems ? data.missing_items.length : 0
+                    });
+                    
+                    // Build consolidated error message
+                    let fullErrorMsg = errorMsg;
+                    if (hasMissingItems) {
+                        fullErrorMsg += '\n\nUnavailable items: ' + data.missing_items.join(', ');
                     }
+                    
+                    // Show non-blocking toast with action
+                    showErrorToast(fullErrorMsg, hasMissingItems, () => {
+                        if (hasMissingItems) {
+                            // Refresh cart automatically
+                            updateCart();
+                        }
+                    });
                 }
             } catch (error) {
-                console.error('Order request failed:', error);
-                alert('❌ Connection error: ' + error.message + '. Please check your internet connection and try again.');
+                console.error('Network error:', {
+                    message: error.message,
+                    type: error.name
+                });
+                showErrorToast('❌ Connection error: ' + error.message + '. Please check your internet connection and try again.', false, null);
             } finally {
                 placeOrderBtn.innerHTML = originalText;
                 placeOrderBtn.disabled = false;
@@ -1755,6 +1775,58 @@
                     toast.remove();
                 }
             }, 5000);
+        }
+
+        function showErrorToast(errorMsg, hasMissingItems = false, onAction = null) {
+            const toast = document.createElement('div');
+            toast.className = 'error-toast';
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: #fff3cd;
+                border: 1px solid #ffc107;
+                border-radius: 8px;
+                padding: 16px;
+                max-width: 400px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                z-index: 10000;
+                font-family: inherit;
+            `;
+            
+            const actionBtn = hasMissingItems ? `<button class="view-cart-btn" style="margin-top: 12px; padding: 8px 16px; background: #ffc107; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">View Cart & Fix Items</button>` : '';
+            
+            toast.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <div style="color: #856404; white-space: pre-wrap; word-wrap: break-word;">${errorMsg}</div>
+                        ${actionBtn}
+                    </div>
+                    <button class="toast-close" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #856404; padding: 0; margin-left: 12px;">×</button>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Close button handler
+            const closeBtn = toast.querySelector('.toast-close');
+            closeBtn.addEventListener('click', () => toast.remove());
+            
+            // View Cart button handler
+            if (hasMissingItems) {
+                const viewCartBtn = toast.querySelector('.view-cart-btn');
+                viewCartBtn.addEventListener('click', () => {
+                    if (onAction) onAction();
+                    toast.remove();
+                });
+            }
+            
+            // Auto-remove toast after 8 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 8000);
         }
         
         /* =======================
