@@ -2441,8 +2441,10 @@
         ======================= */
         let deliveryTrackingInterval = null;
         let currentOrderId = null;
+        let vendorMarker = null;
+        let currentVendorInfo = null;
         
-        async function initializeMap(deliveryLat, deliveryLon, destLat, destLon) {
+        async function initializeMap(deliveryLat, deliveryLon, destLat, destLon, vendorLat=null, vendorLon=null, vendorInfo=null) {
             const mapContainer = document.getElementById('deliveryMap');
             const loadingEl = document.getElementById('mapLoading');
             
@@ -2535,13 +2537,38 @@
                         fontSize: '18px'
                     }
                 });
+
+                // Create vendor origin marker if available
+                if (vendorLat && vendorLon) {
+                    vendorMarker = new google.maps.Marker({
+                        position: { lat: vendorLat, lng: vendorLon },
+                        map: deliveryMap,
+                        title: vendorInfo && vendorInfo.name ? `Vendor: ${vendorInfo.name}` : 'Vendor',
+                        icon: {
+                            path: google.maps.SymbolPath.CIRCLE,
+                            scale: 7,
+                            fillColor: '#FFC107',
+                            fillOpacity: 1,
+                            strokeColor: '#ffffff',
+                            strokeWeight: 2
+                        },
+                        label: {
+                            text: '🏪',
+                            fontSize: '16px'
+                        }
+                    });
+                }
                 
-                // Draw route line
+                // Draw route line including vendor -> agent -> customer if vendor available
+                const routePath = [];
+                if (vendorMarker) {
+                    routePath.push({ lat: vendorLat, lng: vendorLon });
+                }
+                routePath.push({ lat: deliveryLat, lng: deliveryLon });
+                routePath.push({ lat: destLat, lng: destLon });
+
                 routeLine = new google.maps.Polyline({
-                    path: [
-                        { lat: deliveryLat, lng: deliveryLon },
-                        { lat: destLat, lng: destLon }
-                    ],
+                    path: routePath,
                     geodesic: true,
                     strokeColor: '#2196F3',
                     strokeOpacity: 0.8,
@@ -2553,6 +2580,9 @@
                 const bounds = new google.maps.LatLngBounds();
                 bounds.extend({ lat: deliveryLat, lng: deliveryLon });
                 bounds.extend({ lat: destLat, lng: destLon });
+                if (vendorMarker) {
+                    bounds.extend({ lat: vendorLat, lng: vendorLon });
+                }
                 deliveryMap.fitBounds(bounds);
                 
                 // Add padding to bounds
@@ -2587,7 +2617,15 @@
             if (!deliveryMap || !deliveryMarker) {
                 // Map not initialized yet, initialize it
                 if (customerLocation) {
-                    initializeMap(latitude, longitude, customerLocation.lat, customerLocation.lng);
+                    initializeMap(
+                        latitude,
+                        longitude,
+                        customerLocation.lat,
+                        customerLocation.lng,
+                        currentVendorInfo && currentVendorInfo.latitude,
+                        currentVendorInfo && currentVendorInfo.longitude,
+                        currentVendorInfo
+                    );
                 }
                 return;
             }
@@ -2598,10 +2636,13 @@
             
             // Update route line
             if (routeLine && customerMarker) {
-                routeLine.setPath([
-                    newPosition,
-                    customerMarker.getPosition()
-                ]);
+                const routePath = [];
+                if (vendorMarker) {
+                    routePath.push(vendorMarker.getPosition());
+                }
+                routePath.push(newPosition);
+                routePath.push(customerMarker.getPosition());
+                routeLine.setPath(routePath);
             }
             
             // Recenter map to show both markers
@@ -2609,6 +2650,9 @@
             bounds.extend(newPosition);
             if (customerMarker) {
                 bounds.extend(customerMarker.getPosition());
+            }
+            if (vendorMarker) {
+                bounds.extend(vendorMarker.getPosition());
             }
             deliveryMap.fitBounds(bounds);
             
@@ -2841,6 +2885,8 @@
                 
                 if (data.success && data.location) {
                     const location = data.location;
+                    // Capture vendor info if provided
+                    currentVendorInfo = location.vendor || null;
                     
                     // Update delivery agent details if available
                     if (location.agent) {
@@ -2861,7 +2907,10 @@
                             location.latitude,
                             location.longitude,
                             customerLocation.lat,
-                            customerLocation.lng
+                            customerLocation.lng,
+                            currentVendorInfo && currentVendorInfo.latitude,
+                            currentVendorInfo && currentVendorInfo.longitude,
+                            currentVendorInfo
                         );
                     } else if (deliveryMap && !deliveryMarker && customerLocation) {
                         // Upgrade from default map to full tracking map
@@ -2870,7 +2919,10 @@
                             location.latitude,
                             location.longitude,
                             customerLocation.lat,
-                            customerLocation.lng
+                            customerLocation.lng,
+                            currentVendorInfo && currentVendorInfo.latitude,
+                            currentVendorInfo && currentVendorInfo.longitude,
+                            currentVendorInfo
                         );
                     } else if (deliveryMap && deliveryMarker) {
                         // Update marker position (only re-render the marker, not the whole map)

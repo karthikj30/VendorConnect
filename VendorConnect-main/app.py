@@ -5211,10 +5211,31 @@ def get_delivery_location(order_id):
                     'rating': 4.8,  # Could calculate from customer feedback
                     'total_deliveries': total_deliveries
                 }
+
+        # Resolve vendor coordinates from the order's items (first item's vendor)
+        vendor_info = None
+        try:
+            order_item = db.session.query(CustomerOrderItem).filter_by(order_id=order_id).first()
+            if order_item:
+                menu_item = db.session.query(MenuItem).filter_by(id=order_item.menu_item_id).first()
+                if menu_item:
+                    vendor = db.session.query(Vendor).filter_by(id=menu_item.vendor_id).first()
+                    if vendor:
+                        v_lat, v_lon = extract_gps_from_address(vendor.location)
+                        vendor_info = {
+                            'id': vendor.id,
+                            'name': vendor.name,
+                            'latitude': v_lat,
+                            'longitude': v_lon
+                        }
+        except Exception as _:
+            vendor_info = None
         
         if location_data:
             # Add agent details to location data
             location_data['agent'] = agent_details
+            if vendor_info:
+                location_data['vendor'] = vendor_info
             
             # Add status timestamps
             location_data['timestamps'] = {
@@ -5242,7 +5263,8 @@ def get_delivery_location(order_id):
                 'longitude': order.delivery_longitude,
                 'timestamp': order.updated_at.isoformat() if order.updated_at else datetime.utcnow().isoformat(),
                 'status': order.status,
-                'agent': agent_details
+                'agent': agent_details,
+                'vendor': vendor_info
             }
             
             return jsonify({
