@@ -630,6 +630,9 @@
                 <div class="gps-indicator"></div>
                 <span>GPS Active</span>
             </div>
+            <button id="shareLocationBtn" class="btn btn-secondary" style="margin-left:8px; font-weight:600;" onclick="toggleShareLocation()">
+                <i class="fas fa-location-arrow"></i> Share Location
+            </button>
             <div style="font-size: 14px; color: #7f8c8d;">
                 Agent ID: <strong id="agentId">Loading...</strong>
             </div>
@@ -748,14 +751,16 @@
 
                 <div class="form-group">
                     <label class="form-label">Location (GPS Coordinates)</label>
+                    <input type="text" id="autocompleteAddress" class="form-input" placeholder="Search address or place" style="margin-bottom:8px;" />
+                    <div id="statusMap" style="width:100%;height:220px;border-radius:8px;overflow:hidden;margin-bottom:8px;display:none;"></div>
                     <div class="form-row">
                         <input type="number" id="latitude" class="form-input" placeholder="Latitude" step="0.000001" required>
                         <input type="number" id="longitude" class="form-input" placeholder="Longitude" step="0.000001" required>
-                        <button type="button" onclick="autoDetectLocation()" class="btn btn-success" style="margin-left: 10px; padding: 8px 16px;" title="Auto-detect my location">
+                        <button type="button" onclick="autoDetectLocation()" class="btn btn-primary" style="margin-left: 10px; padding: 8px 16px;" title="Auto-detect my location">
                             <i class="fas fa-crosshairs"></i>
                         </button>
                     </div>
-                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">Click the target icon to auto-fill with your current GPS location</small>
+                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">Search an address or click the target icon to auto-fill your current GPS location. You can also drag the marker on the map.</small>
                 </div>
 
                 <div class="form-group">
@@ -815,6 +820,9 @@
             </form>
         </div>
     </div>
+
+    <!-- Google Maps API -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAWQBl4gL3BK5dvcPIzSCQf8DPILngrZoo&libraries=places" async defer></script>
 
     <script>
         let currentAgent = null;
@@ -971,6 +979,9 @@
                             <button class="action-btn action-btn-view" onclick="viewDeliveryDetails(${delivery.order_id}, '${delivery.order_type}')">
                                 <i class="fas fa-eye"></i> View
                             </button>
+                            <button class="action-btn action-btn-view" onclick="shareTrackingLink(${delivery.order_id})" style="background:#9c27b0;">
+                                <i class="fas fa-share-alt"></i> Share
+                            </button>
                             ${delivery.status !== 'Delivered' && delivery.status !== 'cancelled' ? `
                             <button class="action-btn action-btn-update" onclick="openStatusModalForOrder(${delivery.order_id}, '${delivery.order_type}')">
                                 <i class="fas fa-sync"></i> Update
@@ -993,6 +1004,95 @@
             
             renderDeliveries(filter);
         }
+
+        /* Google Maps + Places integration for status modal and profile location */
+        let statusMap = null;
+        let statusMarker = null;
+        let statusAutocomplete = null;
+        let profileAutocomplete = null;
+
+        function initMapsWhenReady() {
+            if (window.google && window.google.maps && window.google.maps.places) {
+                setupStatusAutocompleteAndMap();
+                setupProfileAutocomplete();
+            } else {
+                setTimeout(initMapsWhenReady, 300);
+            }
+        }
+
+        function setupStatusAutocompleteAndMap() {
+            const addrInput = document.getElementById('autocompleteAddress');
+            if (!addrInput) return;
+
+            statusAutocomplete = new google.maps.places.Autocomplete(addrInput, { types: ['geocode', 'establishment'] });
+            statusAutocomplete.setFields(['geometry', 'formatted_address', 'name']);
+
+            statusAutocomplete.addListener('place_changed', () => {
+                const place = statusAutocomplete.getPlace();
+                if (place && place.geometry && place.geometry.location) {
+                    const lat = place.geometry.location.lat();
+                    const lng = place.geometry.location.lng();
+                    updateStatusMapAndInputs(lat, lng, true);
+                }
+            });
+
+            const mapDiv = document.getElementById('statusMap');
+            if (!mapDiv) return;
+            mapDiv.style.display = 'block';
+
+            const defaultLat = parseFloat(document.getElementById('latitude').value) || 12.9716;
+            const defaultLng = parseFloat(document.getElementById('longitude').value) || 77.5946;
+
+            statusMap = new google.maps.Map(mapDiv, {
+                center: { lat: defaultLat, lng: defaultLng },
+                zoom: 14,
+                disableDefaultUI: true
+            });
+
+            statusMarker = new google.maps.Marker({
+                position: { lat: defaultLat, lng: defaultLng },
+                map: statusMap,
+                draggable: true
+            });
+
+            statusMarker.addListener('dragend', () => {
+                const pos = statusMarker.getPosition();
+                updateStatusMapAndInputs(pos.lat(), pos.lng(), false);
+            });
+
+            statusMap.addListener('click', (e) => {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                statusMarker.setPosition({ lat, lng });
+                updateStatusMapAndInputs(lat, lng, false);
+            });
+        }
+
+        function updateStatusMapAndInputs(lat, lng, pan = true) {
+            document.getElementById('latitude').value = parseFloat(lat).toFixed(6);
+            document.getElementById('longitude').value = parseFloat(lng).toFixed(6);
+            if (statusMarker) statusMarker.setPosition({ lat, lng });
+            if (statusMap && pan) statusMap.panTo({ lat, lng });
+        }
+
+        function setupProfileAutocomplete() {
+            const profileInput = document.getElementById('profileLocation');
+            if (!profileInput) return;
+
+            profileAutocomplete = new google.maps.places.Autocomplete(profileInput, { types: ['geocode', 'establishment'] });
+            profileAutocomplete.setFields(['formatted_address']);
+            profileAutocomplete.addListener('place_changed', () => {
+                const place = profileAutocomplete.getPlace();
+                if (place && place.formatted_address) {
+                    profileInput.value = place.formatted_address;
+                }
+            });
+        }
+
+        // Start polling for maps API after DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            initMapsWhenReady();
+        });
 
         function autoDetectLocation() {
             if (navigator.geolocation) {
@@ -1179,6 +1279,17 @@
             document.getElementById('statusOrderId').value = orderId;
             // Store order type for later use if needed
             document.getElementById('statusModal').setAttribute('data-order-type', orderType);
+            // Prefill coordinates/address if available in currentDeliveries
+            const delivery = currentDeliveries.find(d => d.order_id === orderId && d.order_type === orderType);
+            if (delivery) {
+                if (delivery.delivery_latitude) document.getElementById('latitude').value = delivery.delivery_latitude;
+                if (delivery.delivery_longitude) document.getElementById('longitude').value = delivery.delivery_longitude;
+                if (document.getElementById('autocompleteAddress') && delivery.delivery_address) document.getElementById('autocompleteAddress').value = delivery.delivery_address;
+                // Update map marker if maps loaded
+                if (window.google && window.google.maps && typeof updateStatusMapAndInputs === 'function') {
+                    updateStatusMapAndInputs(parseFloat(delivery.delivery_latitude) || 0, parseFloat(delivery.delivery_longitude) || 0, true);
+                }
+            }
             openStatusModal();
         }
 
@@ -1233,6 +1344,91 @@
                     document.getElementById('longitude').value = position.coords.longitude.toFixed(4);
                     showToast('Location updated!', 'success');
                 });
+            }
+        }
+
+        // Live sharing of agent location to the server (so vendors/customers can track)
+        let locationWatchId = null;
+        let sharingLocation = false;
+
+        function toggleShareLocation() {
+            if (sharingLocation) stopSharingLocation(); else startSharingLocation();
+        }
+
+        function startSharingLocation() {
+            if (!('geolocation' in navigator)) {
+                showToast('Geolocation not supported', 'error');
+                return;
+            }
+
+            if (locationWatchId) return;
+
+            locationWatchId = navigator.geolocation.watchPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                // update inputs
+                const latEl = document.getElementById('latitude');
+                const lngEl = document.getElementById('longitude');
+                if (latEl) latEl.value = lat.toFixed(6);
+                if (lngEl) lngEl.value = lng.toFixed(6);
+
+                try {
+                    await fetch('/api/delivery-agent/update-location', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ latitude: lat, longitude: lng })
+                    });
+                } catch (e) {
+                    console.warn('Failed to post location', e);
+                }
+            }, (err) => {
+                console.error('WatchPosition error', err);
+                showToast('Could not read GPS location', 'error');
+            }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 5000 });
+
+            sharingLocation = true;
+            const btn = document.getElementById('shareLocationBtn');
+            if (btn) { btn.classList.remove('btn-secondary'); btn.classList.add('btn-primary'); btn.innerHTML = '<i class="fas fa-location-arrow"></i> Sharing'; }
+            showToast('Live location sharing started', 'success');
+        }
+
+        function stopSharingLocation() {
+            if (locationWatchId) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+            }
+            sharingLocation = false;
+            const btn = document.getElementById('shareLocationBtn');
+            if (btn) { btn.classList.remove('btn-primary'); btn.classList.add('btn-secondary'); btn.innerHTML = '<i class="fas fa-location-arrow"></i> Share Location'; }
+            showToast('Live location sharing stopped', 'success');
+        }
+
+        // Start live sharing automatically when page loads (optional)
+        document.addEventListener('DOMContentLoaded', () => {
+            // Attempt to start sharing after agent data loads
+            setTimeout(() => {
+                if (!sharingLocation) startSharingLocation();
+            }, 1200);
+        });
+
+        // Generate and share a tracking link for an order
+        async function shareTrackingLink(orderId) {
+            try {
+                const resp = await fetch(`/api/order/${orderId}/create-tracking`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const data = await resp.json();
+                if (data.success) {
+                    const url = data.tracking_url;
+                    navigator.clipboard.writeText(url).then(() => {
+                        showToast(`✓ Tracking link copied: ${url.split('/').pop()}`, 'success');
+                    }).catch(() => {
+                        alert(`Tracking link: ${url}`);
+                    });
+                } else {
+                    showToast('Failed to create tracking link', 'error');
+                }
+            } catch (e) {
+                console.error('Share error', e);
+                showToast('Error generating tracking link', 'error');
             }
         }
     </script>

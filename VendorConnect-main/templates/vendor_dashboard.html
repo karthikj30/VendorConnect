@@ -3588,6 +3588,14 @@
                                 if (ev.type === 'status_update') {
                                     alert(`Order ${orderId} status: ${ev.data.status}`);
                                 }
+                                if (ev.type === 'agent_location') {
+                                    const loc = ev.data || {};
+                                    if (loc.latitude && loc.longitude) {
+                                        // Display a subtle notification for agent location
+                                        const msg = `Agent ${loc.agent_id} location: ${parseFloat(loc.latitude).toFixed(5)}, ${parseFloat(loc.longitude).toFixed(5)}`;
+                                        try { showToast(msg, 'success'); } catch (e) { console.log(msg); }
+                                    }
+                                }
                             } catch (e) {
                                 console.error('Invalid event', e);
                             }
@@ -3597,7 +3605,24 @@
                     } catch (e) {
                         console.warn('Could not open event stream', e);
                     }
-                }                // Generate order ID
+                }
+
+                // Share vendor tracking link
+                async function shareVendorTrackingLink(orderId) {
+                    try {
+                        const resp = await fetch(`/api/order/${orderId}/create-tracking`, { method: 'POST' });
+                        const data = await resp.json();
+                        if (data.success) {
+                            navigator.clipboard.writeText(data.tracking_url).then(() => {
+                                alert(`✓ Tracking link copied!\\n\\n${data.tracking_url}`);
+                            }).catch(() => {
+                                alert(`Share: ${data.tracking_url}`);
+                            });
+                        }
+                    } catch (e) { console.error('Share error', e); }
+                }
+
+                // Generate order ID
                 const orderId = 'VC-' + new Date().getFullYear() + '-' + 
                                String(Math.floor(Math.random() * 1000)).padStart(3, '0');
                 document.getElementById('order-id').textContent = orderId;

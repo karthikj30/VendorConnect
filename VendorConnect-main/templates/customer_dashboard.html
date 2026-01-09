@@ -2601,6 +2601,20 @@
             if (tracker) {
                 tracker.style.display = 'block';
                 
+                // Add share button if it doesn't exist
+                let shareBtn = document.getElementById('shareTrackingBtn');
+                if (!shareBtn) {
+                    shareBtn = document.createElement('button');
+                    shareBtn.id = 'shareTrackingBtn';
+                    shareBtn.style.cssText = 'padding:10px 16px;background:#9c27b0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600;margin-bottom:12px;';
+                    shareBtn.innerHTML = '<i class="fas fa-share-alt"></i> Share Tracking Link';
+                    shareBtn.onclick = () => shareCustomerTrackingLink(orderId);
+                    const mapContainer = document.getElementById('deliveryMap');
+                    if (mapContainer && mapContainer.parentNode) {
+                        mapContainer.parentNode.insertBefore(shareBtn, mapContainer);
+                    }
+                }
+                
                 // Show default map centered on Bangalore immediately
                 initializeDefaultMap();
                 
@@ -2668,6 +2682,26 @@
             }
         }
 
+        async function shareCustomerTrackingLink(orderId) {
+            try {
+                const resp = await fetch(`/api/order/${orderId}/create-tracking`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
+                const data = await resp.json();
+                if (data.success) {
+                    const url = data.tracking_url;
+                    navigator.clipboard.writeText(url).then(() => {
+                        showCustomerToast(`✓ Tracking link copied!`, 'success');
+                    }).catch(() => {
+                        alert(`Share this link: ${url}`);
+                    });
+                } else {
+                    showCustomerToast('Failed to create link', 'error');
+                }
+            } catch (e) {
+                console.error('Share error', e);
+                showCustomerToast('Error creating link', 'error');
+            }
+        }
+
         function closeDeliveryTracker() {
             // Only allow closing if delivery is confirmed/delivered
             if (currentDeliveryStatus !== 'delivered') {
@@ -2699,23 +2733,31 @@
                 es.onmessage = (evt) => {
                     try {
                         const ev = JSON.parse(evt.data);
+                        // Handle status updates
                         if (ev.type === 'status_update') {
                             const status = ev.data.status;
                             const loc = ev.data.location;
                             const timestamps = ev.data.timestamps || null;
-                            // Update UI status
                             updateDeliveryStatus(status, ev.data.notes || null, timestamps || {});
-                            // Update map marker if location provided
                             if (loc && loc.latitude && loc.longitude) {
-                                // If delivery map exists, update marker directly
                                 if (deliveryMap) {
                                     if (!deliveryMarker) {
-                                        // Initialize map pointing to agent location and customer location
                                         initializeMap(loc.latitude, loc.longitude, (customerLocation && customerLocation.lat) ? customerLocation.lat : null, (customerLocation && customerLocation.lng) ? customerLocation.lng : null);
                                     } else {
                                         updateMapMarker(loc.latitude, loc.longitude);
                                     }
                                 }
+                            }
+                        }
+
+                        // Handle live agent location events
+                        if (ev.type === 'agent_location') {
+                            const loc = ev.data || {};
+                            if (loc.latitude && loc.longitude) {
+                                if (!deliveryMap && customerLocation) {
+                                    initializeMap(loc.latitude, loc.longitude, customerLocation.lat, customerLocation.lng);
+                                }
+                                if (deliveryMap) updateMapMarker(loc.latitude, loc.longitude);
                             }
                         }
                     } catch (e) {

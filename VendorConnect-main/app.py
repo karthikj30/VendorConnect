@@ -921,6 +921,14 @@ class PromotionView(db.Model):
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=True)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+# Tracking links for public order tracking
+class TrackingLink(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    order_id = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    expires_at = db.Column(db.DateTime, nullable=False)
+
 class CustomerReview(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
@@ -3287,6 +3295,91 @@ def customer_order_events(order_id):
                 yield ': keep-alive\n\n'
     return Response(stream(), mimetype='text/event-stream')
 
+# --- Shareable public tracking endpoints ---
+@app.route('/api/order/<int:order_id>/create-tracking', methods=['POST'])
+def create_tracking_link(order_id):
+    # Allow creation by vendor/supplier/customer/delivery agent who is related to the order
+    if not ('vendor_id' in session or 'supplier_id' in session or 'customer_id' in session or 'delivery_agent_id' in session):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    order = db.session.query(CustomerOrder).filter_by(id=order_id).first()
+    if not order:
+        return jsonify({'success': False, 'message': 'Order not found'}), 404
+
+    # Basic ownership checks (allow if the requester is the order owner/vendor/supplier/delivery agent)
+    allowed = False
+    if 'customer_id' in session and session['customer_id'] == order.customer_id:
+        allowed = True
+    if 'delivery_agent_id' in session and session['delivery_agent_id'] == order.delivery_agent_id:
+        allowed = True
+    # vendor_id and supplier_id checks require relationships; allow for now if present in session
+    if 'vendor_id' in session or 'supplier_id' in session:
+        allowed = True
+
+    if not allowed:
+        return jsonify({'success': False, 'message': 'Forbidden'}), 403
+
+    token = secrets.token_urlsafe(16)
+    expires = datetime.utcnow() + timedelta(hours=24)
+
+    link = TrackingLink(token=token, order_id=order.id, expires_at=expires)
+    db.session.add(link)
+    db.session.commit()
+
+    url = url_for('track_page', token=token, _external=True)
+    return jsonify({'success': True, 'tracking_url': url, 'expires_at': expires.isoformat()})
+
+
+@app.route('/track/<token>')
+def track_page(token):
+    link = db.session.query(TrackingLink).filter_by(token=token).first()
+    if not link or link.expires_at < datetime.utcnow():
+        return render_template('track.html', invalid=True, token=token, google_maps_key=app.config.get('GOOGLE_MAPS_API_KEY'))
+    return render_template('track.html', invalid=False, token=token, google_maps_key=app.config.get('GOOGLE_MAPS_API_KEY'))
+
+
+@app.route('/api/track/<token>/info')
+def track_info(token):
+    link = db.session.query(TrackingLink).filter_by(token=token).first()
+    if not link or link.expires_at < datetime.utcnow():
+        return jsonify({'success': False, 'message': 'Tracking link invalid or expired'}), 404
+
+    order = db.session.query(CustomerOrder).filter_by(id=link.order_id).first()
+    if not order:
+        return jsonify({'success': False, 'message': 'Order not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'order': {
+            'id': order.id,
+            'status': order.status,
+            'delivery_latitude': order.delivery_latitude,
+            'delivery_longitude': order.delivery_longitude,
+            'customer_name': order.customer_name,
+            'delivery_address': order.delivery_address
+        }
+    })
+
+
+@app.route('/api/track/<token>/events')
+def track_events(token):
+    link = db.session.query(TrackingLink).filter_by(token=token).first()
+    if not link or link.expires_at < datetime.utcnow():
+        return jsonify({'success': False, 'message': 'Tracking link invalid or expired'}), 404
+
+    order_id = link.order_id
+
+    def stream():
+        q = order_event_queues.setdefault(order_id, Queue())
+        while True:
+            try:
+                ev = q.get(timeout=25)
+                yield f"data: {json.dumps(ev)}\n\n"
+            except Empty:
+                yield ': keep-alive\n\n'
+    return Response(stream(), mimetype='text/event-stream')
+
+
 @app.route('/api/customer/profile', methods=['PUT'])
 def update_customer_profile():
     if 'customer_id' not in session:
@@ -5486,6 +5579,25 @@ def update_agent_location():
                 'timestamp': datetime.utcnow().isoformat(),
                 'updated_at': datetime.utcnow()
             }
+        
+        # Publish real-time location updates to any orders assigned to this agent
+        try:
+            # Select customer orders assigned to this delivery agent which are active
+            active_statuses = ['picked_up', 'out_for_delivery', 'in_transit', 'ready', 'confirmed']
+            assigned_orders = db.session.query(CustomerOrder).filter(
+                CustomerOrder.delivery_agent_id == delivery_agent_id,
+                CustomerOrder.status.in_(active_statuses)
+            ).all()
+
+            evt_data = {'agent_id': delivery_agent_id, 'latitude': float(latitude), 'longitude': float(longitude), 'ts': datetime.utcnow().isoformat()}
+            for ord in assigned_orders:
+                try:
+                    publish_order_event(ord.id, 'agent_location', evt_data)
+                    publish_customer_order_event(ord.id, 'agent_location', evt_data)
+                except Exception:
+                    app.logger.exception('Failed to publish agent location for order %s', ord.id)
+        except Exception:
+            app.logger.exception('Error while fetching assigned orders for agent location publish')
         
         return jsonify({
             'success': True,
