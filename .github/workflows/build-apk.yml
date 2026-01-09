@@ -28,15 +28,23 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Android SDK
+      - name: Set up Android SDK (pin versions)
         uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          build-tools: 34.0.0
+          host: linux
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses
+        shell: bash
 
       - name: Grant execute permission to gradlew
         run: chmod +x android/VendorConnectApp/gradlew
         working-directory: ${{ github.workspace }}
 
       - name: Build APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug --stacktrace
         working-directory: ${{ github.workspace }}/android/VendorConnectApp
 
       - name: Upload APK
