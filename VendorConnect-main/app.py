@@ -277,7 +277,7 @@ app.config['GOOGLE_CLIENT_SECRET'] = _sanitize_val(os.environ.get('GOOGLE_CLIENT
 app.config['GOOGLE_REDIRECT_URI'] = os.environ.get('GOOGLE_REDIRECT_URI', 'http://localhost:5000/auth/google/callback')
 
 # Google Maps API Key for delivery tracking and location services
-app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+app.config['GOOGLE_MAPS_API_KEY'] = os.environ.get('GOOGLE_MAPS_API_KEY', 'AIzaSyAWQBl4gL3BK5dvcPIzSCQf8DPILngrZoo')
 
 # JWT configuration
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', os.environ.get('SECRET_KEY', 'change-me-jwt-secret'))
