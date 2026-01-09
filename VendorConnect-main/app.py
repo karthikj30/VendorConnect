@@ -24,6 +24,11 @@ from datetime import timezone
 from authlib.integrations.flask_client import OAuth
 import logging
 import pytz
+from ai_integrations import ai_bp
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 # IST Timezone Configuration
 IST = pytz.timezone('Asia/Kolkata')
@@ -225,6 +230,9 @@ except Exception:
     migrate = None
 
 CORS(app)
+
+# Register AI blueprint
+app.register_blueprint(ai_bp, url_prefix='/api/ai')
 
 # Real-time delivery tracking cache (in-memory for speed)
 delivery_location_cache = {}
