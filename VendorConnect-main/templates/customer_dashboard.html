@@ -23,8 +23,17 @@
         // noinspection JSUnresolvedVariable
         const customerData = {{ customer_data|tojson|safe }};
         
-            // Load Google Maps API key from backend and initialize
-            async function initializeGoogleMaps() {
+        // Track if Google Maps is loaded
+        window.googleMapsLoaded = false;
+        window.googleMapsLoadPromise = null;
+        
+        // Load Google Maps API key from backend and initialize
+        async function initializeGoogleMaps() {
+            if (window.googleMapsLoadPromise) {
+                return window.googleMapsLoadPromise;
+            }
+            
+            window.googleMapsLoadPromise = new Promise(async (resolve, reject) => {
                 try {
                     const response = await fetch('/api/config/maps');
                     const config = await response.json();
@@ -38,21 +47,36 @@
                         const script = document.getElementById('google-maps-script');
                         if (script) {
                             const encodedKey = encodeURIComponent(rawKey);
-                            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodedKey}&libraries=geometry`;
-                            script.onerror = window.gm_authFailure;
+                            script.src = `https://maps.googleapis.com/maps/api/js?key=${encodedKey}&libraries=geometry&callback=onGoogleMapsLoaded`;
+                            script.onerror = () => {
+                                window.gm_authFailure();
+                                reject(new Error('Google Maps script failed to load'));
+                            };
+                            // Wait for callback
+                            window.onGoogleMapsLoaded = () => {
+                                window.googleMapsLoaded = true;
+                                console.log('✅ Google Maps loaded successfully');
+                                resolve();
+                            };
                         } else {
                             console.warn('Google Maps script tag not found.');
                             window.gm_authFailure();
+                            reject(new Error('Script tag not found'));
                         }
                     } else {
                         console.warn('Invalid or missing Google Maps API key received. Falling back to GPS-only tracking.');
                         window.gm_authFailure();
+                        reject(new Error('Invalid API key'));
                     }
                 } catch (error) {
                     console.error('Failed to load Google Maps configuration:', error);
                     window.gm_authFailure();
+                    reject(error);
                 }
-            }
+            });
+            
+            return window.googleMapsLoadPromise;
+        }
         
             // Initialize Google Maps when page loads
             if (document.readyState === 'loading') {
@@ -2418,15 +2442,25 @@
         let deliveryTrackingInterval = null;
         let currentOrderId = null;
         
-        function initializeMap(deliveryLat, deliveryLon, destLat, destLon) {
+        async function initializeMap(deliveryLat, deliveryLon, destLat, destLon) {
             const mapContainer = document.getElementById('deliveryMap');
             const loadingEl = document.getElementById('mapLoading');
             
             if (!mapContainer) return;
             
-            // Check if Google Maps is available
-            if (typeof google === 'undefined' || !google.maps) {
-                console.error('Google Maps API not loaded - showing fallback');
+            try {
+                // Wait for Google Maps to load if not already loaded
+                if (!window.googleMapsLoaded) {
+                    if (loadingEl) loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i><p>Loading Google Maps...</p>';
+                    await initializeGoogleMaps();
+                }
+                
+                // Check if Google Maps is available
+                if (typeof google === 'undefined' || !google.maps) {
+                    throw new Error('Google Maps API not available');
+                }
+            } catch (error) {
+                console.error('Google Maps API not loaded - showing fallback', error);
                 if (loadingEl) {
                     loadingEl.innerHTML = `
                         <div style="padding: 20px; text-align: center;">
@@ -2639,13 +2673,24 @@
             }
         }
         
-        function initializeDefaultMap() {
+        async function initializeDefaultMap() {
             const mapContainer = document.getElementById('deliveryMap');
             const loadingEl = document.getElementById('mapLoading');
             
             if (!mapContainer || deliveryMap) return; // Don't reinitialize if map already exists
             
             try {
+                // Wait for Google Maps to load
+                if (!window.googleMapsLoaded) {
+                    if (loadingEl) loadingEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 10px;"></i><p>Loading Google Maps...</p>';
+                    await initializeGoogleMaps();
+                }
+                
+                // Check if Google Maps is available
+                if (typeof google === 'undefined' || !google.maps) {
+                    throw new Error('Google Maps API not available');
+                }
+                
                 // Default to Bangalore center
                 deliveryMap = new google.maps.Map(mapContainer, {
                     center: { lat: 12.9716, lng: 77.5946 },
@@ -2656,11 +2701,17 @@
                 });
                 
                 if (loadingEl) loadingEl.style.display = 'none';
-                console.log('Default map initialized');
+                console.log('✅ Default map initialized');
             } catch (error) {
                 console.error('Error initializing default map:', error);
                 if (loadingEl) {
-                    loadingEl.innerHTML = '<p style="color: #f44336;">Map failed to load. Check your internet connection.</p>';
+                    loadingEl.innerHTML = `
+                        <div style="padding: 40px; text-align: center;">
+                            <i class="fas fa-map-marked-alt" style="font-size: 48px; color: #666; margin-bottom: 15px;"></i>
+                            <p style="color: #666; margin-bottom: 10px;"><strong>Map Temporarily Unavailable</strong></p>
+                            <p style="font-size: 14px; color: #999;">Tracking your delivery via GPS coordinates</p>
+                        </div>
+                    `;
                 }
             }
         }
