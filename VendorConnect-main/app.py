@@ -3356,13 +3356,17 @@ def place_order_customer():
     # Calculate order amounts
     subtotal = 0
     order_items = []
+    missing_items = []
+    
     for item in data['items']:
         if 'id' not in item or 'qty' not in item:
             return jsonify({'success': False, 'message': 'Invalid item data'}), 400
 
         menu_item = db.session.get(MenuItem, item['id'])
         if not menu_item:
-            return jsonify({'success': False, 'message': f'Item {item["id"]} not found'}), 400
+            # Instead of failing completely, track missing items
+            missing_items.append(item['id'])
+            continue
 
         if item['qty'] <= 0:
             return jsonify({'success': False, 'message': 'Invalid quantity'}), 400
@@ -3375,6 +3379,20 @@ def place_order_customer():
             'price_per_unit': menu_item.price,
             'item_total': item_total
         })
+    
+    # If no valid items remain, reject the order
+    if len(order_items) == 0:
+        if missing_items:
+            return jsonify({
+                'success': False, 
+                'message': f'Items not found: {", ".join(map(str, missing_items))}. Please refresh your cart and try again.',
+                'missing_items': missing_items
+            }), 400
+        else:
+            return jsonify({'success': False, 'message': 'Cart is empty'}), 400
+    
+    # Warn if some items were missing but order can proceed with available items
+    order_response_data = {'missing_items': missing_items} if missing_items else {}
 
     # Calculate fees
     delivery_type = data.get('delivery_type', 'delivery').lower()  # delivery or self_pickup
@@ -3487,7 +3505,8 @@ def place_order_customer():
     return jsonify({
         'success': True,
         'order_id': order.id,
-        'message': 'Order placed successfully!',
+        'message': 'Order placed successfully!' + (' (Some items were unavailable and excluded)' if missing_items else ''),
+        'missing_items': missing_items,
         'order_details': {
             'subtotal': subtotal,
             'delivery_fee': delivery_fee,

@@ -1570,6 +1570,30 @@
         }
 
         async function placeOrder() {
+            // Validate cart items exist (prevent "Item not found" errors from deleted menu items)
+            if (cart.length > 0) {
+                const validCart = cart.filter(item => {
+                    // Quick client-side check: ensure item has required fields
+                    return item.id && item.qty && item.price && item.name;
+                });
+                
+                if (validCart.length === 0) {
+                    alert('⚠️ Your cart items are invalid. Please add fresh items and try again.');
+                    cart = [];
+                    localStorage.setItem('vendorCart', JSON.stringify(cart));
+                    renderCart();
+                    closeCheckout();
+                    return;
+                }
+                
+                if (validCart.length < cart.length) {
+                    const removed = cart.length - validCart.length;
+                    alert(`⚠️ ${removed} invalid item(s) removed from cart. Proceeding with ${validCart.length} item(s).`);
+                    cart = validCart;
+                    localStorage.setItem('vendorCart', JSON.stringify(cart));
+                }
+            }
+
             const name = document.getElementById('customerName').value.trim();
             const email = document.getElementById('customerEmail').value.trim();
             const phone = document.getElementById('customerPhone').value.trim();
