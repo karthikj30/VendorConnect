@@ -6,41 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VendorConnect - Customer Dashboard</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/customer_dashboard.css">
-    <style>
-        /* Override for consistent modern UI styling */
-        body { font-family: 'Poppins', sans-serif; background: #f5f7fa; color: #333; }
-        .header { 
-            background: #ffffff; 
-            border-bottom: 1px solid #e8ecf1;
-            padding: 16px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
-        .logo { font-size: 20px; font-weight: 700; color: #667eea; display: flex; align-items: center; gap: 8px; }
-        .search-bar { 
-            flex: 1; 
-            max-width: 400px;
-            margin: 0 30px;
-            position: relative;
-        }
-        .search-bar input { 
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #e8ecf1;
-            border-radius: 8px;
-            font-size: 14px;
-            font-family: 'Poppins', sans-serif;
-        }
-        .header-icons { display: flex; gap: 20px; align-items: center; }
-        .icon-btn { background: none; border: none; font-size: 18px; color: #667eea; cursor: pointer; position: relative; }
-        .badge { position: absolute; top: -8px; right: -8px; background: #f97316; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; }
-        .profile-btn { padding: 8px 16px; background: #667eea; color: white; border-radius: 8px; cursor: pointer; font-weight: 500; }
-        .main-container { max-width: 1200px; margin: 20px auto; }
-    </style>
     <script>
         // Global error handler for Google Maps
         window.gm_authFailure = function() {
