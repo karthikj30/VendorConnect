@@ -35,15 +35,23 @@ class VendorConnectChatbot {
         this.quickActions = document.getElementById('quick-actions');
         this.notificationBadge = document.getElementById('notification-badge');
         this.loadingOverlay = document.getElementById('loading-overlay');
+        this.chatInput = document.getElementById('chat-input');
+        this.sendBtn = document.getElementById('send-btn');
     }
 
     setupEventListeners() {
         // Toggle chatbot
         this.chatbotToggle.addEventListener('click', () => this.toggleChatbot());
         
-        // Text input removed - only tag-based interaction
-        
-        // Voice input removed - tag-based only
+        // Text input for typing messages
+        if (this.chatInput && this.sendBtn) {
+            this.sendBtn.addEventListener('click', () => this.sendMessage());
+            this.chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.sendMessage();
+                }
+            });
+        }
         
         // Control buttons
         this.minimizeBtn.addEventListener('click', () => this.minimizeChatbot());
@@ -60,8 +68,6 @@ class VendorConnectChatbot {
         document.querySelectorAll('.lang-btn').forEach(btn => {
             btn.addEventListener('click', (e) => this.changeLanguage(e.target.dataset.lang));
         });
-        
-        // Text input functionality removed - tag-based only
     }
 
     // Speech recognition removed - tag-based interaction only
@@ -175,9 +181,61 @@ class VendorConnectChatbot {
         this.chatbotToggle.style.display = 'flex';
     }
 
-    // sendMessage function removed - tag-based interaction only
+    async sendMessage() {
+        if (!this.chatInput) return;
+        
+        const message = this.chatInput.value.trim();
+        if (!message) return;
+        
+        // Add user message to chat
+        this.addMessage(message, 'user');
+        
+        // Clear input
+        this.chatInput.value = '';
+        
+        // Show typing indicator
+        this.showTypingIndicator();
+        
+        try {
+            // Send message to backend
+            const response = await this.sendTextToBackend(message);
+            
+            // Hide typing indicator
+            this.hideTypingIndicator();
+            
+            // Add bot response
+            this.addMessage(response.message, 'bot', response.actions);
+            
+            // Update conversation context
+            this.conversationContext = response.context || {};
+            
+        } catch (error) {
+            console.error('Error sending message:', error);
+            this.hideTypingIndicator();
+            this.addMessage('Sorry, I encountered an error. Please try again.', 'bot');
+        }
+    }
 
-    // sendToBackend function removed - using sendTagToBackend instead
+    async sendTextToBackend(message) {
+        const response = await fetch('/api/chatbot/message', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                message: message,
+                language: this.currentLanguage,
+                context: this.conversationContext,
+                session_id: this.getSessionId()
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to send message');
+        }
+
+        return await response.json();
+    }
 
     addMessage(text, sender, actions = null) {
         const messageDiv = document.createElement('div');
@@ -352,6 +410,9 @@ class VendorConnectChatbot {
     updateUIText() {
         const t = this.translations[this.currentLanguage];
         this.typingIndicator.querySelector('.typing-text').textContent = t.typing;
+        if (this.chatInput) {
+            this.chatInput.placeholder = t.placeholder;
+        }
         this.updateQuickActionLabels();
     }
 

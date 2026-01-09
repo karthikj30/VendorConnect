@@ -360,7 +360,6 @@ def document_reader():
 
     file = request.files.get('file')
     prompt = (request.form.get('prompt') or request.args.get('prompt') or 'Extract all key fields and totals from this receipt/invoice.').strip()
-    model = request.form.get('model') or DEFAULT_VISION_MODEL
 
     if not file:
         return jsonify({'success': False, 'message': 'Upload an image or PDF file'}), 400
@@ -370,25 +369,62 @@ def document_reader():
         return jsonify({'success': False, 'message': 'File too large. Max 15 MB'}), 400
 
     try:
-        image_b64 = base64.b64encode(file_bytes).decode('ascii')
-        payload = {
-            'model': model,
-            'messages': [
-                {'role': 'system', 'content': 'You are a precise document extraction assistant. Return concise structured text.'},
-                {'role': 'user', 'content': prompt},
-                {'role': 'user', 'content': {'type': 'image', 'data': image_b64, 'mime_type': file.mimetype or 'application/octet-stream'}},
-            ],
-        }
-        resp_json = _call_json(VISION_PATH, payload)
-        content = _extract_text(resp_json)
-        return jsonify({'success': True, 'content': content, 'raw': resp_json})
-    except AIRequestError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
-    except requests.HTTPError as e:
-        return jsonify({'success': False, 'message': f'Provider error: {e.response.text if e.response else str(e)}'}), 502
-    except Exception:
+        # Use local OCR extraction instead of API
+        import io
+        from PIL import Image
+        
+        try:
+            import pytesseract
+        except ImportError:
+            # If pytesseract is not available, use a simple text extraction message
+            return jsonify({
+                'success': True, 
+                'content': f'Document uploaded: {file.filename}\n\nNote: OCR feature requires pytesseract installation. Please manually review the document.\n\nFilename: {file.filename}\nSize: {len(file_bytes)} bytes\nType: {file.mimetype or "unknown"}'
+            })
+        
+        # Try to extract text from image
+        try:
+            # Handle PDF or image files
+            if file.mimetype == 'application/pdf':
+                try:
+                    from pdf2image import convert_from_bytes
+                    images = convert_from_bytes(file_bytes, first_page=1, last_page=3)  # Process first 3 pages
+                    extracted_text = ""
+                    for i, img in enumerate(images):
+                        text = pytesseract.image_to_string(img)
+                        if text.strip():
+                            extracted_text += f"\n--- Page {i+1} ---\n{text}\n"
+                except ImportError:
+                    return jsonify({
+                        'success': True,
+                        'content': f'PDF uploaded: {file.filename}\n\nNote: PDF extraction requires pdf2image library. Please manually review the document.'
+                    })
+            else:
+                # Handle image files
+                image = Image.open(io.BytesIO(file_bytes))
+                extracted_text = pytesseract.image_to_string(image)
+            
+            if not extracted_text or len(extracted_text.strip()) < 10:
+                return jsonify({
+                    'success': True,
+                    'content': f'Document uploaded but no clear text detected.\n\nFilename: {file.filename}\nPlease ensure the document has readable text and try again.'
+                })
+            
+            # Format the extracted text nicely
+            content = f"📄 EXTRACTED TEXT FROM: {file.filename}\n\n{extracted_text}\n\n---\nNote: This text was extracted using OCR. Please verify accuracy."
+            
+            return jsonify({'success': True, 'content': content})
+            
+        except Exception as ocr_error:
+            current_app.logger.exception('OCR extraction failed')
+            return jsonify({
+                'success': True,
+                'content': f'Document uploaded: {file.filename}\n\nCould not extract text automatically. Error: {str(ocr_error)}\n\nPlease manually review the document.'
+            })
+        
+    except Exception as e:
         current_app.logger.exception('Document reader failed')
-        return jsonify({'success': False, 'message': 'Unexpected error'}), 500
+        return jsonify({'success': False, 'message': f'Error processing document: {str(e)}'}), 500
 
 
 @ai_bp.route('/audio', methods=['POST'])

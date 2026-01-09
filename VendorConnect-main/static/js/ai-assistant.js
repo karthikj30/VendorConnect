@@ -387,9 +387,6 @@ class AIAssistant {
         const output = document.getElementById('ai-chat-output');
         const prompt = input.value.trim();
 
-        // Quick weather route: if prompt mentions weather/forecast, call weather API directly
-        const weatherMatch = prompt.toLowerCase().match(/weather|forecast|temperature/);
-
         if (!prompt) {
             output.textContent = 'Please enter a question.';
             output.classList.remove('empty');
@@ -398,30 +395,36 @@ class AIAssistant {
 
         this.setLoading('ai-chat-btn', true);
         try {
-            if (weatherMatch) {
-                const wxResp = await fetch('/api/ai/weather', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ city: prompt })
-                });
-                const wxData = await wxResp.json();
-                if (wxData.success) {
-                    output.textContent = `${wxData.city}: ${wxData.summary}`;
-                } else {
-                    output.textContent = wxData.message || 'Could not get weather';
-                }
-                output.classList.remove('empty');
-                return;
-            }
-
-            const resp = await fetch('/api/ai/chat', {
+            // Use the enhanced chatbot API that includes database queries
+            const resp = await fetch('/api/chatbot/message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt, model: 'openai/gpt-oss-120b', temperature: 0.35 })
+                body: JSON.stringify({ 
+                    message: prompt,
+                    language: 'en',
+                    context: this.conversationHistory || {},
+                    session_id: this.getSessionId()
+                })
             });
             const data = await resp.json();
-            const raw = data.success ? (data.content || 'No response') : (data.message || 'Request failed');
-            output.textContent = this.sanitizeAI(raw);
+            
+            if (data.message) {
+                // Handle different message types
+                if (typeof data.message === 'string') {
+                    output.textContent = data.message;
+                } else if (data.message.type === 'list' && data.message.items) {
+                    output.innerHTML = '<ul>' + data.message.items.map(item => `<li>${item}</li>`).join('') + '</ul>';
+                } else {
+                    output.textContent = JSON.stringify(data.message);
+                }
+                
+                // Store conversation context
+                if (data.context) {
+                    this.conversationHistory = data.context;
+                }
+            } else {
+                output.textContent = 'No response received';
+            }
             output.classList.remove('empty');
         } catch (err) {
             output.textContent = 'Error: ' + err.message;
@@ -857,6 +860,15 @@ class AIAssistant {
         } finally {
             this.setLoading('ai-support-btn', false);
         }
+    }
+
+    getSessionId() {
+        let sessionId = localStorage.getItem('ai_session_id');
+        if (!sessionId) {
+            sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('ai_session_id', sessionId);
+        }
+        return sessionId;
     }
 }
 

@@ -318,35 +318,53 @@
     line-height: 1.1;
 }
 
-/* Chat Input Area - Removed (tag-based interaction only) */
+/* Chat Input Area */
 .chat-input-area {
-    display: none !important;
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    background: white;
+    border-top: 1px solid #e9ecef;
+    flex-shrink: 0;
 }
 
-.input-container {
-    display: none !important;
+.chat-input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 20px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.3s ease;
+    font-family: 'Poppins', sans-serif;
 }
 
-#chat-input {
-    display: none !important;
+.chat-input:focus {
+    border-color: #8e44ad;
 }
 
-.voice-btn, .send-btn {
-    display: none !important;
-}
-
-/* Ensure no input elements take up space */
-.chat-input-area,
-.input-container,
-#chat-input,
-.voice-btn,
 .send-btn {
-    display: none !important;
-    height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    border: none !important;
-    visibility: hidden !important;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.send-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.send-btn:active {
+    transform: scale(0.95);
 }
 
 /* Language Selector */

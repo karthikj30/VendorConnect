@@ -6249,21 +6249,29 @@ def process_chatbot_message(message, language, context, vendor):
     # Normalize message for better processing
     normalized_message = message.lower().strip()
     
+    # Debug logging
+    print(f"DEBUG: Received message: '{message}'")
+    print(f"DEBUG: Normalized message: '{normalized_message}'")
+    
     # Extract context from previous conversation
     conversation_intent = context.get('intent', '')
     conversation_count = context.get('message_count', 0)
     
-    # Enhanced greeting detection with context awareness
+    # Enhanced greeting detection with context awareness - only exact word matches
     greetings = {
-        'en': ['hello', 'hi', 'hey', 'namaste', 'good morning', 'good afternoon', 'good evening', 'greetings', 'welcome'],
+        'en': ['hello', 'hi', 'hey', 'namaste', 'good morning', 'good afternoon', 'good evening', 'greetings'],
         'hi': ['नमस्ते', 'हैलो', 'हाय', 'सुप्रभात', 'शुभ संध्या', 'स्वागत', 'नमस्कार'],
         'bn': ['নমস্কার', 'হ্যালো', 'হাই', 'সুপ্রভাত', 'শুভ সন্ধ্যা', 'স্বাগতম', 'নমস্কার'],
         'ta': ['வணக்கம்', 'ஹலோ', 'ஹாய்', 'காலை வணக்கம்', 'மாலை வணக்கம்', 'வரவேற்கிறோம்', 'வணக்கம்'],
         'mr': ['नमस्कार', 'हॅलो', 'हाय', 'शुभ सकाळ', 'शुभ संध्या', 'स्वागत']
     }
     
-    # Check for greetings (with context awareness)
-    if any(greeting in normalized_message for greeting in greetings.get(language, greetings['en'])):
+    # Check for greetings - only if message starts with greeting or is just a greeting
+    greeting_words = greetings.get(language, greetings['en'])
+    is_greeting = any(normalized_message.startswith(greeting) or normalized_message == greeting for greeting in greeting_words)
+    
+    if is_greeting:
+        print(f"DEBUG: Detected as greeting")
         return get_greeting_response(language, vendor, conversation_count)
     
     # Enhanced intent detection with multiple keywords and context
@@ -6306,16 +6314,29 @@ def process_chatbot_message(message, language, context, vendor):
     best_intent = max(intent_scores, key=intent_scores.get)
     confidence = intent_scores[best_intent]
     
+    # Debug logging
+    print(f"DEBUG: Intent scores: {intent_scores}")
+    print(f"DEBUG: Best intent: {best_intent} with confidence: {confidence}")
+    
+    # Direct routing for explicit price questions
+    if any(word in normalized_message for word in ['price', 'cost', 'how much']):
+        print(f"DEBUG: Direct routing to price response due to price keywords")
+        return get_enhanced_price_response(language, vendor, normalized_message, context)
+    
     # Handle follow-up questions based on context
     if conversation_intent and confidence < 0.6:
         return handle_follow_up_response(normalized_message, conversation_intent, language, vendor, context)
     
     # Route to appropriate response handler based on intent
+    # Lower threshold for pricing queries that mention specific products
+    has_specific_product = any(word in normalized_message for word in ['chickpeas', 'tomatoes', 'onions', 'rice', 'potato', 'oil', 'samosa', 'dosa', 'chai', 'tea', 'juice', 'ice cream', 'kulfi'])
+    
     if best_intent == 'suppliers' and confidence > 0.3:
         return get_enhanced_supplier_response(language, vendor, normalized_message, context)
     elif best_intent == 'orders' and confidence > 0.3:
         return get_enhanced_order_response(language, vendor, normalized_message, context)
-    elif best_intent == 'pricing' and confidence > 0.3:
+    elif best_intent == 'pricing' and (confidence > 0.05 or has_specific_product):
+        print(f"DEBUG: Routing to get_enhanced_price_response (has_specific_product: {has_specific_product})")
         return get_enhanced_price_response(language, vendor, normalized_message, context)
     elif best_intent == 'help' and confidence > 0.3:
         return get_enhanced_help_response(language, vendor, normalized_message, context)
@@ -6767,6 +6788,8 @@ def get_category_based_response(language, vendor, context):
 def get_enhanced_price_response(language, vendor, message, context):
     """Generate enhanced price-related response with market insights"""
     
+    print(f"DEBUG: get_enhanced_price_response called with message: '{message}'")
+    
     # Extract price-specific keywords
     comparison_keywords = ['compare', 'comparison', 'cheaper', 'expensive', 'best price']
     alert_keywords = ['alert', 'notification', 'watch', 'monitor', 'track']
@@ -6786,13 +6809,89 @@ def get_enhanced_price_response(language, vendor, message, context):
     
     price_info = [responses.get(language, responses['en'])]
     
-    # Add current market prices
-    price_info.append("\n💰 CURRENT MARKET PRICES:")
-    products = Product.query.limit(5).all()
-    for product in products:
-        supplier = Supplier.query.get(product.supplier_id)
-        price_info.append(f"• {product.name}: ₹{product.current_price}/{product.unit}")
-        price_info.append(f"  From: {supplier.name} | Stock: {product.stock_available}")
+    # Try to extract specific product name from the message
+    specific_product_found = False
+    matched_products = []
+    
+    if message:
+        print(f"DEBUG: Searching for product in message: '{message}'")
+        
+        # Extract potential product names from the message
+        # Common patterns: "price of X", "cost of X", "X price", "how much is X"
+        import re
+        
+        # Try to extract the product name more intelligently
+        product_patterns = [
+            r'price of ([a-zA-Z\s]+?)(?:\s+on|\s+in|\s+from|$)',
+            r'cost of ([a-zA-Z\s]+?)(?:\s+on|\s+in|\s+from|$)',
+            r'how much (?:is|are) ([a-zA-Z\s]+?)(?:\s+on|\s+in|\s+from|\?|$)',
+            r'([a-zA-Z\s]+) price',
+        ]
+        
+        potential_product_name = None
+        for pattern in product_patterns:
+            match = re.search(pattern, message, re.IGNORECASE)
+            if match:
+                potential_product_name = match.group(1).strip().lower()
+                print(f"DEBUG: Extracted product name: '{potential_product_name}'")
+                break
+        
+        # Search for the product in vendor's menu items first
+        if vendor:
+            print(f"DEBUG: Checking vendor menu items for vendor_id: {vendor.id}")
+            menu_items = MenuItem.query.filter_by(vendor_id=vendor.id).all()
+            print(f"DEBUG: Found {len(menu_items)} menu items")
+            
+            for item in menu_items:
+                # Check if the extracted product name matches or if product name is in message
+                if (potential_product_name and potential_product_name in item.name.lower()) or \
+                   (item.name.lower() in message.lower()):
+                    print(f"DEBUG: Found menu item match: {item.name}")
+                    price_info.append(f"\n💰 PRICE ON YOUR WEBSITE:")
+                    price_info.append(f"• {item.name}: ₹{item.price}")
+                    if item.description:
+                        price_info.append(f"  Description: {item.description}")
+                    specific_product_found = True
+                    break
+        
+        # If not found in vendor's menu, search in available products from suppliers
+        if not specific_product_found:
+            print(f"DEBUG: Checking supplier products")
+            products = Product.query.all()
+            print(f"DEBUG: Found {len(products)} supplier products")
+            
+            # First, try to find exact match with extracted product name
+            if potential_product_name:
+                for product in products:
+                    if potential_product_name in product.name.lower():
+                        print(f"DEBUG: Found exact product match: {product.name}")
+                        matched_products.append(product)
+            
+            # If no exact match, look for any product name in the message
+            if not matched_products:
+                for product in products:
+                    if product.name.lower() in message.lower():
+                        print(f"DEBUG: Found product match: {product.name}")
+                        matched_products.append(product)
+            
+            # Display matched products
+            if matched_products:
+                price_info.append(f"\n💰 AVAILABLE FROM SUPPLIERS:")
+                for product in matched_products[:3]:  # Limit to 3 matches
+                    supplier = Supplier.query.get(product.supplier_id)
+                    price_info.append(f"• {product.name}: ₹{product.current_price}/{product.unit}")
+                    if supplier:
+                        price_info.append(f"  From: {supplier.name} | Stock: {product.stock_available}")
+                specific_product_found = True
+    
+    # If no specific product found, show general market prices
+    if not specific_product_found:
+        price_info.append("\n💰 CURRENT MARKET PRICES:")
+        products = Product.query.limit(5).all()
+        for product in products:
+            supplier = Supplier.query.get(product.supplier_id)
+            price_info.append(f"• {product.name}: ₹{product.current_price}/{product.unit}")
+            price_info.append(f"  From: {supplier.name} | Stock: {product.stock_available}")
     
     if needs_comparison:
         comparison_info = {
