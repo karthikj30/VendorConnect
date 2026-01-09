@@ -6,12 +6,12 @@
 }
 
 :root {
-    /* Primary color palette */
-    --brand-1: #4f46e5; /* indigo */
-    --brand-2: #7c3aed; /* purple */
-    --brand-grad: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 100%);
-    --accent-1: #06b6d4; /* turquoise */
-    --accent-2: #f97316; /* orange */
+    /* Primary color palette - Match vendor dashboard */
+    --brand-1: #ffc107; /* yellow/gold */
+    --brand-2: #ff9800; /* orange */
+    --brand-grad: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
+    --accent-1: #2196f3; /* blue */
+    --accent-2: #4caf50; /* green */
 
     /* Semantic
        Primary/secondary are gradients used for buttons / highlights
@@ -22,12 +22,15 @@
     --warning: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
 
     /* UI colors */
-    --bg: #f4f7fa;
+    --bg: #f5f7fa;
     --card-bg: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
+    --text-primary: #2c3e50;
+    --text-secondary: #616770;
     --muted: #94a3b8;
-    --border: #e6eef6;
+    --border: #e0e6ed;
+    --sidebar-bg: #2c3e50;
+    --sidebar-text: #ecf0f1;
+    --sidebar-muted: #bdc3c7;
 
     /* Shadows */
     --shadow-sm: 0 4px 12px rgba(28, 37, 65, 0.06);
@@ -43,12 +46,12 @@ body { background: var(--bg); color: var(--text-primary); }
 
 /* Light Theme Variables (default) */
 body.light-theme {
-    --bg: #f4f7fa;
+    --bg: #f5f7fa;
     --card-bg: #ffffff;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
+    --text-primary: #2c3e50;
+    --text-secondary: #616770;
     --muted: #94a3b8;
-    --border: #e6eef6;
+    --border: #e0e6ed;
     --shadow-sm: 0 4px 12px rgba(28, 37, 65, 0.06);
     --shadow-md: 0 8px 28px rgba(28, 37, 65, 0.08);
     --shadow-lg: 0 16px 48px rgba(28, 37, 65, 0.10);
@@ -166,7 +169,7 @@ body.dark-theme .menu-item:hover {
 
 body.dark-theme .cart-item:hover {
     background: #252535;
-    border-color: #667eea;
+    border-color: var(--brand-1);
 }
 
 body.dark-theme .profile-menu-item:hover {
@@ -287,9 +290,9 @@ body {
 
 .search-bar input:focus {
     outline: none;
-    border-color: #667eea;
+    border-color: var(--brand-1);
     background: white;
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.1);
     transform: translateY(-1px);
 }
 
@@ -629,8 +632,8 @@ body {
 }
 
 .category-btn:hover {
-    border-color: #667eea;
-    color: #667eea;
+    border-color: var(--brand-1);
+    color: var(--brand-1);
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);
 }
@@ -639,7 +642,7 @@ body {
     background: var(--primary);
     color: white;
     border-color: transparent;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
 }
 
 /* Vendors Grid */
@@ -662,8 +665,8 @@ body {
 
 .vendor-card:hover {
     transform: translateY(-8px);
-    box-shadow: var(--shadow-xl);
-    border-color: #667eea;
+    box-shadow: var(--shadow-lg);
+    border-color: var(--brand-1);
 }
 
 .vendor-image {
@@ -918,7 +921,7 @@ body {
 
 .menu-item-footer button:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.4);
 }
 
 .quantity-control {
@@ -928,14 +931,14 @@ body {
     background: white;
     padding: 8px 16px;
     border-radius: 14px;
-    border: 2px solid #667eea;
+    border: 2px solid var(--brand-1);
     box-shadow: var(--shadow-sm);
 }
 
 .quantity-control button {
     background: none;
     border: none;
-    color: #667eea;
+    color: var(--brand-1);
     font-size: 22px;
     cursor: pointer;
     font-weight: 700;
@@ -949,7 +952,7 @@ body {
 }
 
 .quantity-control button:hover {
-    background: rgba(102, 126, 234, 0.1);
+    background: rgba(255, 193, 7, 0.1);
     transform: scale(1.15);
 }
 
@@ -1032,7 +1035,7 @@ body {
 
 .cart-item:hover {
     box-shadow: var(--shadow-md);
-    border-color: #667eea;
+    border-color: var(--brand-1);
 }
 
 .cart-item-icon {
@@ -1072,7 +1075,7 @@ body {
 .cart-item-actions button {
     background: white;
     border: 2px solid var(--border);
-    color: #667eea;
+    color: var(--brand-1);
     font-size: 20px;
     cursor: pointer;
     font-weight: 700;
@@ -1086,9 +1089,9 @@ body {
 }
 
 .cart-item-actions button:hover {
-    background: #667eea;
+    background: var(--brand-1);
     color: white;
-    border-color: #667eea;
+    border-color: var(--brand-1);
 }
 
 .cart-footer {
@@ -1110,7 +1113,7 @@ body {
 .checkout-btn {
     width: 100%;
     padding: 18px;
-    background: var(--success);
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 16px;
@@ -1118,12 +1121,12 @@ body {
     font-weight: 700;
     cursor: pointer;
     transition: all 0.3s;
-    box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3);
+    box-shadow: 0 4px 16px rgba(255, 193, 7, 0.3);
 }
 
 .checkout-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4);
+    box-shadow: 0 8px 24px rgba(255, 193, 7, 0.4);
 }
 
 .empty-state {
@@ -1226,7 +1229,7 @@ body {
 
 .profile-menu-item i {
     width: 24px;
-    color: #667eea;
+    color: var(--brand-1);
     font-size: 18px;
 }
 
@@ -1251,7 +1254,7 @@ body {
 }
 
 .notification-item.unread {
-    background: rgba(102, 126, 234, 0.05);
+    background: rgba(255, 193, 7, 0.05);
 }
 
 .notification-title {
@@ -1331,7 +1334,7 @@ body {
 }
 
 .checkout-section-title i {
-    color: #667eea;
+    color: var(--brand-1);
 }
 
 .form-group {
@@ -1362,8 +1365,8 @@ body {
 .form-group textarea:focus,
 .form-group select:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+    border-color: var(--brand-1);
+    box-shadow: 0 0 0 4px rgba(255, 193, 7, 0.1);
 }
 
 .payment-options {
@@ -1384,19 +1387,19 @@ body {
 }
 
 .payment-option:hover {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.03);
+    border-color: var(--brand-1);
+    background: rgba(255, 193, 7, 0.03);
 }
 
 .payment-option.selected {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.08);
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--brand-1);
+    background: rgba(255, 193, 7, 0.08);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1);
 }
 
 .payment-option i {
     font-size: 26px;
-    color: #667eea;
+    color: var(--brand-1);
 }
 
 .order-summary {
@@ -1428,7 +1431,7 @@ body {
 .place-order-btn {
     width: 100%;
     padding: 18px;
-    background: var(--success);
+    background: var(--primary);
     color: white;
     border: none;
     border-radius: 16px;
@@ -1437,7 +1440,7 @@ body {
     cursor: pointer;
     margin-top: 24px;
     transition: all 0.3s;
-    box-shadow: 0 4px 16px rgba(79, 172, 254, 0.3);
+    box-shadow: 0 4px 16px rgba(255, 193, 7, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1446,7 +1449,7 @@ body {
 
 .place-order-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(79, 172, 254, 0.4);
+    box-shadow: 0 8px 24px rgba(255, 193, 7, 0.4);
 }
 
 .place-order-btn:disabled {
@@ -1479,7 +1482,7 @@ body {
 }
 
 .setting-item:hover {
-    border-color: #667eea;
+    border-color: var(--brand-1);
     box-shadow: var(--shadow-sm);
 }
 
@@ -1555,8 +1558,8 @@ body {
 .setting-select:focus,
 .setting-textarea:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: var(--brand-1);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1);
 }
 
 .setting-action-btn {
@@ -1577,8 +1580,8 @@ body {
 }
 
 .setting-action-btn:hover {
-    border-color: #667eea;
-    background: rgba(102, 126, 234, 0.05);
+    border-color: var(--brand-1);
+    background: rgba(255, 193, 7, 0.05);
     transform: translateY(-2px);
     box-shadow: var(--shadow-sm);
 }
@@ -1700,12 +1703,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%);
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    background: linear-gradient(135deg, #ff9800 0%, #ffc107 100%);
 }
 
 /* Loading States */
