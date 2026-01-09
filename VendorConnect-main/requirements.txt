@@ -11,3 +11,4 @@ reportlab==4.0.0
 Flask-Migrate==4.0.0
 pytz==2024.1
 pytest>=7.0
+python-dotenv
