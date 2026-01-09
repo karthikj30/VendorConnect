@@ -3,4 +3,5 @@
     <string name="app_name">VendorConnect</string>
     <!-- Production URL on Render - Start from vendor login -->
     <string name="app_base_url">https://vendorconnect-gkhy.onrender.com/vendor/login</string>
+    <string name="loading_message">Loading VendorConnect...</string>
 </resources>
