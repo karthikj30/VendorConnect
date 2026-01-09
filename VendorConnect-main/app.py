@@ -825,7 +825,8 @@ class CustomerOrder(db.Model):
     subtotal = db.Column(db.Float, nullable=False)
     delivery_fee = db.Column(db.Float, default=40.0)
     tax_amount = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(20), default='pending')  # pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled
+    status = db.Column(db.String(20), default='pending')  # pending, confirmed, preparing, ready, out_for_delivery, delivered, cancelled, done
+    delivery_type = db.Column(db.String(20), default='delivery')  # delivery or self_pickup
     payment_method = db.Column(db.String(20), default='cod')
     payment_status = db.Column(db.String(20), default='pending')  # pending, paid, failed
     delivery_address = db.Column(db.String(300), nullable=True)
@@ -841,7 +842,8 @@ class CustomerOrder(db.Model):
     confirmed_at = db.Column(db.DateTime, nullable=True)  # When order was confirmed
     preparing_at = db.Column(db.DateTime, nullable=True)  # When food preparation started
     ready_at = db.Column(db.DateTime, nullable=True)  # When order was ready
-    picked_up_at = db.Column(db.DateTime, nullable=True)  # When delivery agent picked up
+    pickup_ready_at = db.Column(db.DateTime, nullable=True)  # When order is ready for pickup (self-pickup orders)
+    picked_up_at = db.Column(db.DateTime, nullable=True)  # When delivery agent picked up OR customer picked up
     out_for_delivery_at = db.Column(db.DateTime, nullable=True)  # When delivery started
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -3375,7 +3377,14 @@ def place_order_customer():
         })
 
     # Calculate fees
-    delivery_fee = 40.0 if subtotal < 300 else 0.0  # Free delivery above ₹300
+    delivery_type = data.get('delivery_type', 'delivery').lower()  # delivery or self_pickup
+    
+    # No delivery fee for self-pickup orders
+    if delivery_type == 'self_pickup':
+        delivery_fee = 0.0
+    else:
+        delivery_fee = 40.0 if subtotal < 300 else 0.0  # Free delivery above ₹300
+    
     tax_amount = round(subtotal * 0.05, 2)  # 5% GST
     total_amount = subtotal + delivery_fee + tax_amount
 
@@ -3404,6 +3413,7 @@ def place_order_customer():
         delivery_fee=delivery_fee,
         tax_amount=tax_amount,
         status='pending',
+        delivery_type=delivery_type,
         payment_method=data.get('payment', 'cod'),
         payment_status='pending' if data.get('payment', 'cod') != 'cod' else 'paid',
         delivery_address=data['address'],
@@ -3418,16 +3428,17 @@ def place_order_customer():
     db.session.add(order)
     db.session.flush()  # Get order ID without committing
 
-    # Assign to available delivery agent (round-robin or least-loaded)
-    try:
-        available_agents = db.session.query(DeliveryAgent).order_by(
-            db.func.random()
-        ).limit(1).all()
-        
-        if available_agents:
-            order.delivery_agent_id = available_agents[0].id
-    except Exception as e:
-        app.logger.warning(f"Could not assign delivery agent: {str(e)}")
+    # Assign to available delivery agent only if delivery type is 'delivery'
+    if delivery_type == 'delivery':
+        try:
+            available_agents = db.session.query(DeliveryAgent).order_by(
+                db.func.random()
+            ).limit(1).all()
+            
+            if available_agents:
+                order.delivery_agent_id = available_agents[0].id
+        except Exception as e:
+            app.logger.warning(f"Could not assign delivery agent: {str(e)}")
 
     # Create order items
     for item_data in order_items:
@@ -3880,6 +3891,7 @@ def api_vendor_customer_orders():
                 'customer_name': o.customer_name,
                 'customer_phone': o.customer_phone,
                 'delivery_address': o.delivery_address,
+                'delivery_type': getattr(o, 'delivery_type', 'delivery'),
                 'payment_method': o.payment_method,
                 'payment_status': o.payment_status,
                 'estimated_delivery_time': o.estimated_delivery_time.isoformat() if o.estimated_delivery_time else None,
@@ -3924,6 +3936,11 @@ def api_vendor_customer_order_action(order_id):
     elif action in ('delivered', 'mark_delivered'):
         order.status = 'delivered'
         order.actual_delivery_time = order.actual_delivery_time or now
+    elif action in ('done', 'mark_done', 'picked_up'):
+        # For self-pickup orders, mark as done when customer picks up
+        order.status = 'done'
+        order.picked_up_at = order.picked_up_at or now
+        order.pickup_ready_at = order.pickup_ready_at or now
     else:
         return jsonify({'success': False, 'message': 'Unknown action'}), 400
     db.session.commit()

@@ -290,6 +290,29 @@
                 <button class="close-modal" onclick="closeCheckout()">×</button>
             </div>
             <div class="checkout-body">
+                                <!-- Delivery Type Selection -->
+                                <div class="checkout-section">
+                                    <h3 class="checkout-section-title">
+                                        <i class="fas fa-truck"></i> Order Type
+                                    </h3>
+                                    <div class="payment-options">
+                                        <div class="payment-option selected" onclick="selectDeliveryType(this, 'delivery')" id="deliveryTypeDelivery">
+                                            <i class="fas fa-shipping-fast"></i>
+                                            <div>
+                                                <div style="font-weight: bold;">Home Delivery</div>
+                                                <div style="font-size: 12px; color: #666;">Get it delivered to your doorstep</div>
+                                            </div>
+                                        </div>
+                                        <div class="payment-option" onclick="selectDeliveryType(this, 'self_pickup')" id="deliveryTypeSelfPickup">
+                                            <i class="fas fa-hand-holding-heart"></i>
+                                            <div>
+                                                <div style="font-weight: bold;">Self Pickup</div>
+                                                <div style="font-size: 12px; color: #666;">Pick up from vendor (No delivery fee)</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                 <!-- Delivery Address -->
                 <div class="checkout-section">
                     <h3 class="checkout-section-title">
@@ -616,6 +639,7 @@
         ======================= */
                 const cart = [];
                 let selectedPayment = 'cod';
+                    let selectedDeliveryType = 'delivery';
                 let vendors = [];
                 let allMenuItems = [];
                 let promotions = [];
@@ -1469,15 +1493,8 @@
                 </div>
             `).join('');
 
-            const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-            const delivery = 40;
-            const tax = Math.round(subtotal * 0.05);
-            const total = subtotal + delivery + tax;
-
-            document.getElementById('summarySubtotal').textContent = '₹' + subtotal;
-            document.getElementById('summaryDelivery').textContent = '₹' + delivery;
-            document.getElementById('summaryTax').textContent = '₹' + tax;
-            document.getElementById('summaryTotal').textContent = '₹' + total;
+            // Update order summary with current delivery type
+            updateOrderSummary();
 
             document.getElementById('checkoutModal').classList.add('active');
             document.getElementById('cartSidebar').classList.remove('active');
@@ -1503,6 +1520,32 @@
             });
             element.classList.add('selected');
             selectedPayment = method;
+        }
+
+        /* =======================
+           DELIVERY TYPE
+        ======================= */
+        function selectDeliveryType(element, type) {
+            document.querySelectorAll('.payment-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
+            element.classList.add('selected');
+            selectedDeliveryType = type;
+            
+            // Update delivery fee in summary
+            updateOrderSummary();
+        }
+
+        function updateOrderSummary() {
+            const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+            const delivery = selectedDeliveryType === 'self_pickup' ? 0 : (subtotal < 300 ? 40 : 0);
+            const tax = Math.round(subtotal * 0.05);
+            const total = subtotal + delivery + tax;
+
+            document.getElementById('summarySubtotal').textContent = '₹' + subtotal;
+            document.getElementById('summaryDelivery').textContent = selectedDeliveryType === 'self_pickup' ? '₹0 (Self Pickup)' : '₹' + delivery;
+            document.getElementById('summaryTax').textContent = '₹' + tax;
+            document.getElementById('summaryTotal').textContent = '₹' + total;
         }
 
         /* =======================
@@ -1612,7 +1655,8 @@
                 latitude: latitude ? parseFloat(latitude) : null,
                 longitude: longitude ? parseFloat(longitude) : null,
                 items: cart.map(item => ({id: item.id, qty: item.qty})),
-                payment: selectedPayment
+                payment: selectedPayment,
+                delivery_type: selectedDeliveryType
             };
 
             // Show loading state

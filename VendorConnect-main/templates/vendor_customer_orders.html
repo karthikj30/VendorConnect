@@ -85,13 +85,21 @@ async function loadOrders() {
 
 function renderActions(o) {
   const s = o.status;
+    const deliveryType = o.delivery_type || 'delivery';
   const buttons = [];
   if (s === 'pending') buttons.push(actionBtn(o.id,'confirm','Confirm'));
   if (s === 'confirmed') buttons.push(actionBtn(o.id,'preparing','Preparing'));
   if (s === 'preparing') buttons.push(actionBtn(o.id,'ready','Ready'));
-  if (s === 'ready') buttons.push(actionBtn(o.id,'out_for_delivery','Dispatch'));
+  if (s === 'ready') {
+    // For self-pickup orders, show "Done" button when customer picks up
+    if (deliveryType === 'self_pickup') {
+      buttons.push(actionBtn(o.id,'done','✓ Done (Picked Up)'));
+    } else {
+      buttons.push(actionBtn(o.id,'out_for_delivery','Dispatch'));
+    }
+  }
   if (s === 'out_for_delivery') buttons.push(actionBtn(o.id,'delivered','Delivered'));
-  if (s !== 'delivered' && s !== 'cancelled') buttons.push(actionBtn(o.id,'cancel','Cancel','secondary'));
+  if (s !== 'delivered' && s !== 'cancelled' && s !== 'done') buttons.push(actionBtn(o.id,'cancel','Cancel','secondary'));
   return buttons.join('');
 }
 
