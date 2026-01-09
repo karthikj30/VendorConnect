@@ -1716,11 +1716,16 @@
                         showDeliveryTracker(orderId);
                     }, 2000);
                 } else {
-                    alert('Error placing order: ' + data.message);
+                    const errorMsg = data.message || 'Unknown error occurred';
+                    console.error('Order placement error:', data);
+                    alert('❌ Error placing order: ' + errorMsg);
+                    if (data.missing_items && data.missing_items.length > 0) {
+                        alert('Please refresh your cart and remove the unavailable items.');
+                    }
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('An error occurred while placing the order. Please try again.');
+                console.error('Order request failed:', error);
+                alert('❌ Connection error: ' + error.message + '. Please check your internet connection and try again.');
             } finally {
                 placeOrderBtn.innerHTML = originalText;
                 placeOrderBtn.disabled = false;

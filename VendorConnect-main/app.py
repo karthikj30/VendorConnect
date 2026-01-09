@@ -3334,190 +3334,198 @@ def debug_products():
 
 @app.route('/api/place-order-customer', methods=['POST'])
 def place_order_customer():
-    if 'customer_id' not in session:
-        return jsonify({'success': False, 'message': 'Please login first'}), 401
-
-    data = request.get_json()
-    customer = db.session.get(Customer, session['customer_id'])
-
-    # Validate required fields (items may be empty)
-    required_fields = ['name', 'email', 'phone', 'address']
-    for field in required_fields:
-        if field not in data or not data[field]:
-            return jsonify({'success': False, 'message': f'{field.title()} is required'}), 400
-
-    # Ensure items is present as a list (can be empty)
-    items = data.get('items', [])
-    if items is None:
-        items = []
-
-    # Allow empty cart (tests may send empty items). Continue processing even if items list is empty.
-
-    # Calculate order amounts
-    subtotal = 0
-    order_items = []
-    missing_items = []
-    
-    for item in data['items']:
-        if 'id' not in item or 'qty' not in item:
-            return jsonify({'success': False, 'message': 'Invalid item data'}), 400
-
-        menu_item = db.session.get(MenuItem, item['id'])
-        if not menu_item:
-            # Instead of failing completely, track missing items
-            missing_items.append(item['id'])
-            continue
-
-        if item['qty'] <= 0:
-            return jsonify({'success': False, 'message': 'Invalid quantity'}), 400
-
-        item_total = menu_item.price * item['qty']
-        subtotal += item_total
-        order_items.append({
-            'menu_item_id': item['id'],
-            'quantity': item['qty'],
-            'price_per_unit': menu_item.price,
-            'item_total': item_total
-        })
-    
-    # If no valid items remain, reject the order
-    if len(order_items) == 0:
-        if missing_items:
-            return jsonify({
-                'success': False, 
-                'message': f'Items not found: {", ".join(map(str, missing_items))}. Please refresh your cart and try again.',
-                'missing_items': missing_items
-            }), 400
-        else:
-            return jsonify({'success': False, 'message': 'Cart is empty'}), 400
-    
-    # Warn if some items were missing but order can proceed with available items
-    order_response_data = {'missing_items': missing_items} if missing_items else {}
-
-    # Calculate fees
-    delivery_type = data.get('delivery_type', 'delivery').lower()  # delivery or self_pickup
-    
-    # No delivery fee for self-pickup orders
-    if delivery_type == 'self_pickup':
-        delivery_fee = 0.0
-    else:
-        delivery_fee = 40.0 if subtotal < 300 else 0.0  # Free delivery above ₹300
-    
-    tax_amount = round(subtotal * 0.05, 2)  # 5% GST
-    total_amount = subtotal + delivery_fee + tax_amount
-
-    # No minimum order enforced here (tests expect orders with low totals to be allowed)
-
-    # Get GPS coordinates - use manual input if provided, otherwise extract from address
-    delivery_lat = data.get('latitude')
-    delivery_lon = data.get('longitude')
-    
-    if delivery_lat and delivery_lon:
-        # Use manually provided coordinates
-        delivery_lat = float(delivery_lat)
-        delivery_lon = float(delivery_lon)
-    else:
-        # Extract GPS coordinates from address
-        delivery_lat, delivery_lon = extract_gps_from_address(data['address'])
-
-    # Estimate delivery time (30-45 minutes from now)
-    estimated_delivery = datetime.utcnow() + timedelta(minutes=30 + (data.get('items', []).__len__() * 2))
-
-    # Create customer order
-    order = CustomerOrder(
-        customer_id=session['customer_id'],
-        total_amount=total_amount,
-        subtotal=subtotal,
-        delivery_fee=delivery_fee,
-        tax_amount=tax_amount,
-        status='pending',
-        delivery_type=delivery_type,
-        payment_method=data.get('payment', 'cod'),
-        payment_status='pending' if data.get('payment', 'cod') != 'cod' else 'paid',
-        delivery_address=data['address'],
-        delivery_latitude=delivery_lat,
-        delivery_longitude=delivery_lon,
-        delivery_instructions=data.get('instructions', ''),
-        customer_name=data['name'],
-        customer_email=data['email'],
-        customer_phone=data['phone'],
-        estimated_delivery_time=estimated_delivery
-    )
-    db.session.add(order)
-    db.session.flush()  # Get order ID without committing
-
-    # Assign to available delivery agent only if delivery type is 'delivery'
-    if delivery_type == 'delivery':
-        try:
-            available_agents = db.session.query(DeliveryAgent).order_by(
-                db.func.random()
-            ).limit(1).all()
-            
-            if available_agents:
-                order.delivery_agent_id = available_agents[0].id
-        except Exception as e:
-            app.logger.warning(f"Could not assign delivery agent: {str(e)}")
-
-    # Create order items
-    for item_data in order_items:
-        order_item = CustomerOrderItem(
-            order_id=order.id,
-            menu_item_id=item_data['menu_item_id'],
-            quantity=item_data['quantity'],
-            price_per_unit=item_data['price_per_unit']
-        )
-        db.session.add(order_item)
-
-    db.session.commit()
-
-    # Update order status to confirmed and set timestamp
-    current_time = datetime.utcnow()
-    order.status = 'confirmed'
-    order.confirmed_at = current_time
-    # Auto-set preparing timestamp a minute later
-    order.preparing_at = current_time + timedelta(minutes=1)
-    db.session.commit()
-
-    # Publish customer order status update for real-time clients
     try:
-        publish_customer_order_event(order.id, 'status_update', {
-            'status': order.status,
-            'timestamps': {
-                'confirmed': order.confirmed_at.isoformat() if order.confirmed_at else None,
-                'preparing': order.preparing_at.isoformat() if order.preparing_at else None
+        if 'customer_id' not in session:
+            return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+        data = request.get_json()
+        customer = db.session.get(Customer, session['customer_id'])
+
+        # Validate required fields (items may be empty)
+        required_fields = ['name', 'email', 'phone', 'address']
+        for field in required_fields:
+            if field not in data or not data[field]:
+                return jsonify({'success': False, 'message': f'{field.title()} is required'}), 400
+
+        # Ensure items is present as a list (can be empty)
+        items = data.get('items', [])
+        if items is None:
+            items = []
+
+        # Allow empty cart (tests may send empty items). Continue processing even if items list is empty.
+
+        # Calculate order amounts
+        subtotal = 0
+        order_items = []
+        missing_items = []
+        
+        for item in data['items']:
+            if 'id' not in item or 'qty' not in item:
+                return jsonify({'success': False, 'message': 'Invalid item data'}), 400
+
+            menu_item = db.session.get(MenuItem, item['id'])
+            if not menu_item:
+                # Instead of failing completely, track missing items
+                missing_items.append(item['id'])
+                continue
+
+            if item['qty'] <= 0:
+                return jsonify({'success': False, 'message': 'Invalid quantity'}), 400
+
+            item_total = menu_item.price * item['qty']
+            subtotal += item_total
+            order_items.append({
+                'menu_item_id': item['id'],
+                'quantity': item['qty'],
+                'price_per_unit': menu_item.price,
+                'item_total': item_total
+            })
+        
+        # If no valid items remain, reject the order
+        if len(order_items) == 0:
+            if missing_items:
+                return jsonify({
+                    'success': False, 
+                    'message': f'Items not found: {", ".join(map(str, missing_items))}. Please refresh your cart and try again.',
+                    'missing_items': missing_items
+                }), 400
+            else:
+                return jsonify({'success': False, 'message': 'Cart is empty'}), 400
+        
+        # Warn if some items were missing but order can proceed with available items
+        order_response_data = {'missing_items': missing_items} if missing_items else {}
+
+        # Calculate fees
+        delivery_type = data.get('delivery_type', 'delivery').lower()  # delivery or self_pickup
+        
+        # No delivery fee for self-pickup orders
+        if delivery_type == 'self_pickup':
+            delivery_fee = 0.0
+        else:
+            delivery_fee = 40.0 if subtotal < 300 else 0.0  # Free delivery above ₹300
+        
+        tax_amount = round(subtotal * 0.05, 2)  # 5% GST
+        total_amount = subtotal + delivery_fee + tax_amount
+
+        # No minimum order enforced here (tests expect orders with low totals to be allowed)
+
+        # Get GPS coordinates - use manual input if provided, otherwise extract from address
+        delivery_lat = data.get('latitude')
+        delivery_lon = data.get('longitude')
+        
+        if delivery_lat and delivery_lon:
+            # Use manually provided coordinates
+            delivery_lat = float(delivery_lat)
+            delivery_lon = float(delivery_lon)
+        else:
+            # Extract GPS coordinates from address
+            delivery_lat, delivery_lon = extract_gps_from_address(data['address'])
+
+        # Estimate delivery time (30-45 minutes from now)
+        estimated_delivery = datetime.utcnow() + timedelta(minutes=30 + (data.get('items', []).__len__() * 2))
+
+        # Create customer order
+        order = CustomerOrder(
+            customer_id=session['customer_id'],
+            total_amount=total_amount,
+            subtotal=subtotal,
+            delivery_fee=delivery_fee,
+            tax_amount=tax_amount,
+            status='pending',
+            delivery_type=delivery_type,
+            payment_method=data.get('payment', 'cod'),
+            payment_status='pending' if data.get('payment', 'cod') != 'cod' else 'paid',
+            delivery_address=data['address'],
+            delivery_latitude=delivery_lat,
+            delivery_longitude=delivery_lon,
+            delivery_instructions=data.get('instructions', ''),
+            customer_name=data['name'],
+            customer_email=data['email'],
+            customer_phone=data['phone'],
+            estimated_delivery_time=estimated_delivery
+        )
+        db.session.add(order)
+        db.session.flush()  # Get order ID without committing
+
+        # Assign to available delivery agent only if delivery type is 'delivery'
+        if delivery_type == 'delivery':
+            try:
+                available_agents = db.session.query(DeliveryAgent).order_by(
+                    db.func.random()
+                ).limit(1).all()
+                
+                if available_agents:
+                    order.delivery_agent_id = available_agents[0].id
+            except Exception as e:
+                app.logger.warning(f"Could not assign delivery agent: {str(e)}")
+
+        # Create order items
+        for item_data in order_items:
+            order_item = CustomerOrderItem(
+                order_id=order.id,
+                menu_item_id=item_data['menu_item_id'],
+                quantity=item_data['quantity'],
+                price_per_unit=item_data['price_per_unit']
+            )
+            db.session.add(order_item)
+
+        db.session.commit()
+
+        # Update order status to confirmed and set timestamp
+        current_time = datetime.utcnow()
+        order.status = 'confirmed'
+        order.confirmed_at = current_time
+        # Auto-set preparing timestamp a minute later
+        order.preparing_at = current_time + timedelta(minutes=1)
+        db.session.commit()
+
+        # Publish customer order status update for real-time clients
+        try:
+            publish_customer_order_event(order.id, 'status_update', {
+                'status': order.status,
+                'timestamps': {
+                    'confirmed': order.confirmed_at.isoformat() if order.confirmed_at else None,
+                    'preparing': order.preparing_at.isoformat() if order.preparing_at else None
+                }
+            })
+        except Exception as e:
+            app.logger.warning(f"Could not publish customer order event: {e}")
+
+        # Cache initial delivery location in real-time cache
+        if order.delivery_agent_id:
+            with delivery_cache_lock:
+                delivery_location_cache[f"order_{order.id}"] = {
+                    'order_id': order.id,
+                    'delivery_agent_id': order.delivery_agent_id,
+                    'latitude': delivery_lat,
+                    'longitude': delivery_lon,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'updated_at': datetime.utcnow()
+                }
+
+        return jsonify({
+            'success': True,
+            'order_id': order.id,
+            'message': 'Order placed successfully!' + (' (Some items were unavailable and excluded)' if missing_items else ''),
+            'missing_items': missing_items,
+            'order_details': {
+                'subtotal': subtotal,
+                'delivery_fee': delivery_fee,
+                'tax_amount': tax_amount,
+                'total': total_amount,
+                'estimated_delivery': estimated_delivery.strftime('%I:%M %p'),
+                'payment_method': order.payment_method,
+                'delivery_latitude': delivery_lat,
+                'delivery_longitude': delivery_lon
             }
         })
     except Exception as e:
-        app.logger.warning(f"Could not publish customer order event: {e}")
-
-    # Cache initial delivery location in real-time cache
-    if order.delivery_agent_id:
-        with delivery_cache_lock:
-            delivery_location_cache[f"order_{order.id}"] = {
-                'order_id': order.id,
-                'delivery_agent_id': order.delivery_agent_id,
-                'latitude': delivery_lat,
-                'longitude': delivery_lon,
-                'timestamp': datetime.utcnow().isoformat(),
-                'updated_at': datetime.utcnow()
-            }
-
-    return jsonify({
-        'success': True,
-        'order_id': order.id,
-        'message': 'Order placed successfully!' + (' (Some items were unavailable and excluded)' if missing_items else ''),
-        'missing_items': missing_items,
-        'order_details': {
-            'subtotal': subtotal,
-            'delivery_fee': delivery_fee,
-            'tax_amount': tax_amount,
-            'total': total_amount,
-            'estimated_delivery': estimated_delivery.strftime('%I:%M %p'),
-            'payment_method': order.payment_method,
-            'delivery_latitude': delivery_lat,
-            'delivery_longitude': delivery_lon
-        }
-    })
+        app.logger.exception(f"Error placing customer order: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': f'An error occurred while placing your order. Please try again or contact support.',
+            'error': str(e) if app.debug else 'Server error'
+        }), 500
 
 
 @app.route('/api/customer/notifications', methods=['GET'])

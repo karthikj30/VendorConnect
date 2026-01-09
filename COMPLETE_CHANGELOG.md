@@ -1,5 +1,28 @@
 # VendorConnect - Database Connectivity Fixes - Complete Change Log
 
+## Release v0.3.0 — 2026-01-09
+
+Highlights:
+- Android app: Loading screen during backend startup and page transitions
+- Customer: Self-pickup option added (delivery fee waived, no agent assignment)
+- Vendor: New “Done” action for self-pickup orders once customer picks up
+- Backend: `delivery_type` and `pickup_ready_at` fields added to `CustomerOrder`
+- CI: Ensured Gradle wrapper is executable in Android build workflow
+
+Files changed in this release:
+- `android/VendorConnectApp/app/src/main/java/com/vendorconnect/MainActivity.kt` (loading UI logic)
+- `android/VendorConnectApp/app/src/main/res/layout/activity_main.xml` (loading overlay)
+- `android/VendorConnectApp/app/src/main/res/values/strings.xml` (loading message)
+- `VendorConnect-main/app.py` (self-pickup support, vendor action `done`)
+- `VendorConnect-main/templates/customer_dashboard.html` (delivery type selector)
+- `VendorConnect-main/templates/vendor_customer_orders.html` (conditional “Done” button)
+- `.github/workflows/android-build.yml` (chmod gradlew step)
+
+Release tag: `v0.3.0`
+Artifact: `app-debug.apk` attached to GitHub Release
+
+# VendorConnect - Database Connectivity Fixes - Complete Change Log
+
 ## Summary
 Fixed 5 critical issues where the database was not properly connected with the backend and frontend APIs. All changes ensure data persistence to SQLite database and proper frontend-backend integration.
 
