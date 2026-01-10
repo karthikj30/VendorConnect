@@ -5936,7 +5936,19 @@ def chatbot_message():
         # Process the message and generate response
         response = process_chatbot_message(message, language, context, vendor)
         
+        # Debug: Check response type
+        if not isinstance(response, dict):
+            print(f"ERROR: Response is not a dict, it's a {type(response)}: {response}")
+            response = {
+                'message': 'Sorry, I encountered an error processing your request.',
+                'context': {},
+                'actions': None
+            }
+        
         # Update context with message count
+        if 'context' not in response or not isinstance(response.get('context'), dict):
+            response['context'] = {}
+        
         if 'message_count' not in response['context']:
             response['context']['message_count'] = context.get('message_count', 0) + 1
         

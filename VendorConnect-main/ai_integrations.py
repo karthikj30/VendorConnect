@@ -538,7 +538,7 @@ def audio_to_text():
 
 @ai_bp.route('/image', methods=['POST'])
 def image_generate():
-    """Generate images using DALL-E 3 via AIML API"""
+    """Generate images using free Pollinations.ai API (no key required)"""
     if not _allowed_user():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
@@ -548,105 +548,56 @@ def image_generate():
     if not prompt:
         return jsonify({'success': False, 'message': 'Prompt is required'}), 400
     
+    # Use Pollinations.ai - completely free, no API key required
     try:
-        # Get AIML API key
-        api_key = _get_aiml_api_key()
+        current_app.logger.info(f'Generating image with Pollinations.ai for prompt: "{prompt[:50]}..."')
         
-        # Prepare DALL-E 3 request according to AIML API documentation
-        url = f"{AIML_API_BASE}{AIML_IMAGE_PATH}"
-        headers = {
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'application/json'
-        }
+        # Pollinations.ai API - returns image directly
+        import urllib.parse
+        encoded_prompt = urllib.parse.quote(prompt)
         
-        payload = {
-            'model': 'dall-e-3',
-            'prompt': prompt,
-            'n': 1,  # Number of images
-            'size': '1024x1024',  # Options: 1024x1024, 1792x1024, 1024x1792
-            'quality': 'standard',  # Options: standard, hd
-            'response_format': 'b64_json'  # Get base64 encoded image
-        }
+        # Pollinations.ai URL format
+        image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
         
-        current_app.logger.info(f'Generating image with DALL-E 3 for prompt: "{prompt[:50]}..."')
-        
-        # Make request to AIML API
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        # Fetch the generated image
+        current_app.logger.info(f'Fetching image from Pollinations.ai...')
+        response = requests.get(image_url, timeout=60)
         response.raise_for_status()
         
-        result = response.json()
+        # Convert to base64
+        image_b64 = base64.b64encode(response.content).decode('utf-8')
         
-        # Extract base64 image from response
-        if result.get('data') and len(result['data']) > 0:
-            image_data = result['data'][0]
-            
-            # Get base64 image
-            if 'b64_json' in image_data:
-                image_b64 = image_data['b64_json']
-                current_app.logger.info('Image generated successfully with DALL-E 3')
-                
-                return jsonify({
-                    'success': True, 
-                    'image_b64': image_b64,
-                    'revised_prompt': image_data.get('revised_prompt', prompt)  # DALL-E 3 may revise prompts
-                })
-            elif 'url' in image_data:
-                # If URL is provided instead, fetch and convert to base64
-                image_url = image_data['url']
-                img_response = requests.get(image_url, timeout=30)
-                img_response.raise_for_status()
-                image_b64 = base64.b64encode(img_response.content).decode('utf-8')
-                
-                return jsonify({
-                    'success': True, 
-                    'image_b64': image_b64,
-                    'revised_prompt': image_data.get('revised_prompt', prompt)
-                })
+        current_app.logger.info('✅ Image generated successfully with Pollinations.ai (FREE)')
         
-        # If we get here, something went wrong with the response format
-        current_app.logger.error(f'Unexpected response format from DALL-E 3: {result}')
+        return jsonify({
+            'success': True, 
+            'image_b64': image_b64,
+            'provider': 'pollinations.ai',
+            'message': '🎨 Generated with Pollinations.ai (Free)'
+        })
+        
+    except requests.Timeout:
+        current_app.logger.error('Pollinations.ai request timeout')
         return jsonify({
             'success': False, 
-            'message': 'Unexpected response format from image generation service'
-        }), 200
-        
-    except AIRequestError as e:
-        current_app.logger.error(f'AIML API key error: {str(e)}')
-        return jsonify({
-            'success': False, 
-            'message': f'⚠️ Configuration Error\n\nThe AIML API key is not configured.\n\n� To enable image generation:\n1. Get your API key from https://aimlapi.com\n2. Add it to your .env file as AIML_API_KEY=your_key_here\n3. Restart the application\n\nError: {str(e)}'
+            'message': f'⏱️ Request Timeout\n\nImage generation took too long.\n\n� Your prompt: "{prompt}"\n\nPlease try again with a simpler prompt.'
         }), 200
         
     except requests.HTTPError as e:
-        current_app.logger.exception('DALL-E 3 image generation HTTP error')
-        error_detail = ''
-        
-        if e.response is not None:
-            try:
-                error_json = e.response.json()
-                error_detail = error_json.get('error', {}).get('message', str(e))
-            except:
-                error_detail = e.response.text if e.response.text else str(e)
+        current_app.logger.exception('Pollinations.ai HTTP error')
+        error_detail = e.response.text if e.response else str(e)
         
         return jsonify({
             'success': False, 
-            'message': f'❌ Image Generation Failed\n\nDALL-E 3 encountered an error:\n{error_detail}\n\n📌 Your prompt: "{prompt}"\n\n💡 Tips:\n• Try simplifying your prompt\n• Avoid requesting copyrighted content\n• Check your API quota/credits\n\nPlease try again or modify your prompt.'
-        }), 200
-        
-    except requests.Timeout:
-        current_app.logger.error('DALL-E 3 request timeout')
-        return jsonify({
-            'success': False, 
-            'message': f'⏱️ Request Timeout\n\nImage generation took too long.\n\n📌 Your prompt: "{prompt}"\n\nPlease try again with a simpler prompt.'
+            'message': f'❌ Image Generation Failed\n\nPollinations.ai error: {error_detail}\n\n📌 Your prompt: "{prompt}"\n\nPlease try again.'
         }), 200
         
     except Exception as e:
         current_app.logger.exception('Image generation failed')
         return jsonify({
             'success': False, 
-            'message': f'❌ Image Generation Error\n\nAn unexpected error occurred: {str(e)}\n\nPlease try again later.'
+            'message': f'❌ Image Generation Error\n\nAn unexpected error occurred: {str(e)}\n\n📌 Your prompt: "{prompt}"\n\nPlease try again later.'
         }), 200
-        return jsonify({'success': False, 'message': 'Unexpected error'}), 500
 
 
 @ai_bp.route('/command', methods=['POST'])
