@@ -5955,7 +5955,9 @@ def chatbot_message():
         return jsonify(response)
         
     except Exception as e:
+        import traceback
         print(f"Chatbot error: {e}")
+        print(f"Traceback:\n{traceback.format_exc()}")
         return jsonify({
             'message': 'Sorry, I encountered an error. Please try again.',
             'context': {},

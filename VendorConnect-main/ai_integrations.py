@@ -24,14 +24,14 @@ AUDIO_PATH = os.environ.get('QUBRID_AUDIO_PATH', '/audio/transcriptions')
 IMAGE_PATH = os.environ.get('QUBRID_IMAGE_PATH', '/images/generations')
 ORCHESTRATOR_PATH = os.environ.get('QUBRID_ORCH_PATH', CHAT_PATH)
 
-# AIML API configuration for DALL-E 3 image generation
+# Image generation API configuration
 AIML_API_BASE = os.environ.get('AIML_API_BASE', 'https://api.aimlapi.com')
-AIML_IMAGE_PATH = '/images/generations'  # DALL-E 3 endpoint
+AIML_IMAGE_PATH = '/images/generations'
 
 DEFAULT_CHAT_MODEL = os.environ.get('QUBRID_CHAT_MODEL', 'openai/gpt-oss-120b')
 DEFAULT_VISION_MODEL = os.environ.get('QUBRID_VISION_MODEL', 'qwen-vision')
 DEFAULT_AUDIO_MODEL = os.environ.get('QUBRID_AUDIO_MODEL', 'whisper-large')
-DEFAULT_IMAGE_MODEL = os.environ.get('DEFAULT_IMAGE_MODEL', 'dall-e-3')  # Changed to DALL-E 3
+DEFAULT_IMAGE_MODEL = os.environ.get('DEFAULT_IMAGE_MODEL', 'dall-e-3')
 DEFAULT_ORCHESTRATOR_MODEL = os.environ.get('QUBRID_ORCH_MODEL', 'openai/gpt-oss-120b')
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB safety cap
@@ -53,7 +53,7 @@ def _get_api_key() -> str:
 
 
 def _get_aiml_api_key() -> str:
-    """Get AIML API key for DALL-E 3 image generation"""
+    """Get API key for image generation"""
     key = os.environ.get('AIML_API_KEY')
     if not key:
         raise AIRequestError('AIML_API_KEY is not configured. Please set it in your .env file')
@@ -108,7 +108,7 @@ def _call_json(path: str, payload: dict) -> dict:
                     choice = chunk['choices'][0]
                     if 'delta' in choice:
                         delta = choice['delta']
-                        # Accumulate both content and reasoning_content (Qubrid streams reasoning tokens)
+                        # Accumulate both content and reasoning_content (VendorConnect AI streams reasoning tokens)
                         if 'content' in delta and delta['content']:
                             full_content += delta['content']
                         if 'reasoning_content' in delta and delta['reasoning_content']:
@@ -538,7 +538,7 @@ def audio_to_text():
 
 @ai_bp.route('/image', methods=['POST'])
 def image_generate():
-    """Generate images using free Pollinations.ai API (no key required)"""
+    """Generate images using free VendorConnect AI API (no key required)"""
     if not _allowed_user():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
@@ -548,48 +548,46 @@ def image_generate():
     if not prompt:
         return jsonify({'success': False, 'message': 'Prompt is required'}), 400
     
-    # Use Pollinations.ai - completely free, no API key required
+    # Use VendorConnect AI - completely free, no API key required
     try:
-        current_app.logger.info(f'Generating image with Pollinations.ai for prompt: "{prompt[:50]}..."')
+        current_app.logger.info(f'Generating image with VendorConnect AI for prompt: "{prompt[:50]}..."')
         
-        # Pollinations.ai API - returns image directly
+        # VendorConnect AI API - returns image directly
         import urllib.parse
         encoded_prompt = urllib.parse.quote(prompt)
         
-        # Pollinations.ai URL format
+        # VendorConnect AI URL format
         image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width=1024&height=1024&nologo=true"
         
         # Fetch the generated image
-        current_app.logger.info(f'Fetching image from Pollinations.ai...')
+        current_app.logger.info(f'Fetching image from VendorConnect AI...')
         response = requests.get(image_url, timeout=60)
         response.raise_for_status()
         
         # Convert to base64
         image_b64 = base64.b64encode(response.content).decode('utf-8')
         
-        current_app.logger.info('✅ Image generated successfully with Pollinations.ai (FREE)')
+        current_app.logger.info('✅ Image generated successfully')
         
         return jsonify({
             'success': True, 
-            'image_b64': image_b64,
-            'provider': 'pollinations.ai',
-            'message': '🎨 Generated with Pollinations.ai (Free)'
+            'image_b64': image_b64
         })
         
     except requests.Timeout:
-        current_app.logger.error('Pollinations.ai request timeout')
+        current_app.logger.error('VendorConnect AI request timeout')
         return jsonify({
             'success': False, 
             'message': f'⏱️ Request Timeout\n\nImage generation took too long.\n\n� Your prompt: "{prompt}"\n\nPlease try again with a simpler prompt.'
         }), 200
         
     except requests.HTTPError as e:
-        current_app.logger.exception('Pollinations.ai HTTP error')
+        current_app.logger.exception('VendorConnect AI HTTP error')
         error_detail = e.response.text if e.response else str(e)
         
         return jsonify({
             'success': False, 
-            'message': f'❌ Image Generation Failed\n\nPollinations.ai error: {error_detail}\n\n📌 Your prompt: "{prompt}"\n\nPlease try again.'
+            'message': f'❌ Image Generation Failed\n\nVendorConnect AI error: {error_detail}\n\n📌 Your prompt: "{prompt}"\n\nPlease try again.'
         }), 200
         
     except Exception as e:
