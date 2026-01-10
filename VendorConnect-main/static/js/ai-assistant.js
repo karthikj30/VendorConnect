@@ -146,6 +146,16 @@ class AIAssistant {
                     <p class="ai-helper-text">Click to record voice, click again to stop and transcribe</p>
                     <p id="ai-voice-status" class="ai-helper-text" style="color: #6366f1; display: none;"></p>
                 </div>
+                <div class="ai-field" style="margin-top: 16px;">
+                    <label class="ai-label">Or Type Your Question</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="ai-voice-text-input" class="ai-input-box" placeholder="Type your question here..." style="flex: 1;" />
+                        <button id="ai-voice-text-send" class="ai-btn-primary" style="padding: 0 16px;">
+                            <i class="fas fa-paper-plane"></i> Ask
+                        </button>
+                    </div>
+                    <p class="ai-helper-text">If voice doesn't work, you can type your question</p>
+                </div>
                 <div class="ai-action-btns" style="margin-top: 12px;">
                     <input type="file" id="ai-audio-file" class="ai-input-box" accept="audio/*" style="display: none;" />
                     <button id="ai-audio-upload-btn" class="ai-btn-secondary" onclick="document.getElementById('ai-audio-file').click()">
@@ -282,6 +292,14 @@ class AIAssistant {
         // Voice recording
         document.getElementById('ai-record-btn').addEventListener('click', () => this.toggleRecording());
         document.getElementById('ai-audio-file').addEventListener('change', () => this.handleAudioUpload());
+        document.getElementById('ai-voice-text-send').addEventListener('click', () => this.handleVoiceTextInput());
+        
+        // Allow Enter key in voice text input
+        document.getElementById('ai-voice-text-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.handleVoiceTextInput();
+            }
+        });
 
         // Image
         document.getElementById('ai-image-btn').addEventListener('click', () => this.handleImage());
@@ -473,33 +491,202 @@ class AIAssistant {
     }
 
     async startRecording() {
+        const output = document.getElementById('ai-voice-output');
+        const voiceStatus = document.getElementById('ai-voice-status');
+        
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.mediaRecorder = new MediaRecorder(stream);
-            this.audioChunks = [];
-
-            this.mediaRecorder.addEventListener('dataavailable', event => {
-                this.audioChunks.push(event.data);
-            });
-
-            this.mediaRecorder.addEventListener('stop', () => {
-                this.processRecording();
-            });
-
-            this.mediaRecorder.start();
+            // Check browser and connection info
+            const isSecure = window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const hasNavigator = 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            console.log('🎤 Voice Recording Debug Info:');
+            console.log('- Protocol:', window.location.protocol);
+            console.log('- Hostname:', window.location.hostname);
+            console.log('- Is Secure:', isSecure);
+            console.log('- Has MediaDevices:', hasNavigator);
+            console.log('- Speech Recognition Available:', !!SpeechRecognition);
+            console.log('- Online:', navigator.onLine);
+            
+            // Show detailed error message
+            if (!isSecure) {
+                voiceStatus.innerHTML = `<strong>⚠️ Connection Not Secure</strong><br>
+                    Voice recognition requires HTTPS or localhost.<br>
+                    <strong>Current URL:</strong> ${window.location.protocol}//${window.location.host}<br>
+                    <br><strong>Solution:</strong> Use the text input below instead!`;
+                voiceStatus.style.display = 'block';
+                voiceStatus.style.color = '#ef4444';
+                // Scroll to text input
+                document.getElementById('ai-voice-text-input').focus();
+                return;
+            }
+            
+            if (!hasNavigator) {
+                voiceStatus.innerHTML = `<strong>❌ Microphone Not Supported</strong><br>
+                    Your browser doesn't support microphone access.<br>
+                    <br><strong>Solution:</strong> Use the text input below!`;
+                voiceStatus.style.display = 'block';
+                voiceStatus.style.color = '#ef4444';
+                document.getElementById('ai-voice-text-input').focus();
+                return;
+            }
+            
+            if (!SpeechRecognition) {
+                voiceStatus.innerHTML = `<strong>❌ Speech Recognition Not Supported</strong><br>
+                    Please use <strong>Chrome</strong>, <strong>Edge</strong>, or <strong>Safari</strong>.<br>
+                    <br><strong>Solution:</strong> Use the text input below!`;
+                voiceStatus.style.display = 'block';
+                voiceStatus.style.color = '#ef4444';
+                document.getElementById('ai-voice-text-input').focus();
+                return;
+            }
+            
+            if (!navigator.onLine) {
+                voiceStatus.innerHTML = `<strong>❌ No Internet Connection</strong><br>
+                    Speech recognition requires internet connection.<br>
+                    <br><strong>Solution:</strong> Use the text input below!`;
+                voiceStatus.style.display = 'block';
+                voiceStatus.style.color = '#ef4444';
+                document.getElementById('ai-voice-text-input').focus();
+                return;
+            }
+            
+            // Request microphone permission
+            try {
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+                console.log('✅ Microphone permission granted');
+            } catch (micError) {
+                console.error('❌ Microphone permission denied:', micError);
+                voiceStatus.innerHTML = `<strong>🎤 Microphone Access Denied</strong><br>
+                    Please allow microphone access in your browser settings.<br>
+                    <br><strong>Solution:</strong> Use the text input below!`;
+                voiceStatus.style.display = 'block';
+                voiceStatus.style.color = '#ef4444';
+                document.getElementById('ai-voice-text-input').focus();
+                return;
+            }
+            
+            // Use Web Speech API for real-time transcription
+            this.recognition = new SpeechRecognition();
+            this.recognition.continuous = true;
+            this.recognition.interimResults = true;
+            this.recognition.lang = 'en-US';
+            this.recognition.maxAlternatives = 1;
+            
+            // Store transcript as instance variable
+            this.finalTranscript = '';
+            this.interimTranscript = '';
+            
+            this.recognition.onstart = () => {
+                console.log('Speech recognition started');
+                voiceStatus.textContent = 'Listening... Speak now';
+                voiceStatus.style.display = 'block';
+                voiceStatus.style.color = '#10b981';
+            };
+            
+            this.recognition.onresult = (event) => {
+                this.interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        this.finalTranscript += transcript + ' ';
+                    } else {
+                        this.interimTranscript += transcript;
+                    }
+                }
+                
+                // Display live transcription
+                output.innerHTML = `<div style="padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
+                    <strong style="color: #1e40af;">Transcribing...</strong><br>
+                    <span style="color: #334155;">${this.finalTranscript}</span>
+                    <span style="color: #94a3b8; font-style: italic;">${this.interimTranscript}</span>
+                </div>`;
+                output.classList.remove('empty');
+            };
+            
+            this.recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                let errorMessage = 'Error: ';
+                switch(event.error) {
+                    case 'network':
+                        errorMessage += 'Network error. Please check your internet connection.';
+                        break;
+                    case 'not-allowed':
+                        errorMessage += 'Microphone access denied. Please allow microphone access.';
+                        break;
+                    case 'no-speech':
+                        errorMessage += 'No speech detected. Please speak clearly.';
+                        break;
+                    case 'audio-capture':
+                        errorMessage += 'No microphone found. Please connect a microphone.';
+                        break;
+                    default:
+                        errorMessage += event.error + '. Please try again.';
+                }
+                voiceStatus.textContent = errorMessage;
+                voiceStatus.style.color = '#ef4444';
+                this.stopRecording();
+            };
+            
+            this.recognition.onend = async () => {
+                if (this.isRecording) {
+                    // If stopped intentionally, process the final transcript
+                    if (this.finalTranscript && this.finalTranscript.trim()) {
+                        voiceStatus.textContent = 'Getting AI answer...';
+                        voiceStatus.style.color = '#6366f1';
+                        
+                        try {
+                            // Get AI response using chatbot API
+                            const resp = await fetch('/api/chatbot/message', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    message: this.finalTranscript.trim(),
+                                    language: 'en',
+                                    context: {},
+                                    session_id: this.getSessionId()
+                                })
+                            });
+                            const data = await resp.json();
+                            
+                            if (data.message) {
+                                const answer = typeof data.message === 'string' ? data.message : JSON.stringify(data.message);
+                                output.innerHTML = `<div style="margin-bottom: 15px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
+                                    <strong style="color: #1e40af;">You asked:</strong><br>
+                                    <span style="color: #334155;">${this.finalTranscript.trim()}</span>
+                                </div>
+                                <div style="padding: 10px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px;">
+                                    <strong style="color: #065f46;">AI Answer:</strong><br>
+                                    <span style="color: #334155; white-space: pre-wrap;">${answer}</span>
+                                </div>`;
+                            } else {
+                                output.textContent = 'No response received';
+                            }
+                            voiceStatus.style.display = 'none';
+                        } catch (err) {
+                            output.innerHTML += `<div style="padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px; color: #991b1b; margin-top: 10px;">
+                                Error getting answer: ${err.message}
+                            </div>`;
+                            voiceStatus.style.display = 'none';
+                        }
+                    }
+                }
+            };
+            
+            this.recognition.start();
             this.isRecording = true;
 
             // Update UI
             const recordBtn = document.getElementById('ai-record-btn');
             const recordLabel = document.getElementById('ai-record-label');
             const recordTimer = document.getElementById('ai-record-timer');
-            const voiceStatus = document.getElementById('ai-voice-status');
 
             recordBtn.classList.add('recording');
             recordLabel.textContent = 'Stop Recording';
             recordTimer.style.display = 'inline';
-            voiceStatus.textContent = 'Recording in progress...';
+            voiceStatus.textContent = 'Listening... Speak now';
             voiceStatus.style.display = 'block';
+            voiceStatus.style.color = '#10b981';
 
             // Start timer
             this.recordingStartTime = Date.now();
@@ -511,113 +698,104 @@ class AIAssistant {
             }, 1000);
 
         } catch (err) {
-            console.error('Microphone access denied:', err);
+            console.error('Speech recognition error:', err);
             const voiceStatus = document.getElementById('ai-voice-status');
-            voiceStatus.textContent = 'Microphone access denied. Please allow microphone access.';
+            voiceStatus.textContent = 'Error starting voice recognition. Please try again.';
             voiceStatus.style.display = 'block';
             voiceStatus.style.color = '#ef4444';
         }
     }
 
     stopRecording() {
-        if (this.mediaRecorder && this.isRecording) {
-            this.mediaRecorder.stop();
-            this.mediaRecorder.stream.getTracks().forEach(track => track.stop());
-            this.isRecording = false;
+        if (this.recognition) {
+            this.recognition.stop();
+            this.recognition = null;
+        }
+        this.isRecording = false;
+        
+        // Reset transcripts
+        this.finalTranscript = '';
+        this.interimTranscript = '';
 
-            // Update UI
-            const recordBtn = document.getElementById('ai-record-btn');
-            const recordLabel = document.getElementById('ai-record-label');
-            const recordTimer = document.getElementById('ai-record-timer');
+        // Update UI
+        const recordBtn = document.getElementById('ai-record-btn');
+        const recordLabel = document.getElementById('ai-record-label');
+        const recordTimer = document.getElementById('ai-record-timer');
 
-            recordBtn.classList.remove('recording');
-            recordLabel.textContent = 'Start Recording';
-            recordTimer.style.display = 'none';
+        recordBtn.classList.remove('recording');
+        recordLabel.textContent = 'Start Recording';
+        recordTimer.style.display = 'none';
 
-            // Clear timer
-            if (this.recordingTimer) {
-                clearInterval(this.recordingTimer);
-                this.recordingTimer = null;
-            }
+        // Clear timer
+        if (this.recordingTimer) {
+            clearInterval(this.recordingTimer);
+            this.recordingTimer = null;
         }
     }
 
-    async processRecording() {
+    async handleVoiceTextInput() {
+        const textInput = document.getElementById('ai-voice-text-input');
         const output = document.getElementById('ai-voice-output');
         const voiceStatus = document.getElementById('ai-voice-status');
-        
-        voiceStatus.textContent = 'Processing audio...';
+        const question = textInput.value.trim();
+
+        if (!question) {
+            voiceStatus.textContent = 'Please type a question first.';
+            voiceStatus.style.display = 'block';
+            voiceStatus.style.color = '#ef4444';
+            setTimeout(() => {
+                voiceStatus.style.display = 'none';
+            }, 3000);
+            return;
+        }
+
+        // Show processing status
+        voiceStatus.textContent = 'Getting AI answer...';
         voiceStatus.style.display = 'block';
         voiceStatus.style.color = '#6366f1';
 
-        const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
-        const fd = new FormData();
-        fd.append('audio', audioBlob, 'recording.webm');
-        fd.append('model', 'whisper-large');
-        fd.append('language', 'en');
+        // Show question in output
+        output.innerHTML = `<div style="padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
+            <strong style="color: #1e40af;">You asked:</strong><br>
+            <span style="color: #334155;">${question}</span>
+        </div>
+        <div style="color: #64748b; font-style: italic; margin-top: 10px;">Thinking...</div>`;
+        output.classList.remove('empty');
 
         try {
-            // Step 1: Transcribe audio
-            const resp = await fetch('/api/ai/audio', { method: 'POST', body: fd });
-            const data = await resp.json();
-            
-            if (!data.success || !data.text) {
-                output.textContent = data.message || 'Transcription failed';
-                output.classList.remove('empty');
-                voiceStatus.style.display = 'none';
-                return;
-            }
-
-            const transcript = data.text;
-            
-            // Show transcript first
-            output.innerHTML = `<div style="margin-bottom: 15px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
-                <strong style="color: #1e40af;">You asked:</strong><br>
-                <span style="color: #334155;">${transcript}</span>
-            </div>
-            <div style="color: #64748b; font-style: italic;">Getting answer...</div>`;
-            output.classList.remove('empty');
-
-            // Step 2: Get GPT answer
-            voiceStatus.textContent = 'Getting AI answer...';
-            
-            const chatResp = await fetch('/api/ai/chat', {
+            // Get AI response using chatbot API
+            const resp = await fetch('/api/chatbot/message', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: transcript, 
-                    model: 'openai/gpt-oss-120b', 
-                    temperature: 0.7 
+                body: JSON.stringify({
+                    message: question,
+                    language: 'en',
+                    context: {},
+                    session_id: this.getSessionId()
                 })
             });
-            const chatData = await chatResp.json();
+            const data = await resp.json();
             
-            // Show both transcript and answer
-            if (chatData.success && chatData.content) {
+            if (data.message) {
+                const answer = typeof data.message === 'string' ? data.message : JSON.stringify(data.message);
                 output.innerHTML = `<div style="margin-bottom: 15px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
                     <strong style="color: #1e40af;">You asked:</strong><br>
-                    <span style="color: #334155;">${transcript}</span>
+                    <span style="color: #334155;">${question}</span>
                 </div>
                 <div style="padding: 10px; background: #f0fdf4; border-left: 3px solid #10b981; border-radius: 4px;">
                     <strong style="color: #065f46;">AI Answer:</strong><br>
-                    <span style="color: #334155; white-space: pre-wrap;">${chatData.content}</span>
+                    <span style="color: #334155; white-space: pre-wrap;">${answer}</span>
                 </div>`;
             } else {
-                output.innerHTML = `<div style="margin-bottom: 15px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px;">
-                    <strong style="color: #1e40af;">You asked:</strong><br>
-                    <span style="color: #334155;">${transcript}</span>
-                </div>
-                <div style="padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px; color: #991b1b;">
-                    Failed to get answer: ${chatData.message || 'Unknown error'}
-                </div>`;
+                output.textContent = 'No response received';
             }
-            
             voiceStatus.style.display = 'none';
+            textInput.value = ''; // Clear input
         } catch (err) {
-            output.textContent = 'Error: ' + err.message;
-            output.classList.remove('empty');
-            voiceStatus.textContent = 'Error processing audio';
-            voiceStatus.style.color = '#ef4444';
+            output.innerHTML += `<div style="padding: 10px; background: #fef2f2; border-left: 3px solid #ef4444; border-radius: 4px; color: #991b1b; margin-top: 10px;">
+                Error getting answer: ${err.message}
+            </div>`;
+            voiceStatus.style.display = 'none';
         }
     }
 

@@ -24,10 +24,14 @@ AUDIO_PATH = os.environ.get('QUBRID_AUDIO_PATH', '/audio/transcriptions')
 IMAGE_PATH = os.environ.get('QUBRID_IMAGE_PATH', '/images/generations')
 ORCHESTRATOR_PATH = os.environ.get('QUBRID_ORCH_PATH', CHAT_PATH)
 
+# AIML API configuration for DALL-E 3 image generation
+AIML_API_BASE = os.environ.get('AIML_API_BASE', 'https://api.aimlapi.com')
+AIML_IMAGE_PATH = '/images/generations'  # DALL-E 3 endpoint
+
 DEFAULT_CHAT_MODEL = os.environ.get('QUBRID_CHAT_MODEL', 'openai/gpt-oss-120b')
 DEFAULT_VISION_MODEL = os.environ.get('QUBRID_VISION_MODEL', 'qwen-vision')
 DEFAULT_AUDIO_MODEL = os.environ.get('QUBRID_AUDIO_MODEL', 'whisper-large')
-DEFAULT_IMAGE_MODEL = os.environ.get('QUBRID_IMAGE_MODEL', 'stable-diffusion')
+DEFAULT_IMAGE_MODEL = os.environ.get('DEFAULT_IMAGE_MODEL', 'dall-e-3')  # Changed to DALL-E 3
 DEFAULT_ORCHESTRATOR_MODEL = os.environ.get('QUBRID_ORCH_MODEL', 'openai/gpt-oss-120b')
 
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 MB safety cap
@@ -45,6 +49,14 @@ def _get_api_key() -> str:
         print(f"DEBUG: QUBRID_API_KEY in env: {'QUBRID_API_KEY' in os.environ}")
         print(f"DEBUG: Available env vars starting with QUBRID: {[k for k in os.environ.keys() if 'QUBRID' in k]}")
         raise AIRequestError('QUBRID_API_KEY is not configured')
+    return key
+
+
+def _get_aiml_api_key() -> str:
+    """Get AIML API key for DALL-E 3 image generation"""
+    key = os.environ.get('AIML_API_KEY')
+    if not key:
+        raise AIRequestError('AIML_API_KEY is not configured. Please set it in your .env file')
     return key
 
 
@@ -433,7 +445,6 @@ def audio_to_text():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
     audio = request.files.get('audio')
-    model = request.form.get('model') or DEFAULT_AUDIO_MODEL
     language = request.form.get('language') or 'en'
 
     if not audio:
@@ -444,48 +455,197 @@ def audio_to_text():
         return jsonify({'success': False, 'message': 'File too large. Max 15 MB'}), 400
 
     try:
-        files = {
-            'file': (audio.filename or 'audio.wav', audio_bytes, audio.mimetype or 'audio/wav')
-        }
-        data = {
-            'model': model,
-            'language': language,
-        }
-        resp_json = _call_multipart(AUDIO_PATH, data=data, files=files)
-        text = _extract_text(resp_json)
-        return jsonify({'success': True, 'text': text, 'raw': resp_json})
-    except AIRequestError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
-    except requests.HTTPError as e:
-        return jsonify({'success': False, 'message': f'Provider error: {e.response.text if e.response else str(e)}'}), 502
-    except Exception:
-        current_app.logger.exception('Audio transcription failed')
-        return jsonify({'success': False, 'message': 'Unexpected error'}), 500
+        # Try to use speech_recognition library for local audio transcription
+        try:
+            import speech_recognition as sr
+            import tempfile
+            import os
+            from pydub import AudioSegment
+            
+            # Save audio to a temporary file
+            recognizer = sr.Recognizer()
+            
+            # Create a temporary file with the correct extension
+            file_ext = os.path.splitext(audio.filename)[1].lower()
+            
+            with tempfile.NamedTemporaryFile(suffix=file_ext, delete=False) as temp_audio:
+                temp_audio.write(audio_bytes)
+                temp_audio_path = temp_audio.name
+            
+            try:
+                # Convert to WAV if necessary (speech_recognition works best with WAV)
+                wav_path = temp_audio_path
+                if file_ext not in ['.wav', '.wave']:
+                    # Convert to WAV
+                    audio_segment = AudioSegment.from_file(temp_audio_path)
+                    wav_path = temp_audio_path + '.wav'
+                    audio_segment.export(wav_path, format='wav')
+                
+                # Try to recognize the audio
+                with sr.AudioFile(wav_path) as source:
+                    audio_data = recognizer.record(source)
+                    
+                    # Use appropriate language code for Google
+                    lang_map = {
+                        'en': 'en-US',
+                        'hi': 'hi-IN',
+                        'bn': 'bn-IN',
+                        'ta': 'ta-IN',
+                        'mr': 'mr-IN'
+                    }
+                    google_lang = lang_map.get(language, 'en-US')
+                    
+                    text = recognizer.recognize_google(audio_data, language=google_lang)
+                
+                return jsonify({'success': True, 'text': text})
+                
+            finally:
+                # Clean up temporary files
+                try:
+                    os.unlink(temp_audio_path)
+                    if wav_path != temp_audio_path and os.path.exists(wav_path):
+                        os.unlink(wav_path)
+                except:
+                    pass
+            
+        except ImportError as import_err:
+            # speech_recognition or pydub not installed
+            current_app.logger.error(f'Import error: {str(import_err)}')
+            return jsonify({
+                'success': True,
+                'text': f'Audio uploaded: {audio.filename}\n\nNote: Audio transcription requires additional libraries (speech_recognition, pydub). Please use the browser\'s built-in voice recording feature instead (click "Start Recording" button).'
+            })
+        except Exception as sr_error:
+            import speech_recognition as sr
+            current_app.logger.exception('Speech recognition failed')
+            
+            # Check if it's UnknownValueError (no speech detected)
+            if isinstance(sr_error, sr.UnknownValueError):
+                return jsonify({
+                    'success': True,
+                    'text': f'Audio file received: {audio.filename}\n\n⚠️ No speech detected in the audio.\n\n📌 This tool transcribes SPEECH, not music or songs.\n\nPlease upload:\n✓ Voice recordings with clear speech\n✓ Voice memos or voice notes\n✓ Spoken questions or messages\n\n❌ This won\'t work for:\n✗ Music files\n✗ Instrumental audio\n✗ Songs without speech\n\nTip: Use the "Start Recording" button to record your voice directly!'
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'text': f'Audio file received: {audio.filename}\n\nCould not transcribe audio. Error: {str(sr_error)}\n\nTip: Try using the "Start Recording" button for live voice transcription, or ensure your audio file is clear and in a supported format (WAV, MP3, OGG).'
+                })
+            
+    except Exception as e:
+        current_app.logger.exception('Audio processing failed')
+        return jsonify({'success': False, 'message': f'Error processing audio: {str(e)}'}), 500
 
 
 @ai_bp.route('/image', methods=['POST'])
 def image_generate():
+    """Generate images using DALL-E 3 via AIML API"""
     if not _allowed_user():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    
     data = request.get_json(force=True, silent=True) or {}
     prompt = (data.get('prompt') or '').strip()
-    model = data.get('model') or DEFAULT_IMAGE_MODEL
+    
     if not prompt:
         return jsonify({'success': False, 'message': 'Prompt is required'}), 400
+    
     try:
-        payload = {
-            'model': model,
-            'prompt': prompt,
+        # Get AIML API key
+        api_key = _get_aiml_api_key()
+        
+        # Prepare DALL-E 3 request according to AIML API documentation
+        url = f"{AIML_API_BASE}{AIML_IMAGE_PATH}"
+        headers = {
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
         }
-        resp_json = _call_json(IMAGE_PATH, payload)
-        image_b64 = _extract_text(resp_json)  # Expecting b64_json for compatibility
-        return jsonify({'success': True, 'image_b64': image_b64, 'raw': resp_json})
+        
+        payload = {
+            'model': 'dall-e-3',
+            'prompt': prompt,
+            'n': 1,  # Number of images
+            'size': '1024x1024',  # Options: 1024x1024, 1792x1024, 1024x1792
+            'quality': 'standard',  # Options: standard, hd
+            'response_format': 'b64_json'  # Get base64 encoded image
+        }
+        
+        current_app.logger.info(f'Generating image with DALL-E 3 for prompt: "{prompt[:50]}..."')
+        
+        # Make request to AIML API
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+        
+        result = response.json()
+        
+        # Extract base64 image from response
+        if result.get('data') and len(result['data']) > 0:
+            image_data = result['data'][0]
+            
+            # Get base64 image
+            if 'b64_json' in image_data:
+                image_b64 = image_data['b64_json']
+                current_app.logger.info('Image generated successfully with DALL-E 3')
+                
+                return jsonify({
+                    'success': True, 
+                    'image_b64': image_b64,
+                    'revised_prompt': image_data.get('revised_prompt', prompt)  # DALL-E 3 may revise prompts
+                })
+            elif 'url' in image_data:
+                # If URL is provided instead, fetch and convert to base64
+                image_url = image_data['url']
+                img_response = requests.get(image_url, timeout=30)
+                img_response.raise_for_status()
+                image_b64 = base64.b64encode(img_response.content).decode('utf-8')
+                
+                return jsonify({
+                    'success': True, 
+                    'image_b64': image_b64,
+                    'revised_prompt': image_data.get('revised_prompt', prompt)
+                })
+        
+        # If we get here, something went wrong with the response format
+        current_app.logger.error(f'Unexpected response format from DALL-E 3: {result}')
+        return jsonify({
+            'success': False, 
+            'message': 'Unexpected response format from image generation service'
+        }), 200
+        
     except AIRequestError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
+        current_app.logger.error(f'AIML API key error: {str(e)}')
+        return jsonify({
+            'success': False, 
+            'message': f'⚠️ Configuration Error\n\nThe AIML API key is not configured.\n\n� To enable image generation:\n1. Get your API key from https://aimlapi.com\n2. Add it to your .env file as AIML_API_KEY=your_key_here\n3. Restart the application\n\nError: {str(e)}'
+        }), 200
+        
     except requests.HTTPError as e:
-        return jsonify({'success': False, 'message': f'Provider error: {e.response.text if e.response else str(e)}'}), 502
-    except Exception:
+        current_app.logger.exception('DALL-E 3 image generation HTTP error')
+        error_detail = ''
+        
+        if e.response is not None:
+            try:
+                error_json = e.response.json()
+                error_detail = error_json.get('error', {}).get('message', str(e))
+            except:
+                error_detail = e.response.text if e.response.text else str(e)
+        
+        return jsonify({
+            'success': False, 
+            'message': f'❌ Image Generation Failed\n\nDALL-E 3 encountered an error:\n{error_detail}\n\n📌 Your prompt: "{prompt}"\n\n💡 Tips:\n• Try simplifying your prompt\n• Avoid requesting copyrighted content\n• Check your API quota/credits\n\nPlease try again or modify your prompt.'
+        }), 200
+        
+    except requests.Timeout:
+        current_app.logger.error('DALL-E 3 request timeout')
+        return jsonify({
+            'success': False, 
+            'message': f'⏱️ Request Timeout\n\nImage generation took too long.\n\n📌 Your prompt: "{prompt}"\n\nPlease try again with a simpler prompt.'
+        }), 200
+        
+    except Exception as e:
         current_app.logger.exception('Image generation failed')
+        return jsonify({
+            'success': False, 
+            'message': f'❌ Image Generation Error\n\nAn unexpected error occurred: {str(e)}\n\nPlease try again later.'
+        }), 200
         return jsonify({'success': False, 'message': 'Unexpected error'}), 500
 
 
