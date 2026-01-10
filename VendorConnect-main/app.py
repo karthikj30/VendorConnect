@@ -5928,6 +5928,11 @@ def chatbot_message():
         context = data.get('context', {})
         session_id = data.get('session_id')
         
+        # Ensure context is a dict, not a list
+        if not isinstance(context, dict):
+            print(f"WARNING: context is {type(context)}, converting to dict: {context}")
+            context = {}
+        
         # Get vendor info if logged in
         vendor = None
         if 'vendor_id' in session:
