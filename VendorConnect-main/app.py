@@ -4442,6 +4442,13 @@ def api_vendor_customer_order_action(order_id):
         order.actual_delivery_time = order.actual_delivery_time or now
     elif action in ('done', 'mark_done', 'picked_up'):
         # For self-pickup orders, mark as done when customer picks up
+        if delivery_type == 'self_pickup':
+            # Assuming customer_latitude and customer_longitude are available
+            distance = haversine(customer_latitude, customer_longitude, pickup_latitude, pickup_longitude)
+            reward = calculate_reward(distance)
+            # Logic to apply the reward to the customer account
+            apply_reward_to_customer(customer_id, reward)
+
         order.status = 'done'
         order.picked_up_at = order.picked_up_at or now
         order.pickup_ready_at = order.pickup_ready_at or now
