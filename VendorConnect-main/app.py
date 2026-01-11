@@ -4468,7 +4468,7 @@ def api_vendor_customer_order_action(order_id):
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index'))
+    return redirect(url_for('index_new'))
 
 
 @app.route('/vendor/dashboard')

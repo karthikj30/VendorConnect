@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VendorConnect - Street Food Vendor Platform</title>
+    <title>VendorConnect - Empowering Street Food Vendors</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -14,214 +14,668 @@
         }
 
         body {
-            font-family: 'Poppins', 'Noto Sans Devanagari', sans-serif;
-            line-height: 1.6;
-            color: #333;
+            font-family: 'Poppins', sans-serif;
+            overflow-x: hidden;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
+        /* Dark Mode */
+        body.dark-mode {
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            color: #f1f1f1;
         }
 
-        /* Header */
-        header {
-            background: rgba(255, 255, 255, 0.95);
+        body.dark-mode .nav {
+            background: rgba(35, 37, 38, 0.98);
+        }
+
+        body.dark-mode .logo {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        body.dark-mode .nav-links a {
+            color: #ffd700;
+        }
+
+        body.dark-mode .nav-links a:hover {
+            color: #ffe066;
+        }
+
+        body.dark-mode .nav-links a::after {
+            background: #ffd700;
+        }
+
+        body.dark-mode .role-section,
+        body.dark-mode .problems-section,
+        body.dark-mode .cta-section {
+            background: #232526;
+        }
+
+        body.dark-mode .role-section h2,
+        body.dark-mode .problems-section h2,
+        body.dark-mode .problems-section .subtitle,
+        body.dark-mode .cta-section h2,
+        body.dark-mode .cta-section p {
+            color: #ffd700;
+        }
+
+        body.dark-mode .problem-card {
+            background: #18191a;
+            border-left-color: #ffd700;
+        }
+
+        body.dark-mode .problem-card h3 {
+            color: #ffd700;
+        }
+
+        body.dark-mode .problem-card .percentage {
+            color: #ffe066;
+        }
+
+        body.dark-mode .features-section {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+        }
+
+        body.dark-mode .features-section h2 {
+            color: #ffd700;
+        }
+
+        body.dark-mode .flip-card-back {
+            background: #18191a;
+            color: #ffd700;
+        }
+
+        body.dark-mode .flip-card-back h3 {
+            color: #ffd700;
+        }
+
+        body.dark-mode .flip-card-back p {
+            color: #f1f1f1;
+        }
+
+        body.dark-mode footer {
+            background: #18191a;
+        }
+
+        /* Dark Mode Toggle Button */
+        .dark-mode-toggle {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            z-index: 1001;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+            color: white;
+        }
+
+        .dark-mode-toggle:hover {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        body.dark-mode .dark-mode-toggle {
+            background: rgba(255, 215, 0, 0.2);
+            color: #ffd700;
+        }
+
+        body.dark-mode .dark-mode-toggle:hover {
+            background: rgba(255, 215, 0, 0.3);
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.98);
             backdrop-filter: blur(10px);
             padding: 1rem 0;
-            position: fixed;
-            width: 100%;
-            top: 0;
             z-index: 1000;
             box-shadow: 0 2px 20px rgba(0,0,0,0.1);
         }
 
-        nav {
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-
-        #darkModeToggle {
-            transition: color 0.3s, transform 0.2s;
-        }
-
-        #darkModeToggle:hover {
-            color: #667eea;
-            transform: scale(1.1);
-        }
-
         .logo {
             font-size: 1.8rem;
-            font-weight: bold;
-            color: #667eea;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
 
         .nav-links {
             display: flex;
-            list-style: none;
             gap: 2rem;
+            list-style: none;
+            align-items: center;
         }
 
         .nav-links a {
             text-decoration: none;
             color: #333;
             font-weight: 500;
-            transition: color 0.3s;
+            transition: all 0.3s;
+            position: relative;
         }
 
         .nav-links a:hover {
             color: #667eea;
         }
 
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #667eea;
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* Welcome Card Animation */
+        .welcome-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            animation: fadeIn 0.5s;
+        }
+
+        .welcome-card {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 600px;
+            animation: slideUp 0.8s;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .welcome-card h1 {
+            font-size: 2.5rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .welcome-card p {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .welcome-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem 3rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .welcome-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
         /* Hero Section */
         .hero {
-            padding: 120px 0 80px;
+            padding: 150px 0 100px;
             text-align: center;
             color: white;
         }
 
         .hero h1 {
-            font-size: 3.5rem;
-            margin-bottom: 1rem;
-            font-weight: 700;
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            animation: fadeInDown 1s;
         }
 
-        .hero p {
-            font-size: 1.3rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
+        .hero .tagline {
+            font-size: 1.5rem;
+            margin-bottom: 3rem;
+            opacity: 0.95;
+            animation: fadeInUp 1s;
         }
 
-        .cta-buttons {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 12px 30px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-block;
-        }
-
-        .btn-primary {
-            background: #ff6b6b;
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: #ff5252;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 2px solid white;
-        }
-
-        .btn-secondary:hover {
-            background: white;
-            color: #667eea;
-        }
-
-        /* Features Section */
-        .features {
-            padding: 80px 0;
+        /* Role Selection Cards */
+        .role-section {
+            padding: 60px 0;
             background: white;
         }
 
-        .section-title {
+        .role-section h2 {
             text-align: center;
             font-size: 2.5rem;
             margin-bottom: 3rem;
             color: #333;
         }
 
-        .features-grid {
+        .role-cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 2rem;
-            margin-top: 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
         }
 
-        .feature-card {
-            background: #f8f9fa;
-            padding: 2rem;
-            border-radius: 15px;
+        .role-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 2.5rem;
+            border-radius: 20px;
             text-align: center;
-            transition: transform 0.3s, box-shadow 0.3s;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
 
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        .role-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
         }
 
-        .feature-icon {
-            font-size: 3rem;
+        .role-card i {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .role-card h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .role-card p {
+            margin-bottom: 1.5rem;
+            opacity: 0.9;
+        }
+
+        .role-card .btn {
+            background: white;
             color: #667eea;
-            margin-bottom: 1rem;
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            display: inline-block;
+            font-weight: 600;
+            transition: all 0.3s;
         }
 
-        .feature-card h3 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: #333;
-        }
-
-        .feature-card p {
-            color: #666;
-            line-height: 1.6;
+        .role-card .btn:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
         }
 
         /* Stats Section */
-        .stats {
+        .stats-section {
             padding: 80px 0;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
 
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 2rem;
+        .stats-section h2 {
             text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
         }
 
-        .stat-item h3 {
-            font-size: 2.5rem;
+        .stats-section .subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            margin-bottom: 4rem;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-card:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
             margin-bottom: 0.5rem;
         }
 
-        .stat-item p {
+        .stat-label {
             font-size: 1.1rem;
             opacity: 0.9;
         }
 
+        /* Problems We Solve */
+        .problems-section {
+            padding: 80px 0;
+            background: white;
+        }
+
+        .problems-section h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .problems-section .subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 4rem;
+        }
+
+        .problems-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        @media (max-width: 1200px) {
+            .problems-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .problems-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .problem-card {
+            background: #f8f9fa;
+            padding: 2rem;
+            border-radius: 15px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s;
+        }
+
+        .problem-card:hover {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transform: translateX(10px);
+        }
+
+        .problem-card h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .problem-card .percentage {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #764ba2;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Flip Cards Section */
+        .features-section {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+
+        .features-section h2 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 3rem;
+            color: #333;
+        }
+
+        .flip-cards-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        @media (max-width: 1200px) {
+            .flip-cards-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .flip-cards-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .flip-card {
+            background-color: transparent;
+            height: 350px;
+            perspective: 1000px;
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.8s;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card:hover .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .flip-card-front {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .flip-card-front i {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .flip-card-front h3 {
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .flip-card-back {
+            background: white;
+            color: #333;
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-back h3 {
+            color: #667eea;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .flip-card-back p {
+            line-height: 1.8;
+            color: #666;
+        }
+
+        /* AI Section */
+        .ai-section {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .ai-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .ai-section .subtitle {
+            font-size: 1.3rem;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+        }
+
+        .ai-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .ai-feature {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .ai-feature i {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .ai-feature h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            padding: 80px 0;
+            text-align: center;
+            background: white;
+        }
+
+        .cta-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+        }
+
+        .cta-section p {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 2rem;
+        }
+
+        .cta-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1.2rem 3rem;
+            border-radius: 50px;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 1.2rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .cta-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.6);
+        }
+
         /* Footer */
         footer {
-            background: #333;
+            background: #2c3e50;
             color: white;
-            padding: 40px 0;
+            padding: 3rem 0 1rem;
             text-align: center;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
         }
 
         /* Responsive */
@@ -230,523 +684,531 @@
                 font-size: 2.5rem;
             }
             
-            .nav-links {
-                display: none;
+            .flip-card {
+                height: 300px;
             }
             
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .features-grid {
+            .role-cards, .stats-grid, .ai-features {
                 grid-template-columns: 1fr;
             }
         }
 
-        /* Language Support */
-        .language-selector {
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            background: white;
-            padding: 10px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            font-family: 'Noto Sans Devanagari', 'Noto Sans', Arial, sans-serif;
+        /* Animation Classes */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .language-btn {
-            background: none;
-            border: none;
-            padding: 5px 10px;
-            cursor: pointer;
-            border-radius: 5px;
-            margin: 0 2px;
-            font-family: 'Noto Sans Devanagari', 'Noto Sans', Arial, sans-serif;
-            font-size: 14px;
-            font-weight: 500;
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .language-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        /* Dark Mode Overrides */
-        body.dark-mode {
-            background: linear-gradient(135deg, #232526 0%, #414345 100%);
-            color: #f1f1f1;
-        }
-        .dark-mode header {
-            background: rgba(30, 30, 30, 0.95);
-            color: #f1f1f1;
-        }
-        .dark-mode .nav-links a {
-            color: #f1f1f1;
-        }
-        .dark-mode .nav-links a:hover {
-            color: #ffd700;
-        }
-        .dark-mode #darkModeToggle {
-            color: #ffd700;
-        }
-        .dark-mode #darkModeToggle:hover {
-            color: #ffe066;
-        }
-        .dark-mode .logo {
-            color: #ffd700;
-        }
-        .dark-mode .hero {
-            color: #fff;
-        }
-        .dark-mode .features {
-            background: #232526;
-        }
-        .dark-mode .feature-card {
-            background: #2c2c2c;
-            color: #f1f1f1;
-        }
-        .dark-mode .section-title {
-            color: #ffd700;
-        }
-        .dark-mode .feature-card h3 {
-            color: #ffd700;
-        }
-        .dark-mode .feature-icon {
-            color: #ffd700;
-        }
-        .dark-mode .feature-card p {
-            color: #ccc;
-        }
-        .dark-mode .stats {
-            background: linear-gradient(135deg, #232526 0%, #414345 100%);
-            color: #ffd700;
-        }
-        .dark-mode .stat-item p {
-            color: #ccc;
-        }
-        .dark-mode .btn {
-            background: #232526;
-            color: #ffd700;
-            border: 1px solid #ffd700;
-        }
-        .dark-mode .btn-primary {
-            background: #ffd700;
-            color: #232526;
-        }
-        .dark-mode .btn-primary:hover {
-            background: #ffe066;
-            color: #232526;
-        }
-        .dark-mode .btn-secondary {
-            background: #232526;
-            color: #ffd700;
-            border: 1px solid #ffd700;
-        }
-        .dark-mode .btn-secondary:hover {
-            background: #ffd700;
-            color: #232526;
-        }
-        .dark-mode .language-selector {
-            background: #232526;
-            color: #ffd700;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-        }
-        .dark-mode .language-btn.active {
-            background: #ffd700;
-            color: #232526;
-        }
-        .dark-mode .language-btn {
-            color: #ffd700;
-        }
-        .dark-mode footer {
-            background: #232526;
-            color: #ffd700;
+        .hidden {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <!-- Header -->
-    <header>
-        <nav class="container">
+    <!-- Dark Mode Toggle Button -->
+    <button id="darkModeToggle" class="dark-mode-toggle" title="Toggle dark mode">
+        <i class="fas fa-moon"></i>
+    </button>
+
+    <!-- Welcome Card Overlay -->
+    <div class="welcome-overlay" id="welcomeOverlay">
+        <div class="welcome-card">
+            <h1>🌟 Welcome to VendorConnect</h1>
+            <p>Empowering street food vendors with technology, AI, and opportunities to transform their business and lives!</p>
+            <button class="welcome-btn" onclick="closeWelcome()">
+                <i class="fas fa-rocket"></i> Explore VendorConnect
+            </button>
+        </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
             <div class="logo">
                 <i class="fas fa-utensils"></i> VendorConnect
             </div>
-            <div class="nav-right">
-                <ul class="nav-links">
-                    <li><a href="#features">Features</a></li>
-                    <li><a href="#about">About</a></li>
-                    <li><a href="/vendor/login">Login</a></li>
-                    <li><a href="/vendor/register">Register</a></li>
-                </ul>
-                <button id="darkModeToggle" title="Toggle dark mode" style="background:none; border:none; font-size:1.3rem; cursor:pointer; color: #333;"><i class="fas fa-moon"></i></button>
-            </div>
-        </nav>
-    </header>
-
-    <!-- Language Selector -->
-    <div class="language-selector">
-        <button class="language-btn active" onclick="changeLanguage('en')">EN</button>
-        <button class="language-btn" onclick="changeLanguage('hi')">हिं</button>
-        <button class="language-btn" onclick="changeLanguage('bn')">বাং</button>
-        <button class="language-btn" onclick="changeLanguage('ta')">தமிழ்</button>
-        <button class="language-btn" onclick="changeLanguage('mr')">मराठी</button>
-    </div>
+            <ul class="nav-links">
+                <li><a href="#features">Features</a></li>
+                <li><a href="#stats">Impact</a></li>
+                <li><a href="#ai">AI Solutions</a></li>
+                <li><a href="/vendor/login">Login</a></li>
+                <li><a href="/vendor/register" class="btn">Register</a></li>
+            </ul>
+        </div>
+    </nav>
 
     <!-- Hero Section -->
     <section class="hero">
         <div class="container">
-            <h1 id="hero-title">Connect. Source. Succeed.</h1>
-            <p id="hero-subtitle">India's first digital platform connecting street food vendors with trusted suppliers. Get quality raw materials at wholesale prices.</p>
-            <div class="cta-buttons">
-                <a href="/vendor/register" class="btn btn-primary">Get Started Free</a>
-                <a href="#features" class="btn btn-secondary">Learn More</a>
-            </div>
+            <h1>Transform Street Vending into Professional Careers</h1>
+            <p class="tagline">Connecting vendors with suppliers, customers, and Learning opportunities</p>
         </div>
     </section>
 
-    <!-- Features Section -->
-    <section class="features" id="features">
+    <!-- Role Selection -->
+    <section class="role-section" id="roles">
         <div class="container">
-            <h2 class="section-title" id="features-title">Why Choose VendorConnect?</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
-                    <h3 id="feature1-title">Vendor-Verified Suppliers</h3>
-                    <p id="feature1-desc">Every supplier is peer-rated and verified by real vendor feedback. Filter by hygiene rating, distance, and pricing.</p>
+            <h2>Who Are You?</h2>
+            <div class="role-cards">
+                <div class="role-card">
+                    <i class="fas fa-store"></i>
+                    <h3>Street Vendor</h3>
+                    <p>Manage your business, find suppliers, discover restaurant job opportunities</p>
+                    <a href="/vendor/login" class="btn">Login / Register</a>
                 </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <h3 id="feature2-title">Live Price Discovery</h3>
-                    <p id="feature2-desc">Compare real-time prices of tomatoes, onions, oil, etc., from nearby sellers. Avoid getting overcharged.</p>
+                <div class="role-card">
+                    <i class="fas fa-shopping-bag"></i>
+                    <h3>Customer</h3>
+                    <p>Order fresh food from local vendors, track deliveries in real-time</p>
+                    <a href="/vendor/login" class="btn">Login / Register</a>
                 </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-users"></i>
-                    </div>
-                    <h3 id="feature3-title">Group Order System</h3>
-                    <p id="feature3-desc">Multiple vendors can pool orders for bulk discounts. Get wholesale rates with collective buying power.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-microphone"></i>
-                    </div>
-                    <h3 id="feature4-title">Voice Interface</h3>
-                    <p id="feature4-desc">Use Hindi, Bengali, Tamil + voice search. Perfect for vendors who aren't tech-savvy.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-truck"></i>
-                    </div>
-                    <h3 id="feature5-title">Smart Ordering</h3>
-                    <p id="feature5-desc">Seamless group ordering and supplier coordination. Efficient even with low connectivity.</p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-bell"></i>
-                    </div>
-                    <h3 id="feature6-title">Price Alerts</h3>
-                    <p id="feature6-desc">Get SMS/WhatsApp alerts for daily price updates. Never miss the best deals in your area.</p>
+                <div class="role-card">
+                    <i class="fas fa-motorcycle"></i>
+                    <h3>Delivery Agent</h3>
+                    <p>Earn money by delivering orders, flexible working hours</p>
+                    <a href="/vendor/login" class="btn">Login / Register</a>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Stats Section -->
-    <section class="stats">
+    <!-- Survey Stats Section -->
+    <section class="stats-section" id="stats">
         <div class="container">
+            <h2>Real-World Impact</h2>
+            <p class="subtitle">Based on our survey of 12 local street vendors</p>
             <div class="stats-grid">
-                <div class="stat-item">
-                    <h3>500+</h3>
-                    <p>Active Vendors</p>
+                <div class="stat-card">
+                    <div class="stat-number">50%</div>
+                    <div class="stat-label">Vendors with 6-10 years experience</div>
                 </div>
-                <div class="stat-item">
-                    <h3>50+</h3>
-                    <p>Verified Suppliers</p>
+                <div class="stat-card">
+                    <div class="stat-number">58.3%</div>
+                    <div class="stat-label">Face high supplier prices</div>
                 </div>
-                <div class="stat-item">
-                    <h3>₹2.5L</h3>
-                    <p>Monthly Savings</p>
+                <div class="stat-card">
+                    <div class="stat-number">58.3%</div>
+                    <div class="stat-label">Deal with inconsistent supply</div>
                 </div>
-                <div class="stat-item">
-                    <h3>4.8★</h3>
-                    <p>Vendor Rating</p>
+                <div class="stat-card">
+                    <div class="stat-number">66.7%</div>
+                    <div class="stat-label">Competition from larger stores</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">66.7%</div>
+                    <div class="stat-label">Struggle with inventory management</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">58.3%</div>
+                    <div class="stat-label">Have language barriers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">50%</div>
+                    <div class="stat-label">Need training & business skills</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Weekend peak business</div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- Problems We Solve -->
+    <section class="problems-section">
+        <div class="container">
+            <h2>Critical Challenges We Address</h2>
+            <p class="subtitle">Real problems faced by street vendors every day</p>
+            <div class="problems-grid">
+                <div class="problem-card">
+                    <h3><i class="fas fa-dollar-sign"></i> High Supplier Prices</h3>
+                    <div class="percentage">58.3%</div>
+                    <p>Vendors face high prices from suppliers, impacting profitability</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-truck-loading"></i> Inconsistent Supply</h3>
+                    <div class="percentage">58.3%</div>
+                    <p>Difficulty maintaining consistent inventory due to supply issues</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-mobile-alt"></i> Digital Barriers</h3>
+                    <div class="percentage">66.7%</div>
+                    <p>Problems using digital apps for payments, ordering, etc.</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-comments"></i> Communication Gap</h3>
+                    <div class="percentage">58.3%</div>
+                    <p>Difficulty communicating with customers and suppliers in different languages</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-chart-line"></i> Promotions</h3>
+                    <div class="percentage">50%</div>
+                    <p>Limited marketing channels to attract new customers</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-briefcase"></i> Lack of Training</h3>
+                    <div class="percentage">50%</div>
+                    <p>Need for business skills training to improve operations</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-users"></i> Excessive bargaining</h3>
+                    <div class="percentage">50%</div>
+                    <p>Vendors face challenges with customers bargaining excessively, affecting profits</p>
+                </div>
+                <div class="problem-card">
+                    <h3><i class="fas fa-percent"></i> High Commission Charges</h3>
+                    <div class="percentage">75%</div>
+                    <p>Delivery platforms charge excessive commissions, reducing vendor earnings significantly</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features with Flip Cards -->
+    <section class="features-section" id="features">
+        <div class="container">
+            <h2>Our Solutions - Hover to Explore</h2>
+            <div class="flip-cards-container">
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-handshake"></i>
+                            <h3>Supplier Network</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Connect with Verified Suppliers</h3>
+                            <p>Access a network of verified suppliers with competitive prices. Compare rates, quality, and delivery times. Solve high pricing and inconsistent supply issues.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-language"></i>
+                            <h3>Multilingual Support</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Break Language Barriers</h3>
+                            <p>AI-powered chatbot supports English, Hindi, Marathi, Bengali, and Tamil. Vendors can communicate in their preferred language with customers and suppliers.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-briefcase"></i>
+                            <h3>Learning Chance</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Career Opportunities</h3>
+                            <p>Discover part-time/full-time positions at top restaurants. Transform street vending skills into stable careers with fixed income and benefits.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-chart-line"></i>
+                            <h3>Price Alerts</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Smart Price Monitoring</h3>
+                            <p>Set alerts for ingredient prices. Get notified when prices drop. Make informed purchasing decisions and maximize profits.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-users"></i>
+                            <h3>Vendor Community</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Connect & Collaborate</h3>
+                            <p>Chat with nearby vendors, share tips, build relationships. Create group orders for better bulk pricing and savings.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-book"></i>
+                            <h3>Digital Ledger</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Financial Management</h3>
+                            <p>Track all transactions digitally. Monitor expenses, income, and profits. Get insights to manage finances better.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-truck"></i>
+                            <h3>Real-time Tracking</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Live Order Tracking</h3>
+                            <p>Customers track deliveries in real-time with GPS. Delivery agents get optimized routes. Transparent and efficient delivery system.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-bullhorn"></i>
+                            <h3>Promotions</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Marketing Made Easy</h3>
+                            <p>Create and manage promotional campaigns. Attract more customers during slow periods. Track campaign performance.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-shopping-cart"></i>
+                            <h3>Easy Ordering</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Customer Mobile App</h3>
+                            <p>Customers can browse menus, place orders, make payments, and track deliveries all from their mobile device with ease.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-motorcycle"></i>
+                            <h3>Delivery Management</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Delivery Agent Dashboard</h3>
+                            <p>Delivery agents can accept orders, update delivery status, navigate with GPS, and earn money with flexible working hours.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-hand-holding-usd"></i>
+                            <h3>Zero Commission</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>No Hidden Charges</h3>
+                            <p>Unlike other platforms, VendorConnect charges minimal or zero commission. Keep more of your hard-earned money and grow your business.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flip-card">
+                    <div class="flip-card-inner">
+                        <div class="flip-card-front">
+                            <i class="fas fa-tags"></i>
+                            <h3>Smart Pricing</h3>
+                            <p>Hover to learn more</p>
+                        </div>
+                        <div class="flip-card-back">
+                            <h3>Dynamic Pricing Tools</h3>
+                            <p>Set competitive prices, offer discounts, and run promotions easily. AI suggests optimal pricing based on market trends and competition.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AI Solutions Section -->
+    <section class="ai-section" id="ai">
+        <div class="container">
+            <h2>🤖 8 AI-Powered Tools</h2>
+            <p class="subtitle">Advanced AI technologies powered by multiple AI models</p>
+            <div class="ai-features">
+                <div class="ai-feature">
+                    <i class="fas fa-comments"></i>
+                    <h3>AI Chat Assistant</h3>
+                    <p>Intelligent chatbot in 5 languages (English, Hindi, Marathi, Bengali, Tamil) powered by GPT-OSS 120B for natural conversations</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-file-alt"></i>
+                    <h3>Document Analysis</h3>
+                    <p>Upload images or PDFs for instant OCR and data extraction using Qwen Vision model for smart document processing</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-microphone"></i>
+                    <h3>Voice Recognition</h3>
+                    <p>Speech-to-text transcription in multiple languages using Whisper Large model - record and transcribe instantly</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-image"></i>
+                    <h3>Image Generation</h3>
+                    <p>Create promotional images and menu visuals using Stable Diffusion XL - just describe what you want</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-terminal"></i>
+                    <h3>Smart Commands</h3>
+                    <p>Voice or text commands for quick actions powered by Nemotron 8B - manage your business hands-free</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-search"></i>
+                    <h3>Semantic Search</h3>
+                    <p>Find vendors, products, and menu items with intelligent search that understands context and meaning</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>Business Analytics</h3>
+                    <p>AI-powered insights for vendors - track sales, analyze trends, and get personalized recommendations</p>
+                </div>
+                <div class="ai-feature">
+                    <i class="fas fa-headset"></i>
+                    <h3>24/7 AI Support</h3>
+                    <p>Instant customer support with AI that understands your business needs and provides solutions in your language</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container">
+            <h2>Ready to Transform Your Business?</h2>
+            <p>Join hundreds of vendors already benefiting from VendorConnect</p>
+            <a href="/vendor/register" class="cta-btn">
+                <i class="fas fa-rocket"></i> Get Started Today
+            </a>
         </div>
     </section>
 
     <!-- Footer -->
     <footer>
         <div class="container">
-            <p>&copy; 2024 VendorConnect. Empowering street food vendors across India.</p>
+            <p>&copy; 2026 VendorConnect. Empowering Street Food Vendors.</p>
+            <p>Made with <i class="fas fa-heart" style="color: #e74c3c;"></i> for street vendors across India</p>
         </div>
     </footer>
 
     <script>
-        // Language translations
-        const translations = {
-            en: {
-                'hero-title': 'Connect. Source. Succeed.',
-                'hero-subtitle': "India's first digital platform connecting street food vendors with trusted suppliers. Get quality raw materials at wholesale prices.",
-                'features-title': 'Why Choose VendorConnect?',
-                'feature1-title': 'Vendor-Verified Suppliers',
-                'feature1-desc': 'Every supplier is peer-rated and verified by real vendor feedback. Filter by hygiene rating, distance, and pricing.',
-                'feature2-title': 'Live Price Discovery',
-                'feature2-desc': 'Compare real-time prices of tomatoes, onions, oil, etc., from nearby sellers. Avoid getting overcharged.',
-                'feature3-title': 'Group Order System',
-                'feature3-desc': 'Multiple vendors can pool orders for bulk discounts. Get wholesale rates with collective buying power.',
-                'feature4-title': 'Voice Interface',
-                'feature4-desc': 'Use Hindi, Bengali, Tamil + voice search. Perfect for vendors who are not tech-savvy.',
-                'feature5-title': 'Smart Ordering',
-                'feature5-desc': 'Seamless group ordering and supplier coordination. Efficient even with low connectivity.',
-                'feature6-title': 'Price Alerts',
-                'feature6-desc': 'Get SMS/WhatsApp alerts for daily price updates. Never miss the best deals in your area.'
-            },
-            hi: {
-                'hero-title': 'जुड़ें। सोर्स करें। सफल हों।',
-                'hero-subtitle': 'भारत का पहला डिजिटल प्लेटफॉर्म जो स्ट्रीट फूड वेंडर्स को विश्वसनीय आपूर्तिकर्ताओं से जोड़ता है। थोक मूल्य पर गुणवत्तापूर्ण कच्चा माल प्राप्त करें।',
-                'features-title': 'VendorConnect क्यों चुनें?',
-                'feature1-title': 'वेंडर-सत्यापित आपूर्तिकर्ता',
-                'feature1-desc': 'हर आपूर्तिकर्ता को वास्तविक वेंडर फीडबैक द्वारा पीयर-रेटेड और सत्यापित किया जाता है। स्वच्छता रेटिंग, दूरी और मूल्य निर्धारण के अनुसार फ़िल्टर करें।',
-                'feature2-title': 'लाइव प्राइस डिस्कवरी',
-                'feature2-desc': 'आस-पास के विक्रेताओं से टमाटर, प्याज, तेल आदि के रीयल-टाइम मूल्यों की तुलना करें। ओवरचार्ज से बचें।',
-                'feature3-title': 'ग्रुप ऑर्डर सिस्टम',
-                'feature3-desc': 'कई वेंडर्स बल्क डिस्काउंट के लिए ऑर्डर पूल कर सकते हैं। सामूहिक खरीद शक्ति के साथ थोक दरें प्राप्त करें।',
-                'feature4-title': 'वॉइस इंटरफेस',
-                'feature4-desc': 'हिंदी, बंगाली, तमिल + वॉइस सर्च का उपयोग करें। उन वेंडर्स के लिए परफेक्ट जो टेक-सेवी नहीं हैं।',
-                'feature5-title': 'स्मार्ट ऑर्डरिंग',
-                'feature5-desc': 'सहज समूह ऑर्डरिंग और सप्लायर समन्वय। कम कनेक्टिविटी में भी कुशल।',
-                'feature6-title': 'प्राइस अलर्ट्स',
-                'feature6-desc': 'दैनिक मूल्य अपडेट के लिए SMS/WhatsApp अलर्ट प्राप्त करें। अपने क्षेत्र में सर्वोत्तम सौदों को कभी न छोड़ें।'
-            },
-            bn: {
-                'hero-title': 'সংযুক্ত হন। সোর্স করুন। সফল হন।',
-                'hero-subtitle': 'ভারতের প্রথম ডিজিটাল প্ল্যাটফর্ম যা স্ট্রিট ফুড বিক্রেতাদের বিশ্বস্ত সরবরাহকারীদের সাথে সংযুক্ত করে। পাইকারি মূল্যে মানসম্পন্ন কাঁচামাল পান।',
-                'features-title': 'VendorConnect কেন বেছে নেবেন?',
-                'feature1-title': 'বিক্রেতা-যাচাইকৃত সরবরাহকারী',
-                'feature1-desc': 'প্রতিটি সরবরাহকারী প্রকৃত বিক্রেতা প্রতিক্রিয়া দ্বারা পিয়ার-রেটেড এবং যাচাইকৃত। স্বাস্থ্যবিধি রেটিং, দূরত্ব এবং মূল্য নির্ধারণ অনুযায়ী ফিল্টার করুন।',
-                'feature2-title': 'লাইভ প্রাইস ডিসকভারি',
-                'feature2-desc': 'কাছাকাছি বিক্রেতাদের থেকে টমেটো, পেঁয়াজ, তেল ইত্যাদির রিয়েল-টাইম মূল্যের তুলনা করুন। অতিরিক্ত চার্জ এড়িয়ে চলুন।',
-                'feature3-title': 'গ্রুপ অর্ডার সিস্টেম',
-                'feature3-desc': 'কয়েকজন বিক্রেতা বাল্ক ডিসকাউন্টের জন্য অর্ডার পুল করতে পারেন। সম্মিলিত ক্রয় ক্ষমতার সাথে পাইকারি হার পান।',
-                'feature4-title': 'ভয়েস ইন্টারফেস',
-                'feature4-desc': 'হিন্দি, বাংলা, তামিল + ভয়েস সার্চ ব্যবহার করুন। যারা টেক-স্যাভি নন তাদের জন্য পারফেক্ট।',
-                'feature5-title': 'স্মার্ট অর্ডারিং',
-                'feature5-desc': 'মসৃণ গ্রুপ অর্ডারিং এবং সরবরাহকারী সমন্বয়। কম সংযোগেও দক্ষ।',
-                'feature6-title': 'প্রাইস অ্যালার্ট',
-                'feature6-desc': 'দৈনিক মূল্য আপডেটের জন্য SMS/WhatsApp অ্যালার্ট পান। আপনার এলাকার সেরা ডিল কখনও মিস করবেন না।'
-            },
-            ta: {
-                'hero-title': 'இணைக்கவும். மூலப்பொருள் பெறவும். வெற்றி பெறவும்.',
-                'hero-subtitle': 'தெருக்கடை உணவு விற்பனையாளர்களை நம்பகமான சப்ளையர்களுடன் இணைக்கும் இந்தியாவின் முதல் டிஜிட்டல் தளம். மொத்த விலையில் தரமான மூலப்பொருட்களைப் பெறுங்கள்.',
-                'features-title': 'VendorConnect ஏன் தேர்வு செய்ய வேண்டும்?',
-                'feature1-title': 'விற்பனையாளர்-சரிபார்க்கப்பட்ட சப்ளையர்கள்',
-                'feature1-desc': 'ஒவ்வொரு சப்ளையரும் உண்மையான விற்பனையாளர் கருத்துக்களால் பீர்-ரேட்டட் மற்றும் சரிபார்க்கப்படுகிறார்கள். சுகாதார மதிப்பீடு, தூரம் மற்றும் விலை நிர்ணயம் ஆகியவற்றால் வடிகட்டுங்கள்.',
-                'feature2-title': 'நேரலை விலை கண்டுபிடிப்பு',
-                'feature2-desc': 'அருகிலுள்ள விற்பனையாளர்களிடமிருந்து தக்காளி, வெங்காயம், எண்ணெய் போன்றவற்றின் நேரலை விலைகளை ஒப்பிடுங்கள். அதிகப்படியான கட்டணம் விதிக்கப்படுவதைத் தவிர்க்கவும்.',
-                'feature3-title': 'குழு ஆர்டர் அமைப்பு',
-                'feature3-desc': 'பல விற்பனையாளர்கள் மொத்த தள்ளுபடிக்காக ஆர்டர்களை ஒன்றிணைக்க முடியும். கூட்டு வாங்கும் சக்தியுடன் மொத்த விலைகளைப் பெறுங்கள்.',
-                'feature4-title': 'குரல் இடைமுகம்',
-                'feature4-desc': 'ஹிந்தி, வங்காளி, தமிழ் + குரல் தேடலைப் பயன்படுத்துங்கள். டெக்-சாவி அல்லாத விற்பனையாளர்களுக்கு சரியானது.',
-                'feature5-title': 'ஸ்மார்ட் ஆர்டரிங்',
-                'feature5-desc': 'குறைந்த இணைப்பிலும்கூட திறம்பட செயல்படும் குழு ஆர்டர் மற்றும் சப்ளையர் ஒருங்கிணைப்பு.',
-                'feature6-title': 'விலை எச்சரிக்கைகள்',
-                'feature6-desc': 'தினசரி விலை புதுப்பிப்புகளுக்கு SMS/WhatsApp எச்சரிக்கைகளைப் பெறுங்கள். உங்கள் பகுதியில் சிறந்த சலுகைகளை ஒருபோதும் தவறவிடாதீர்கள்.'
-            },
-            mr: {
-                'hero-title': 'जोडा. सोर्स करा. यशस्वी व्हा.',
-                'hero-subtitle': 'भारतातील पहिले डिजिटल प्लॅटफॉर्म जे स्ट्रीट फूड विक्रेत्यांना विश्वसनीय पुरवठादारांशी जोडते. घाऊक किमतीत दर्जेदार कच्चा माल मिळवा.',
-                'features-title': 'VendorConnect का निवडावे?',
-                'feature1-title': 'विक्रेता-सत्यापित पुरवठादार',
-                'feature1-desc': 'प्रत्येक पुरवठादार खऱ्या विक्रेत्यांच्या फीडबॅकद्वारे पीअर-रेटेड आणि सत्यापित केलेला आहे. स्वच्छता रेटिंग, अंतर आणि किंमतीनुसार फिल्टर करा.',
-                'feature2-title': 'लाइव्ह किंमत शोध',
-                'feature2-desc': 'जवळच्या विक्रेत्यांकडून टोमॅटो, कांदे, तेल इत्यादींच्या रिअल-टाइम किमतींची तुलना करा. जास्त शुल्क आकारणे टाळा.',
-                'feature3-title': 'ग्रुप ऑर्डर सिस्टम',
-                'feature3-desc': 'एकाधिक विक्रेते मोठ्या सवलतीसाठी ऑर्डर एकत्र करू शकतात. सामूहिक खरेदी शक्तीसह घाऊक दर मिळवा.',
-                'feature4-title': 'व्हॉइस इंटरफेस',
-                'feature4-desc': 'हिंदी, बंगाली, तामिळ + व्हॉइस सर्च वापरा. तंत्रज्ञानात अवघड नसलेल्या विक्रेत्यांसाठी परफेक्ट.',
-                'feature5-title': 'स्मार्ट ऑर्डरिंग',
-                'feature5-desc': 'मर्यादित कनेक्टिव्हिटीमध्येही कार्यक्षम गट ऑर्डरिंग आणि पुरवठादार समन्वय.',
-                'feature6-title': 'किंमत अलर्ट',
-                'feature6-desc': 'दररोजच्या किंमत अपडेटसाठी SMS/WhatsApp अलर्ट मिळवा. तुमच्या क्षेत्रातील सर्वोत्तम डील कधीही चुकवू नका.'
-            }
+        // Welcome Card Animation
+        function closeWelcome() {
+            const overlay = document.getElementById('welcomeOverlay');
+            overlay.style.animation = 'fadeOut 0.5s';
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 500);
+        }
+
+        // Auto-close welcome card after 5 seconds
+        setTimeout(() => {
+            closeWelcome();
+        }, 5000);
+
+        // Smooth scrolling for navigation links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Add animation on scroll
+        const observerOptions = {
+            threshold: 0.1,
+            rootMargin: '0px 0px -100px 0px'
         };
 
-        function changeLanguage(lang) {
-            // Update active button
-            document.querySelectorAll('.language-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            // Update text content
-            const elements = translations[lang];
-            for (const [key, value] of Object.entries(elements)) {
-                const element = document.getElementById(key);
-                if (element) {
-                    element.textContent = value;
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.animation = 'fadeInUp 0.8s';
                 }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.stat-card, .problem-card, .flip-card, .ai-feature').forEach(el => {
+            observer.observe(el);
+        });
+
+        // Add fadeOut animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Dark Mode Toggle
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        
+        function setDarkMode(enabled) {
+            if (enabled) {
+                document.body.classList.add('dark-mode');
+                localStorage.setItem('darkMode', 'enabled');
+                darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+            } else {
+                document.body.classList.remove('dark-mode');
+                localStorage.setItem('darkMode', 'disabled');
+                darkModeToggle.innerHTML = '<i class="fas fa-moon"></i>';
             }
         }
-
-        // Voice recognition for search
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'hi-IN'; // Hindi by default
-
-            // Voice search functionality can be added here
+        
+        darkModeToggle.addEventListener('click', () => {
+            setDarkMode(!document.body.classList.contains('dark-mode'));
+        });
+        
+        // Initialize dark mode based on user preference
+        if (localStorage.getItem('darkMode') === 'enabled' || 
+            (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            setDarkMode(true);
+        } else {
+            setDarkMode(false);
         }
     </script>
-    <!-- Chatbot Integration -->
-    <div id="chatbot-container" class="chatbot-container">
-        <!-- Chatbot Header -->
-        <div class="chatbot-header">
-            <div class="chatbot-avatar">
-                <i class="fas fa-robot"></i>
-            </div>
-            <div class="chatbot-info">
-                <h3>VendorConnect Assistant</h3>
-                <p class="status">Online</p>
-            </div>
-            <div class="chatbot-controls">
-                <button id="minimize-btn" class="control-btn" title="Minimize">
-                    <i class="fas fa-minus"></i>
-                </button>
-                <button id="close-btn" class="control-btn" title="Close">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        </div>
-
-        <!-- Chat Messages Area -->
-        <div class="chat-messages" id="chat-messages">
-            <div class="message bot-message">
-                <div class="message-avatar">
-                    <i class="fas fa-robot"></i>
-                </div>
-                <div class="message-content">
-                    <div class="message-text">
-                        <p>Namaste! I'm your VendorConnect Assistant. I can help you with:</p>
-                        <ul>
-                            <li>Finding suppliers and products</li>
-                            <li>Placing orders</li>
-                            <li>Tracking deliveries</li>
-                            <li>Managing your account</li>
-                            <li>Price alerts and notifications</li>
-                        </ul>
-                        <p>How can I assist you today?</p>
-                    </div>
-                    <div class="message-time">Just now</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Predefined Tags -->
-        <div class="quick-actions" id="quick-actions">
-            <button class="quick-action-btn" data-action="find-suppliers">
-                <i class="fas fa-search"></i>
-                <span>Find Suppliers</span>
-            </button>
-            <button class="quick-action-btn" data-action="place-order">
-                <i class="fas fa-shopping-cart"></i>
-                <span>Place Order</span>
-            </button>
-            <button class="quick-action-btn" data-action="price-alerts">
-                <i class="fas fa-bell"></i>
-                <span>Price Alerts</span>
-            </button>
-            <button class="quick-action-btn" data-action="business-tips">
-                <i class="fas fa-lightbulb"></i>
-                <span>Business Tips</span>
-            </button>
-            <button class="quick-action-btn" data-action="account-help">
-                <i class="fas fa-user-cog"></i>
-                <span>Account Help</span>
-            </button>
-            <button class="quick-action-btn" data-action="market-trends">
-                <i class="fas fa-chart-line"></i>
-                <span>Market Trends</span>
-            </button>
-            <button class="quick-action-btn" data-action="contact-support">
-                <i class="fas fa-headset"></i>
-                <span>Contact Support</span>
-            </button>
-        </div>
-
-        <!-- Language Selector -->
-        <div class="language-selector">
-            <button class="lang-btn active" data-lang="en">EN</button>
-            <button class="lang-btn" data-lang="hi">हिं</button>
-            <button class="lang-btn" data-lang="bn">বাং</button>
-            <button class="lang-btn" data-lang="ta">தமிழ்</button>
-        </div>
-
-        <!-- Typing Indicator -->
-        <div class="typing-indicator" id="typing-indicator">
-            <div class="typing-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
-            <span class="typing-text">Assistant is typing...</span>
-        </div>
-    </div>
-
-    <!-- Chatbot Toggle Button -->
-    <button id="chatbot-toggle" class="chatbot-toggle">
-        <i class="fas fa-comments"></i>
-        <span class="notification-badge" id="notification-badge">1</span>
-    </button>
-
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <p>Processing your request...</p>
-    </div>
-
-    <!-- Chatbot Styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/chatbot.css') }}">
-    
-    <!-- Chatbot Script -->
-    <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
-
-    <script>
-// Dark mode toggle logic
-const darkModeToggle = document.getElementById('darkModeToggle');
-function setDarkMode(enabled) {
-    if (enabled) {
-        document.body.classList.add('dark-mode');
-        localStorage.setItem('darkMode', 'enabled');
-        darkModeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-    } else {
-        document.body.classList.remove('dark-mode');
-        localStorage.setItem('darkMode', 'disabled');
-        darkModeToggle.innerHTML = '<i class="fas fa-moon"></i>';
-    }
-}
-darkModeToggle.addEventListener('click', () => {
-    setDarkMode(!document.body.classList.contains('dark-mode'));
-});
-// On load
-if (localStorage.getItem('darkMode') === 'enabled' || (localStorage.getItem('darkMode') === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-    setDarkMode(true);
-} else {
-    setDarkMode(false);
-}
-</script>
 </body>
-</html> 
+</html>
