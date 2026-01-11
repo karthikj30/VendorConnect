@@ -972,6 +972,56 @@ class ScheduledOrder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class VendorChatMessage(db.Model):
+    """Model for vendor-to-vendor chat messages"""
+    id = db.Column(db.Integer, primary_key=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
+    receiver_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    sender = db.relationship('Vendor', foreign_keys=[sender_id], backref='sent_messages')
+    receiver = db.relationship('Vendor', foreign_keys=[receiver_id], backref='received_messages')
+
+class InternshipOpportunity(db.Model):
+    """Model for internship opportunities"""
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    company = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    requirements = db.Column(db.Text, nullable=True)
+    responsibilities = db.Column(db.Text, nullable=True)
+    skills_required = db.Column(db.Text, nullable=True)  # Comma-separated
+    stipend = db.Column(db.String(100), nullable=True)  # e.g., "5000-10000" or "Unpaid"
+    duration = db.Column(db.String(100), nullable=True)  # e.g., "3 months", "6 months"
+    location = db.Column(db.String(200), nullable=True)
+    work_mode = db.Column(db.String(50), default='on-site')  # on-site, remote, hybrid
+    category = db.Column(db.String(100), nullable=True)  # e.g., "Software", "Marketing", "Design"
+    application_deadline = db.Column(db.DateTime, nullable=True)
+    contact_email = db.Column(db.String(200), nullable=True)
+    contact_phone = db.Column(db.String(20), nullable=True)
+    company_website = db.Column(db.String(300), nullable=True)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class InternshipApplication(db.Model):
+    """Model for vendor internship applications"""
+    id = db.Column(db.Integer, primary_key=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendor.id'), nullable=False)
+    internship_id = db.Column(db.Integer, db.ForeignKey('internship_opportunity.id'), nullable=False)
+    cover_letter = db.Column(db.Text, nullable=True)
+    resume_url = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(50), default='pending')  # pending, reviewed, shortlisted, rejected, accepted
+    applied_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    vendor = db.relationship('Vendor', backref='internship_applications')
+    internship = db.relationship('InternshipOpportunity', backref='applications')
+
 # Sample data for demonstration
 def create_sample_data():
     # Create sample suppliers
@@ -3108,6 +3158,299 @@ def get_vendor_ledger():
             'avg_order_value': 0,
             'transactions': []
         }), 200  # Return 200 with error data instead of 500
+
+# Vendor Community API Routes
+@app.route('/api/vendor/nearby-vendors', methods=['GET'])
+def get_nearby_vendors():
+    """Get list of nearby vendors for community feature"""
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'})
+    
+    try:
+        current_vendor_id = session['vendor_id']
+        current_vendor = db.session.get(Vendor, current_vendor_id)
+        
+        if not current_vendor:
+            return jsonify({'success': False, 'message': 'Vendor not found'})
+        
+        # Get all other vendors (in a real app, you'd filter by location/distance)
+        nearby_vendors = Vendor.query.filter(Vendor.id != current_vendor_id).all()
+        
+        vendors_list = []
+        for vendor in nearby_vendors:
+            vendors_list.append({
+                'id': vendor.id,
+                'name': vendor.name,
+                'location': vendor.location,
+                'business_type': vendor.business_type,
+                'avatar': vendor.name[0].upper() if vendor.name else 'V'
+            })
+        
+        return jsonify({'success': True, 'vendors': vendors_list})
+    
+    except Exception as e:
+        app.logger.error(f"Error getting nearby vendors: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error loading vendors'})
+
+@app.route('/api/vendor/chat/messages/<int:other_vendor_id>', methods=['GET'])
+def get_chat_messages(other_vendor_id):
+    """Get chat messages between current vendor and another vendor"""
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'})
+    
+    try:
+        current_vendor_id = session['vendor_id']
+        
+        # Get messages between these two vendors
+        messages = VendorChatMessage.query.filter(
+            db.or_(
+                db.and_(
+                    VendorChatMessage.sender_id == current_vendor_id,
+                    VendorChatMessage.receiver_id == other_vendor_id
+                ),
+                db.and_(
+                    VendorChatMessage.sender_id == other_vendor_id,
+                    VendorChatMessage.receiver_id == current_vendor_id
+                )
+            )
+        ).order_by(VendorChatMessage.created_at.asc()).all()
+        
+        # Mark received messages as read
+        VendorChatMessage.query.filter(
+            VendorChatMessage.sender_id == other_vendor_id,
+            VendorChatMessage.receiver_id == current_vendor_id,
+            VendorChatMessage.is_read == False
+        ).update({'is_read': True})
+        db.session.commit()
+        
+        messages_list = []
+        for msg in messages:
+            messages_list.append({
+                'id': msg.id,
+                'sender_id': msg.sender_id,
+                'receiver_id': msg.receiver_id,
+                'message': msg.message,
+                'is_sent': msg.sender_id == current_vendor_id,
+                'created_at': msg.created_at.strftime('%I:%M %p'),
+                'timestamp': msg.created_at.isoformat()
+            })
+        
+        return jsonify({'success': True, 'messages': messages_list})
+    
+    except Exception as e:
+        app.logger.error(f"Error getting chat messages: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error loading messages'})
+
+@app.route('/api/vendor/chat/send', methods=['POST'])
+def send_chat_message():
+    """Send a chat message to another vendor"""
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'})
+    
+    try:
+        data = request.get_json()
+        receiver_id = data.get('receiver_id')
+        message_text = data.get('message', '').strip()
+        
+        if not receiver_id or not message_text:
+            return jsonify({'success': False, 'message': 'Invalid data'})
+        
+        current_vendor_id = session['vendor_id']
+        
+        # Create new message
+        new_message = VendorChatMessage(
+            sender_id=current_vendor_id,
+            receiver_id=receiver_id,
+            message=message_text
+        )
+        db.session.add(new_message)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': {
+                'id': new_message.id,
+                'sender_id': new_message.sender_id,
+                'receiver_id': new_message.receiver_id,
+                'message': new_message.message,
+                'is_sent': True,
+                'created_at': new_message.created_at.strftime('%I:%M %p'),
+                'timestamp': new_message.created_at.isoformat()
+            }
+        })
+    
+    except Exception as e:
+        app.logger.error(f"Error sending chat message: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error sending message'})
+
+# ==================== INTERNSHIP ROUTES ====================
+
+@app.route('/api/internships', methods=['GET'])
+def get_internships():
+    """Get all active internship opportunities with optional filters"""
+    try:
+        # Get filter parameters
+        category = request.args.get('category')
+        work_mode = request.args.get('work_mode')
+        location = request.args.get('location')
+        search = request.args.get('search', '').strip()
+        
+        # Base query for active internships
+        query = InternshipOpportunity.query.filter_by(is_active=True)
+        
+        # Apply filters
+        if category:
+            query = query.filter_by(category=category)
+        if work_mode:
+            query = query.filter_by(work_mode=work_mode)
+        if location and location.lower() != 'all':
+            query = query.filter(InternshipOpportunity.location.ilike(f'%{location}%'))
+        if search:
+            query = query.filter(
+                db.or_(
+                    InternshipOpportunity.title.ilike(f'%{search}%'),
+                    InternshipOpportunity.company.ilike(f'%{search}%'),
+                    InternshipOpportunity.description.ilike(f'%{search}%')
+                )
+            )
+        
+        # Order by creation date (newest first)
+        internships = query.order_by(InternshipOpportunity.created_at.desc()).all()
+        
+        # Get vendor's application status if logged in
+        applied_ids = []
+        if 'vendor_id' in session:
+            applications = InternshipApplication.query.filter_by(
+                vendor_id=session['vendor_id']
+            ).all()
+            applied_ids = [app.internship_id for app in applications]
+        
+        result = []
+        for internship in internships:
+            result.append({
+                'id': internship.id,
+                'title': internship.title,
+                'company': internship.company,
+                'description': internship.description,
+                'requirements': internship.requirements,
+                'responsibilities': internship.responsibilities,
+                'skills_required': internship.skills_required,
+                'stipend': internship.stipend,
+                'duration': internship.duration,
+                'location': internship.location,
+                'work_mode': internship.work_mode,
+                'category': internship.category,
+                'application_deadline': internship.application_deadline.strftime('%d %b %Y') if internship.application_deadline else None,
+                'contact_email': internship.contact_email,
+                'contact_phone': internship.contact_phone,
+                'company_website': internship.company_website,
+                'created_at': internship.created_at.strftime('%d %b %Y'),
+                'has_applied': internship.id in applied_ids,
+                'application_count': len(internship.applications)
+            })
+        
+        return jsonify({'success': True, 'internships': result})
+    
+    except Exception as e:
+        app.logger.error(f"Error getting internships: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error loading internships'})
+
+@app.route('/api/vendor/internship/apply', methods=['POST'])
+def apply_for_internship():
+    """Apply for an internship opportunity"""
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'})
+    
+    try:
+        data = request.get_json()
+        internship_id = data.get('internship_id')
+        cover_letter = data.get('cover_letter', '').strip()
+        
+        if not internship_id:
+            return jsonify({'success': False, 'message': 'Invalid internship ID'})
+        
+        vendor_id = session['vendor_id']
+        
+        # Check if internship exists and is active
+        internship = InternshipOpportunity.query.filter_by(
+            id=internship_id,
+            is_active=True
+        ).first()
+        
+        if not internship:
+            return jsonify({'success': False, 'message': 'Internship not found or no longer active'})
+        
+        # Check if already applied
+        existing_application = InternshipApplication.query.filter_by(
+            vendor_id=vendor_id,
+            internship_id=internship_id
+        ).first()
+        
+        if existing_application:
+            return jsonify({'success': False, 'message': 'You have already applied for this internship'})
+        
+        # Create new application
+        application = InternshipApplication(
+            vendor_id=vendor_id,
+            internship_id=internship_id,
+            cover_letter=cover_letter,
+            status='pending'
+        )
+        db.session.add(application)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Application submitted successfully! The company will review your application.',
+            'application': {
+                'id': application.id,
+                'status': application.status,
+                'applied_at': application.applied_at.strftime('%d %b %Y, %I:%M %p')
+            }
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Error applying for internship: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error submitting application'})
+
+@app.route('/api/vendor/internship/applications', methods=['GET'])
+def get_vendor_internship_applications():
+    """Get all internship applications for the logged-in vendor"""
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'})
+    
+    try:
+        vendor_id = session['vendor_id']
+        applications = InternshipApplication.query.filter_by(
+            vendor_id=vendor_id
+        ).order_by(InternshipApplication.applied_at.desc()).all()
+        
+        result = []
+        for app in applications:
+            internship = app.internship
+            result.append({
+                'id': app.id,
+                'status': app.status,
+                'cover_letter': app.cover_letter,
+                'applied_at': app.applied_at.strftime('%d %b %Y, %I:%M %p'),
+                'updated_at': app.updated_at.strftime('%d %b %Y, %I:%M %p'),
+                'internship': {
+                    'id': internship.id,
+                    'title': internship.title,
+                    'company': internship.company,
+                    'location': internship.location,
+                    'work_mode': internship.work_mode,
+                    'stipend': internship.stipend,
+                    'duration': internship.duration
+                }
+            })
+        
+        return jsonify({'success': True, 'applications': result})
+    
+    except Exception as e:
+        app.logger.error(f"Error getting internship applications: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error loading applications'})
 
 @app.route('/api/place-order', methods=['POST'])
 def place_order():
