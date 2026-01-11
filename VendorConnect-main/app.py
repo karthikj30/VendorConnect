@@ -33,6 +33,33 @@ load_dotenv()
 # IST Timezone Configuration
 IST = pytz.timezone('Asia/Kolkata')
 
+# Helper functions for distance calculation and rewards
+import math
+
+def haversine_distance(lat1, lon1, lat2, lon2):
+    """Calculate the great circle distance in kilometers between two points on Earth."""
+    try:
+        R = 6371.0  # Earth radius in kilometers
+        lat1_rad = math.radians(lat1)
+        lon1_rad = math.radians(lon1)
+        lat2_rad = math.radians(lat2)
+        lon2_rad = math.radians(lon2)
+
+        dlat = lat2_rad - lat1_rad
+        dlon = lon2_rad - lon1_rad
+
+        a = math.sin(dlat / 2)**2 + math.cos(lat1_rad) * math.cos(lat2_rad) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        return R * c  # Distance in kilometers
+    except Exception:
+        return 0.0
+
+def calculate_distance_reward(distance_km):
+    """Calculate reward points based on distance covered (in km)."""
+    # Award 10 points per km for self-pickup
+    return max(10, int(distance_km * 10))
+
 def get_ist_now():
     """Get current time in IST"""
     return datetime.now(IST)
@@ -4444,16 +4471,23 @@ def api_vendor_customer_order_action(order_id):
         order.actual_delivery_time = order.actual_delivery_time or now
     elif action in ('done', 'mark_done', 'picked_up'):
         # For self-pickup orders, mark as done when customer picks up
-        if delivery_type == 'self_pickup':
-            # Assuming customer_latitude and customer_longitude are available
-            distance = haversine(customer_latitude, customer_longitude, pickup_latitude, pickup_longitude)
-            reward = calculate_reward(distance)
-            # Logic to apply the reward to the customer account
-            apply_reward_to_customer(customer_id, reward)
-
         order.status = 'done'
         order.picked_up_at = order.picked_up_at or now
         order.pickup_ready_at = order.pickup_ready_at or now
+        
+        # Award reward points for self-pickup orders
+        if order.delivery_type == 'self_pickup' and order.customer_id:
+            try:
+                customer = Customer.query.get(order.customer_id)
+                if customer and order.delivery_latitude and order.delivery_longitude:
+                    # Calculate distance-based reward (using approximate distance calculation)
+                    # In production, you'd integrate with a proper geolocation API
+                    # For now, award a flat 10 points per self-pickup order
+                    reward_points = 10
+                    customer.reward_points = (customer.reward_points or 0) + reward_points
+                    app.logger.info(f'Awarded {reward_points} points to customer {customer.id} for self-pickup')
+            except Exception as e:
+                app.logger.error(f'Error awarding reward points: {str(e)}')
     else:
         return jsonify({'success': False, 'message': 'Unknown action'}), 400
     db.session.commit()
