@@ -825,6 +825,8 @@ class Customer(db.Model):
     default_payment = db.Column(db.String(20), default='cod')
     profile_visibility = db.Column(db.String(20), default='private')
     data_sharing = db.Column(db.Boolean, default=False)
+    # Rewards
+    reward_points = db.Column(db.Float, default=0.0)  # Points earned from self-pickup distance rewards
 
 class CustomerOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -8219,6 +8221,83 @@ def check_in_wishlist(vendor_id):
     ).first()
     
     return jsonify({'in_wishlist': bool(exists)})
+
+# ==================== REWARDS & COUPONS ====================
+
+@app.route('/api/customer/rewards', methods=['GET'])
+@customer_api_required
+def customer_rewards():
+    """Get customer rewards and available coupons"""
+    customer_id = session['customer_id']
+    
+    try:
+        # Get customer's total reward points (from self-pickup distance rewards)
+        customer = Customer.query.get(customer_id)
+        total_points = customer.reward_points if hasattr(customer, 'reward_points') else 0
+        
+        # Generate sample coupons based on reward points
+        # In a production system, these would be stored in a Coupon table
+        coupons = []
+        
+        if total_points >= 50:
+            coupons.append({
+                'id': 1,
+                'code': 'SELFPICK50',
+                'title': 'Self-Pickup Bonus',
+                'description': 'Get 10% off on your next order',
+                'discount': 10,
+                'discountType': 'percentage',
+                'expiryDate': (datetime.utcnow() + timedelta(days=30)).isoformat(),
+                'minPurchase': 200,
+                'redeemed': False,
+                'source': 'self_pickup_reward'
+            })
+        
+        if total_points >= 100:
+            coupons.append({
+                'id': 2,
+                'code': 'DISTANCE100',
+                'title': 'Long Distance Reward',
+                'description': 'Get ₹50 off on any order',
+                'discount': 50,
+                'discountType': 'amount',
+                'expiryDate': (datetime.utcnow() + timedelta(days=45)).isoformat(),
+                'minPurchase': 300,
+                'redeemed': False,
+                'source': 'distance_reward'
+            })
+        
+        if total_points >= 200:
+            coupons.append({
+                'id': 3,
+                'code': 'LOYAL200',
+                'title': 'Loyalty Bonus',
+                'description': 'Unlock free delivery on your next order',
+                'discount': 100,
+                'discountType': 'delivery',
+                'expiryDate': (datetime.utcnow() + timedelta(days=60)).isoformat(),
+                'minPurchase': 0,
+                'redeemed': False,
+                'source': 'loyalty_reward'
+            })
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'totalPoints': total_points,
+                'coupons': coupons
+            }
+        })
+    
+    except Exception as e:
+        app.logger.error(f'Error fetching customer rewards: {str(e)}')
+        return jsonify({
+            'success': True,
+            'data': {
+                'totalPoints': 0,
+                'coupons': []
+            }
+        })
 
 # ==================== SCHEDULED ORDERS ====================
 

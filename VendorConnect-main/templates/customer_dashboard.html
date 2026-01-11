@@ -193,6 +193,29 @@
             </div>
         </div>
 
+        <!-- Rewards & Coupons Section -->
+        <div class="rewards-section">
+            <div class="rewards-header">
+                <div>
+                    <h2 class="rewards-title">
+                        <i class="fas fa-gift"></i> Your Rewards & Coupons
+                    </h2>
+                    <p class="rewards-subtitle">Earn rewards for every self-pickup order</p>
+                </div>
+                <div class="rewards-badge" id="totalRewardsDisplay">
+                    <div class="rewards-amount">0</div>
+                    <div class="rewards-label">Points</div>
+                </div>
+            </div>
+            <div class="coupons-grid" id="couponsGrid">
+                <div class="coupons-empty">
+                    <i class="fas fa-ticket-alt"></i>
+                    <p>No coupons yet</p>
+                    <p style="font-size: 12px; color: #666;">Place orders to earn rewards and unlock coupons</p>
+                </div>
+            </div>
+        </div>
+
         <h2 class="section-title" id="topRestaurantsLabel">Top Restaurants Near You</h2>
         <div class="category-filter" id="categoryFilters">
             <button class="category-btn active" data-category="all" onclick="filterCategory('all', this)" id="catAll">🌟 <span class="cat-label">All</span></button>
@@ -3786,6 +3809,108 @@
             vendors = sortedVendors;
             renderVendors();
         }
+
+        // ==================== REWARDS & COUPONS FUNCTIONS ====================
+        let customerRewards = {
+            totalPoints: 0,
+            coupons: []
+        };
+
+        async function loadCustomerRewards() {
+            try {
+                const response = await fetch('/api/customer/rewards');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        customerRewards = data.data || { totalPoints: 0, coupons: [] };
+                        renderRewardsSection();
+                    }
+                } else {
+                    console.warn('Failed to load rewards, using default');
+                    renderRewardsSection();
+                }
+            } catch (error) {
+                console.error('Error loading customer rewards:', error);
+                renderRewardsSection();
+            }
+        }
+
+        function renderRewardsSection() {
+            const totalRewardsDisplay = document.getElementById('totalRewardsDisplay');
+            const couponsGrid = document.getElementById('couponsGrid');
+
+            if (totalRewardsDisplay) {
+                totalRewardsDisplay.querySelector('.rewards-amount').textContent = 
+                    customerRewards.totalPoints || 0;
+            }
+
+            if (couponsGrid) {
+                if (!customerRewards.coupons || customerRewards.coupons.length === 0) {
+                    couponsGrid.innerHTML = `
+                        <div class="coupons-empty">
+                            <i class="fas fa-ticket-alt"></i>
+                            <p>No coupons yet</p>
+                            <p>Place orders to earn rewards and unlock coupons</p>
+                        </div>
+                    `;
+                } else {
+                    couponsGrid.innerHTML = customerRewards.coupons.map(coupon => `
+                        <div class="coupon-card ${coupon.redeemed ? 'redeemed' : ''}">
+                            ${coupon.redeemed ? '<div class="coupon-badge">Redeemed</div>' : ''}
+                            <div class="coupon-card-header">
+                                <div class="coupon-discount">
+                                    ${coupon.discountType === 'percentage' ? coupon.discount + '%' : '₹' + coupon.discount}
+                                    <span class="coupon-off">OFF</span>
+                                </div>
+                            </div>
+                            <div class="coupon-card-body">
+                                <div class="coupon-title">${coupon.title || 'Special Offer'}</div>
+                                <div class="coupon-description">${coupon.description || 'Exclusive deal for you'}</div>
+                                <div class="coupon-details">
+                                    <div class="coupon-detail-item">
+                                        <i class="fas fa-calendar-alt"></i>
+                                        <span>Expires: ${new Date(coupon.expiryDate).toLocaleDateString()}</span>
+                                    </div>
+                                    <div class="coupon-detail-item">
+                                        <i class="fas fa-tag"></i>
+                                        <span>Min: ₹${coupon.minPurchase || 0}</span>
+                                    </div>
+                                </div>
+                                <div class="coupon-footer">
+                                    <div class="coupon-code">${coupon.code}</div>
+                                    <button class="coupon-copy-btn" onclick="copyCouponCode('${coupon.code}')">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function copyCouponCode(code) {
+            navigator.clipboard.writeText(code).then(() => {
+                // Show temporary success feedback
+                const button = event.target.closest('.coupon-copy-btn');
+                const originalText = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                button.style.background = 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)';
+                
+                setTimeout(() => {
+                    button.innerHTML = originalText;
+                    button.style.background = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy code:', err);
+                alert('Failed to copy code');
+            });
+        }
+
+        // Load rewards when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCustomerRewards();
+        });
 
     </script>
     

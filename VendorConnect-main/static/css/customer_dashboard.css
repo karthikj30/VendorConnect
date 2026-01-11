@@ -548,6 +548,275 @@ body {
     border: 2px dashed var(--border);
 }
 
+/* Rewards & Coupons Section */
+.rewards-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 40px;
+    border: 2px solid var(--border);
+    box-shadow: var(--shadow-md);
+}
+
+.rewards-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.rewards-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0;
+    margin-bottom: 8px;
+}
+
+.rewards-title i {
+    background: linear-gradient(135deg, #fa709a 0%, #f5576c 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.rewards-subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    margin: 0;
+}
+
+.rewards-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #fa709a 0%, #f5576c 100%);
+    color: white;
+    border-radius: 16px;
+    padding: 20px 30px;
+    min-width: 140px;
+    text-align: center;
+    box-shadow: var(--shadow-md);
+}
+
+.rewards-amount {
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 4px;
+}
+
+.rewards-label {
+    font-size: 13px;
+    opacity: 0.9;
+    font-weight: 600;
+}
+
+.coupons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.coupon-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid var(--border);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-sm);
+    position: relative;
+}
+
+.coupon-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+    border-color: #f5576c;
+}
+
+.coupon-card-header {
+    background: linear-gradient(135deg, #f5576c 0%, #fa709a 100%);
+    color: white;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.coupon-card-header::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200px;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+}
+
+.coupon-discount {
+    font-size: 36px;
+    font-weight: 800;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    position: relative;
+    z-index: 1;
+}
+
+.coupon-off {
+    font-size: 18px;
+}
+
+.coupon-card-body {
+    padding: 20px;
+}
+
+.coupon-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.coupon-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.coupon-details {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-size: 12px;
+}
+
+.coupon-detail-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+}
+
+.coupon-detail-item i {
+    color: #fa709a;
+    min-width: 16px;
+}
+
+.coupon-footer {
+    display: flex;
+    gap: 12px;
+}
+
+.coupon-code {
+    flex: 1;
+    background: #f8f9fa;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.coupon-copy-btn {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.coupon-copy-btn:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
+}
+
+.coupon-copy-btn:active {
+    transform: scale(0.95);
+}
+
+.coupon-card.redeemed {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.coupon-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: white;
+    color: #f5576c;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.coupons-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-secondary);
+    background: rgba(102, 126, 234, 0.03);
+    border-radius: 16px;
+    border: 2px dashed var(--border);
+}
+
+.coupons-empty i {
+    font-size: 48px;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: block;
+}
+
+.coupons-empty p:first-of-type {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.coupons-empty p:last-of-type {
+    font-size: 12px;
+    margin: 0;
+}
+
+/* Dark theme adjustments */
+body.dark-theme .coupon-card,
+body.dark-theme .rewards-section {
+    background: var(--card-bg);
+    border-color: var(--border);
+}
+
+body.dark-theme .coupon-code {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+body.dark-theme .coupons-empty {
+    background: rgba(102, 126, 234, 0.1);
+    border-color: var(--border);
+}
+
+
 .ad-button {
     background: var(--primary);
     color: white;
