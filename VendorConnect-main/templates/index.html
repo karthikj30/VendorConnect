@@ -361,6 +361,92 @@
             transform: scale(1.05);
         }
 
+        /* Download Section */
+        .download-section {
+            padding: 80px 0;
+            background: linear-gradient(135deg, #5b7bff 0%, #7a5ad8 100%);
+            color: white;
+        }
+
+        .download-card {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px;
+            border-radius: 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(12px);
+        }
+
+        .download-header h2 {
+            font-size: 2.3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .download-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 1.5rem;
+        }
+
+        .download-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .download-content {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: #fff;
+            color: #5b7bff;
+            padding: 16px 20px;
+            border-radius: 14px;
+            font-weight: 700;
+            text-decoration: none;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+        }
+
+        .download-meta {
+            display: grid;
+            gap: 10px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .download-meta p {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 0;
+        }
+
+        .download-note {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
         /* Stats Section */
         .stats-section {
             padding: 80px 0;
@@ -691,6 +777,14 @@
             .role-cards, .stats-grid, .ai-features {
                 grid-template-columns: 1fr;
             }
+
+            .download-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .download-card {
+                padding: 28px;
+            }
         }
 
         /* Animation Classes */
@@ -747,6 +841,7 @@
             <ul class="nav-links">
                 <li><a href="#features">Features</a></li>
                 <li><a href="#stats">Impact</a></li>
+                <li><a href="#download">Download</a></li>
                 <li><a href="#ai">AI Solutions</a></li>
                 <li><a href="/vendor/login">Login</a></li>
                 <li><a href="/vendor/register" class="btn">Register</a></li>
@@ -790,6 +885,28 @@
                     <h3>Supplier</h3>
                     <p>Sell ingredients to vendors, manage inventory, expand your business reach</p>
                     <a href="/vendor/login" class="btn">Login / Register</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Android Download Section -->
+    <section class="download-section" id="download">
+        <div class="container download-card">
+            <div class="download-header">
+                <div class="download-badge"><i class="fas fa-android"></i> ANDROID APK</div>
+                <h2>Download the VendorConnect Android App</h2>
+                <p>Install the latest APK to manage suppliers, orders, and deliveries on the go.</p>
+            </div>
+            <div class="download-content">
+                <a class="download-btn" href="/static/apk/vendorconnect-latest.apk" download>
+                    <i class="fas fa-download"></i>
+                    <span>Download APK</span>
+                </a>
+                <div class="download-meta">
+                    <p><i class="fas fa-mobile-alt"></i>Works on Android 8.0 and above</p>
+                    <p><i class="fas fa-shield-alt"></i>Sideload safely: enable installs from trusted sources</p>
+                    <p class="download-note">Place your signed APK at static/apk/vendorconnect-latest.apk to update this link.</p>
                 </div>
             </div>
         </div>
