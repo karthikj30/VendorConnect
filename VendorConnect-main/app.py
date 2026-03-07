@@ -2041,8 +2041,15 @@ def vendor_forgot_password():
         else:
             return jsonify({'success': False, 'message': 'Failed to send OTP. Please try again.'})
     else:
-        # Phone-based flow: mock SMS delivery (printed in logs)
-        send_mock_otp_email(identifier, otp)
+        # Phone-based flow: try AWS SNS first, fallback to mock
+        sns_sent = False
+        try:
+            from aws_services import send_sms_otp as aws_send_sms
+            sns_sent = aws_send_sms(identifier, otp)
+        except Exception:
+            pass
+        if not sns_sent:
+            send_mock_otp_email(identifier, otp)
         return jsonify({'success': True, 'message': 'OTP sent to your phone number'})
 
 @app.route('/vendor/verify-otp', methods=['POST'])
@@ -2663,12 +2670,26 @@ def create_group_order():
     participant = GroupOrderParticipant(
         group_order_id=group_order.id,
         vendor_id=session['vendor_id'],
-        quantity=data.get('quantity')
+        quantity=data.get('quantity') or 1   # default to 1 if not provided
     )
     
     db.session.add(participant)
     db.session.commit()
-    
+
+    # Publish SQS event for new group order
+    try:
+        from aws_services import publish_group_order_event
+        product = db.session.get(Product, data.get('product_id'))
+        publish_group_order_event('CREATED', {
+            'group_order_id': group_order.id,
+            'product_id': data.get('product_id'),
+            'product_name': product.name if product else '',
+            'target_quantity': data.get('target_quantity'),
+            'created_by_vendor': session['vendor_id'],
+        })
+    except Exception:
+        pass
+
     return jsonify({'success': True, 'message': 'Group order created successfully'})
 
 @app.route('/api/join-group-order', methods=['POST'])
@@ -2694,13 +2715,42 @@ def join_group_order():
     )
     
     db.session.add(participant)
-    
+
     # Update group order current quantity
     group_order = db.session.get(GroupOrder, data.get('group_order_id'))
     group_order.current_quantity += data.get('quantity')
-    
+
     db.session.commit()
-    
+
+    # Publish SQS event for vendor joining
+    try:
+        from aws_services import publish_group_order_event
+        publish_group_order_event('VENDOR_JOINED', {
+            'group_order_id': group_order.id,
+            'vendor_id': session['vendor_id'],
+            'quantity': data.get('quantity'),
+            'current_quantity': group_order.current_quantity,
+            'target_quantity': group_order.target_quantity,
+        })
+
+        # Check if group order reached its target
+        if group_order.current_quantity >= group_order.target_quantity:
+            group_order.status = 'completed'
+            db.session.commit()
+            # Gather participant phones for notifications
+            participants = GroupOrderParticipant.query.filter_by(group_order_id=group_order.id).all()
+            phones = []
+            for p in participants:
+                v = db.session.get(Vendor, p.vendor_id)
+                if v and v.phone:
+                    phones.append(v.phone)
+            publish_group_order_event('ORDER_COMPLETED', {
+                'group_order_id': group_order.id,
+                'participant_phones': phones,
+            })
+    except Exception:
+        pass  # SQS is optional – don't break the main flow
+
     return jsonify({'success': True, 'message': 'Joined group order successfully'})
 
 @app.route('/api/price-alerts')
@@ -8687,6 +8737,532 @@ def get_sorted_menu():
     except Exception as e:
         app.logger.error(f'Error sorting menu: {str(e)}')
         return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+# ─────────────────────────────────────────────────────────────────────────────
+# AWS Services Routes
+# ─────────────────────────────────────────────────────────────────────────────
+try:
+    from aws_services import (
+        text_to_speech_base64,
+        transcribe_audio_bytes,
+        translate_text,
+        LANGUAGE_NAMES,
+        verify_supplier_document,
+        send_sms_otp,
+        upload_image_to_s3,
+        publish_group_order_event,
+        lambda_group_order_handler,
+        analyze_food_image,
+        S3_BUCKET_NAME,
+        AWS_REGION,
+    )
+    AWS_ENABLED = True
+except ImportError:
+    AWS_ENABLED = False
+    app.logger.warning('aws_services not found – AWS features disabled.')
+
+# ── Voice: Text-to-Speech (Amazon Polly) ──────────────────────────────────────
+@app.route('/api/voice/speak', methods=['POST'])
+def voice_speak():
+    """Convert text to speech using Amazon Polly. Returns base64 MP3."""
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+
+    data = request.get_json(silent=True) or {}
+    text = (data.get('text') or '').strip()
+    language = (data.get('language') or 'hi').lower()
+
+    if not text:
+        return jsonify({'success': False, 'message': 'text is required'}), 400
+
+    audio_b64 = text_to_speech_base64(text, language)
+    if audio_b64 is None:
+        return jsonify({'success': False, 'message': 'TTS unavailable – AWS Polly not configured or credential missing'}), 503
+
+    return jsonify({
+        'success': True,
+        'audio_base64': audio_b64,
+        'format': 'mp3',
+        'language': language,
+    })
+
+
+# ── Voice: Speech-to-Text (Amazon Transcribe) ────────────────────────────────
+@app.route('/api/voice/transcribe', methods=['POST'])
+def voice_transcribe():
+    """
+    Transcribe audio to text.
+    Accepts multipart/form-data with:
+      - audio: audio file (webm / wav / mp3 / ogg)
+      - language: language code (hi / en / ta / te / bn / mr ...)
+    """
+    if not AWS_ENABLED:
+        return jsonify({
+            'success': False,
+            'message': 'AWS Transcribe not configured – add AWS credentials to .env',
+            'aws_enabled': False,
+        }), 503
+
+    audio_file = request.files.get('audio')
+    language   = (request.form.get('language') or request.args.get('language') or 'hi').lower()
+
+    if audio_file is None:
+        return jsonify({'success': False, 'message': 'No audio file provided'}), 400
+
+    audio_bytes = audio_file.read()
+    if len(audio_bytes) == 0:
+        return jsonify({'success': False, 'message': 'Audio file is empty'}), 400
+
+    # Determine format from filename / content-type
+    filename = audio_file.filename or ''
+    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else 'webm'
+    if ext not in ('mp3', 'mp4', 'wav', 'flac', 'ogg', 'webm', 'm4a'):
+        ext = 'webm'
+
+    transcript = transcribe_audio_bytes(audio_bytes, language, ext)
+    if transcript is None:
+        return jsonify({
+            'success': False,
+            'message': 'Transcription unavailable – AWS Transcribe/S3 not configured or credentials missing',
+            'aws_enabled': AWS_ENABLED,
+        }), 503
+
+    return jsonify({
+        'success': True,
+        'transcript': transcript,
+        'language': language,
+    })
+
+
+# ── Translation (Amazon Translate) ───────────────────────────────────────────
+@app.route('/api/translate', methods=['POST'])
+def translate_api():
+    """
+    Translate text(s) using Amazon Translate.
+    Body: { "text": "...", "target": "hi", "source": "en" }
+      OR  { "texts": ["...", "..."], "target": "hi" }
+    """
+    data   = request.get_json(silent=True) or {}
+    target = (data.get('target') or data.get('language') or 'hi').lower()
+    source = (data.get('source') or 'auto').lower()
+
+    if not AWS_ENABLED:
+        # Return original text unchanged when no AWS credentials
+        if 'texts' in data:
+            return jsonify({'success': True, 'translated': data['texts'], 'target': target, 'aws_enabled': False})
+        text = (data.get('text') or '').strip()
+        return jsonify({'success': True, 'original': text, 'translated': text, 'target': target,
+                        'language_name': LANGUAGE_NAMES.get(target, target), 'aws_enabled': False})
+
+    if 'texts' in data:
+        texts   = data['texts']
+        results = [translate_text(t, target, source) for t in texts]
+        return jsonify({'success': True, 'translated': results, 'target': target})
+
+    text = (data.get('text') or '').strip()
+    if not text:
+        return jsonify({'success': False, 'message': 'text is required'}), 400
+
+    translated = translate_text(text, target, source)
+    return jsonify({
+        'success': True,
+        'original': text,
+        'translated': translated,
+        'target': target,
+        'language_name': LANGUAGE_NAMES.get(target, target),
+    })
+
+
+@app.route('/api/translate/languages')
+def get_supported_languages():
+    """Return list of supported languages."""
+    return jsonify({
+        'success': True,
+        'languages': [
+            {'code': code, 'name': name}
+            for code, name in LANGUAGE_NAMES.items()
+        ] if AWS_ENABLED else [{'code': 'en', 'name': 'English'}]
+    })
+
+
+# ── Supplier Document Verification (Amazon Rekognition) ──────────────────────
+@app.route('/api/supplier/verify-document', methods=['POST'])
+def verify_supplier_doc():
+    """
+    Upload and verify a supplier certification document.
+    Accepts: multipart/form-data with 'document' file field.
+    Returns verification result with confidence score.
+    """
+    if 'supplier_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    if not AWS_ENABLED:
+        # Graceful mock — document accepted without cloud verification
+        return jsonify({
+            'success': True,
+            'verification': {
+                'verified': False,
+                'confidence': 0,
+                'detected_text': [],
+                'labels': [],
+                'reason': 'AWS Rekognition not configured – add AWS credentials to .env to enable real verification',
+            },
+            'aws_enabled': False,
+        })
+
+    doc_file = request.files.get('document')
+    if doc_file is None:
+        return jsonify({'success': False, 'message': 'No document file provided'}), 400
+
+    image_bytes = doc_file.read()
+    if len(image_bytes) == 0:
+        return jsonify({'success': False, 'message': 'Document file is empty'}), 400
+
+    if len(image_bytes) > 5 * 1024 * 1024:
+        return jsonify({'success': False, 'message': 'File too large (max 5 MB)'}), 400
+
+    result = verify_supplier_document(image_bytes)
+
+    # If verified, update supplier's verification_status and save doc to S3
+    if result['verified']:
+        supplier = db.session.get(Supplier, session['supplier_id'])
+        if supplier:
+            # Upload to S3 for record keeping
+            ext = (doc_file.filename or 'cert.jpg').rsplit('.', 1)[-1].lower()
+            s3_url = upload_image_to_s3(
+                type('FakeFileStorage', (), {
+                    'filename': f'cert_{supplier.id}.{ext}',
+                    'content_type': f'image/{ext}',
+                    'read': lambda: image_bytes
+                })(),
+                folder='supplier-docs'
+            )
+            # Upload bytes directly
+            from aws_services import upload_file_to_s3
+            unique_name = f"supplier_{supplier.id}_{uuid.uuid4().hex}.{ext}"
+            s3_url = upload_file_to_s3(image_bytes, unique_name, f'image/{ext}', 'supplier-docs')
+
+            if s3_url:
+                supplier.certification = s3_url
+            supplier.verification_status = True
+            db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'verification': result,
+    })
+
+
+@app.route('/api/product/analyze-image', methods=['POST'])
+def analyze_product_image():
+    """Analyze a product image for food detection and safety."""
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+
+    img_file = request.files.get('image')
+    if img_file is None:
+        return jsonify({'success': False, 'message': 'No image provided'}), 400
+
+    img_bytes = img_file.read()
+    result    = analyze_food_image(img_bytes)
+    return jsonify({'success': True, 'analysis': result})
+
+
+# ── SMS OTP via AWS SNS ───────────────────────────────────────────────────────
+@app.route('/api/sms/send-otp', methods=['POST'])
+def send_sms_otp_route():
+    """Send OTP via AWS SNS SMS (phone-based auth)."""
+    data     = request.get_json(silent=True) or {}
+    phone    = (data.get('phone') or '').strip()
+    language = (data.get('language') or 'en').lower()
+
+    if not phone:
+        return jsonify({'success': False, 'message': 'Phone number is required'}), 400
+
+    otp = generate_otp()
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+    otp_record = OTPVerification(email=phone, otp=otp, expires_at=expires_at)
+    db.session.add(otp_record)
+    db.session.commit()
+
+    if AWS_ENABLED:
+        sent = send_sms_otp(phone, otp, language)
+        if sent:
+            return jsonify({'success': True, 'message': 'OTP sent via SMS'})
+
+    # Fallback to mock
+    send_mock_otp_email(phone, otp)
+    return jsonify({'success': True, 'message': 'OTP sent (mock – check server logs)'})
+
+
+# ── Vendor Analytics Dashboard ────────────────────────────────────────────────
+@app.route('/vendor/analytics')
+@vendor_required
+def vendor_analytics_dashboard():
+    vendor = db.session.get(Vendor, session['vendor_id'])
+    return render_template('vendor_analytics.html', vendor=vendor)
+
+
+@app.route('/api/vendor/analytics')
+@vendor_api_required
+def get_vendor_analytics():
+    """
+    Returns comprehensive analytics for the logged-in vendor.
+    Covers: daily/weekly/monthly sales from CustomerOrder,
+    peak hours, popular items, trend comparison.
+    """
+    vendor_id = session['vendor_id']
+    vendor    = db.session.get(Vendor, vendor_id)
+    now       = datetime.utcnow()
+
+    # ── Time windows ──────────────────────────────────────────────────────────
+    today_start   = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start    = today_start - timedelta(days=today_start.weekday())
+    month_start   = today_start.replace(day=1)
+    prev_week_start = week_start - timedelta(days=7)
+    prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
+
+    # ── Helper: fetch CustomerOrders for this vendor ──────────────────────────
+    # CustomerOrder is linked to vendor via CustomerOrderItem → MenuItem → vendor_id
+    def orders_in_range(start, end):
+        return (
+            CustomerOrder.query
+            .join(CustomerOrderItem, CustomerOrder.id == CustomerOrderItem.order_id)
+            .join(MenuItem, CustomerOrderItem.menu_item_id == MenuItem.id)
+            .filter(
+                MenuItem.vendor_id == vendor_id,
+                CustomerOrder.status.in_(['delivered', 'done', 'confirmed', 'preparing', 'ready', 'out_for_delivery']),
+                CustomerOrder.created_at >= start,
+                CustomerOrder.created_at < end,
+            )
+            .distinct(CustomerOrder.id)
+            .all()
+        )
+
+    today_orders = orders_in_range(today_start, now)
+    week_orders  = orders_in_range(week_start,  now)
+    month_orders = orders_in_range(month_start, now)
+    prev_week_orders  = orders_in_range(prev_week_start, week_start)
+    prev_month_orders = orders_in_range(prev_month_start, month_start)
+
+    def total_revenue(orders):
+        return round(sum(o.total_amount for o in orders), 2)
+
+    today_revenue = total_revenue(today_orders)
+    week_revenue  = total_revenue(week_orders)
+    month_revenue = total_revenue(month_orders)
+
+    prev_week_revenue  = total_revenue(prev_week_orders)
+    prev_month_revenue = total_revenue(prev_month_orders)
+
+    # ── Week-over-week & month-over-month change ──────────────────────────────
+    def pct_change(current, previous):
+        if previous == 0:
+            return 100.0 if current > 0 else 0.0
+        return round(((current - previous) / previous) * 100, 1)
+
+    # ── Daily revenue for last 7 days (chart data) ───────────────────────────
+    daily_data = []
+    for i in range(6, -1, -1):
+        day_start = today_start - timedelta(days=i)
+        day_end   = day_start + timedelta(days=1)
+        day_orders = orders_in_range(day_start, day_end)
+        daily_data.append({
+            'date':    day_start.strftime('%a %d %b'),
+            'revenue': total_revenue(day_orders),
+            'orders':  len(day_orders),
+        })
+
+    # ── Monthly revenue for last 6 months ────────────────────────────────────
+    monthly_data = []
+    for i in range(5, -1, -1):
+        # Compute first day of the month going back i months
+        m_start = (month_start - timedelta(days=i * 30)).replace(day=1)
+        if i == 0:
+            m_end = now
+        else:
+            # First day of next month
+            if m_start.month == 12:
+                m_end = m_start.replace(year=m_start.year + 1, month=1, day=1)
+            else:
+                m_end = m_start.replace(month=m_start.month + 1, day=1)
+        m_orders = orders_in_range(m_start, m_end)
+        monthly_data.append({
+            'month':   m_start.strftime('%b %Y'),
+            'revenue': total_revenue(m_orders),
+            'orders':  len(m_orders),
+        })
+
+    # ── Peak hours (last 30 days) ─────────────────────────────────────────────
+    thirty_days_ago = now - timedelta(days=30)
+    all_recent_orders = orders_in_range(thirty_days_ago, now)
+    from collections import Counter
+    hour_counter = Counter()
+    for o in all_recent_orders:
+        if o.created_at:
+            # Convert UTC to IST
+            ist_hour = (o.created_at + timedelta(hours=5, minutes=30)).hour
+            hour_counter[ist_hour] += 1
+
+    peak_hours = [
+        {'hour': f'{h:02d}:00', 'orders': c}
+        for h, c in sorted(hour_counter.items())
+    ]
+
+    # ── Popular menu items ────────────────────────────────────────────────────
+    item_counter = Counter()
+    qty_counter  = Counter()
+    rev_counter  = Counter()
+
+    month_item_rows = (
+        db.session.query(
+            MenuItem.name,
+            db.func.sum(CustomerOrderItem.quantity).label('total_qty'),
+            db.func.sum(CustomerOrderItem.quantity * CustomerOrderItem.price_per_unit).label('total_rev'),
+        )
+        .join(CustomerOrderItem, CustomerOrderItem.menu_item_id == MenuItem.id)
+        .join(CustomerOrder, CustomerOrder.id == CustomerOrderItem.order_id)
+        .filter(
+            MenuItem.vendor_id == vendor_id,
+            CustomerOrder.created_at >= month_start,
+            CustomerOrder.status.in_(['delivered', 'done', 'confirmed', 'preparing', 'ready', 'out_for_delivery']),
+        )
+        .group_by(MenuItem.name)
+        .order_by(db.func.sum(CustomerOrderItem.quantity).desc())
+        .limit(10)
+        .all()
+    )
+
+    popular_items = [
+        {
+            'name':     row.name,
+            'quantity': int(row.total_qty or 0),
+            'revenue':  round(float(row.total_rev or 0), 2),
+        }
+        for row in month_item_rows
+    ]
+
+    # ── Total customers (unique) ──────────────────────────────────────────────
+    unique_customers_month = (
+        db.session.query(db.func.count(db.func.distinct(CustomerOrder.customer_id)))
+        .join(CustomerOrderItem, CustomerOrder.id == CustomerOrderItem.order_id)
+        .join(MenuItem, CustomerOrderItem.menu_item_id == MenuItem.id)
+        .filter(
+            MenuItem.vendor_id == vendor_id,
+            CustomerOrder.created_at >= month_start,
+        )
+        .scalar() or 0
+    )
+
+    # ── Average order value ───────────────────────────────────────────────────
+    avg_order_value = round(week_revenue / len(week_orders), 2) if week_orders else 0.0
+
+    # ── Supplier orders (raw material spend) ─────────────────────────────────
+    supplier_spend_month = (
+        db.session.query(db.func.sum(Order.total_amount))
+        .filter(Order.vendor_id == vendor_id, Order.created_at >= month_start)
+        .scalar() or 0.0
+    )
+
+    # ── Reward points ─────────────────────────────────────────────────────────
+    reward_points = float(getattr(vendor, 'reward_points', 0) or 0)
+
+    return jsonify({
+        'success': True,
+        'summary': {
+            'today':  {'revenue': today_revenue, 'orders': len(today_orders)},
+            'week':   {'revenue': week_revenue,  'orders': len(week_orders),  'change_pct': pct_change(week_revenue, prev_week_revenue)},
+            'month':  {'revenue': month_revenue, 'orders': len(month_orders), 'change_pct': pct_change(month_revenue, prev_month_revenue)},
+        },
+        'daily_chart':   daily_data,
+        'monthly_chart': monthly_data,
+        'peak_hours':    peak_hours,
+        'popular_items': popular_items,
+        'metrics': {
+            'avg_order_value':        avg_order_value,
+            'unique_customers_month': unique_customers_month,
+            'supplier_spend_month':   round(float(supplier_spend_month), 2),
+            'reward_points':          reward_points,
+        },
+        'vendor': {
+            'name':          vendor.name,
+            'business_type': vendor.business_type,
+            'location':      vendor.location,
+        },
+    })
+
+
+# ── SQS Group Order Automation ────────────────────────────────────────────────
+@app.route('/api/group-orders/process-expired', methods=['POST'])
+def process_expired_group_orders():
+    """
+    Process expired group orders.
+    Can be called by a scheduled task or AWS Lambda via HTTP trigger.
+    Marks orders as expired & sends SQS events.
+    """
+    # Simple auth via secret header (replace with proper Lambda auth in production)
+    secret = request.headers.get('X-Internal-Secret', '')
+    expected = os.environ.get('INTERNAL_SECRET', 'vendorconnect-internal')
+    if secret != expected:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 403
+
+    expiry_hours = int(request.args.get('hours', 24))
+    cutoff = datetime.utcnow() - timedelta(hours=expiry_hours)
+
+    expired = GroupOrder.query.filter(
+        GroupOrder.status == 'active',
+        GroupOrder.created_at < cutoff,
+    ).all()
+
+    processed = []
+    for go in expired:
+        go.status = 'expired'
+        db.session.add(go)
+
+        # Gather participant phones
+        participants = GroupOrderParticipant.query.filter_by(group_order_id=go.id).all()
+        phones = []
+        for p in participants:
+            vendor = db.session.get(Vendor, p.vendor_id)
+            if vendor and vendor.phone:
+                phones.append(vendor.phone)
+
+        if AWS_ENABLED:
+            publish_group_order_event('ORDER_EXPIRED', {
+                'group_order_id': go.id,
+                'product_id': go.product_id,
+                'participant_phones': phones,
+            })
+
+        processed.append(go.id)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'expired_orders': processed,
+        'count': len(processed),
+    })
+
+
+@app.route('/api/group-orders/sqs-handler', methods=['POST'])
+def sqs_handler_webhook():
+    """
+    Webhook endpoint that mimics the Lambda SQS handler.
+    Useful for local testing without deploying to Lambda.
+    """
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+
+    event = request.get_json(silent=True) or {}
+    result = lambda_group_order_handler(event)
+    return jsonify(result)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# End of AWS Routes
+# ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
     with app.app_context():

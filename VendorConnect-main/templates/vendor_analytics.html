@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics – VendorConnect</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Poppins','Noto Sans Devanagari',sans-serif;background:#f0f4f8;color:#1a202c}
+        .header{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+        .header h1{font-size:1.4rem;display:flex;align-items:center;gap:10px}
+        .header a{color:#fff;text-decoration:none;font-size:.9rem;opacity:.85}
+        .header a:hover{opacity:1}
+        .container{max-width:1200px;margin:0 auto;padding:24px 20px}
+
+        /* Language + Voice bar */
+        .top-bar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
+        .lang-select{padding:8px 14px;border-radius:8px;border:1px solid #cbd5e0;font-size:.9rem;background:#fff;cursor:pointer}
+        .voice-btn{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:9px 18px;border-radius:8px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;gap:8px;transition:opacity .2s}
+        .voice-btn:hover{opacity:.85}
+        .voice-btn.listening{background:linear-gradient(135deg,#e53e3e,#c53030);animation:pulse 1.2s infinite}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,62,62,.4)}50%{box-shadow:0 0 0 8px rgba(229,62,62,0)}}
+        .tts-player{display:none;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 16px;align-items:center;gap:10px}
+        .tts-player.visible{display:flex}
+        .tts-player audio{height:36px;flex:1}
+
+        /* Summary cards */
+        .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+        .card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);border-left:4px solid var(--accent,#667eea)}
+        .card .label{font-size:.78rem;color:#718096;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+        .card .value{font-size:1.7rem;font-weight:700;color:#1a202c}
+        .card .sub{font-size:.8rem;margin-top:4px}
+        .card .sub.up{color:#38a169} .card .sub.down{color:#e53e3e} .card .sub.neutral{color:#718096}
+        .card:nth-child(1){--accent:#667eea} .card:nth-child(2){--accent:#48bb78}
+        .card:nth-child(3){--accent:#ed8936} .card:nth-child(4){--accent:#9f7aea}
+        .card:nth-child(5){--accent:#38b2ac} .card:nth-child(6){--accent:#e53e3e}
+
+        /* Charts */
+        .charts{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+        @media(max-width:768px){.charts{grid-template-columns:1fr}}
+        .chart-card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+        .chart-card h3{font-size:1rem;margin-bottom:16px;color:#2d3748;display:flex;align-items:center;gap:8px}
+        .chart-card canvas{max-height:260px}
+
+        /* Tables */
+        .table-card{background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:24px}
+        .table-card h3{font-size:1rem;margin-bottom:16px;color:#2d3748;display:flex;align-items:center;gap:8px}
+        table{width:100%;border-collapse:collapse;font-size:.88rem}
+        th{background:#f7fafc;padding:10px 12px;text-align:left;font-weight:600;color:#4a5568;border-bottom:2px solid #e2e8f0}
+        td{padding:10px 12px;border-bottom:1px solid #f0f4f8;color:#2d3748}
+        tr:last-child td{border-bottom:none}
+        tr:hover td{background:#f7fafc}
+        .badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.75rem;font-weight:600}
+        .badge.green{background:#c6f6d5;color:#276749}
+        .badge.orange{background:#feebc8;color:#c05621}
+
+        /* AI Insights */
+        .insights{background:linear-gradient(135deg,#ebf4ff,#e9d8fd);border-radius:14px;padding:20px;margin-bottom:24px;border:1px solid #c3dafe}
+        .insights h3{font-size:1rem;margin-bottom:12px;color:#553c9a;display:flex;align-items:center;gap:8px}
+        .insight-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;font-size:.88rem;color:#44337a}
+        .insight-item i{margin-top:2px;color:#805ad5}
+
+        /* Loading */
+        .loading{text-align:center;padding:60px;color:#718096}
+        .spinner{width:40px;height:40px;border:4px solid #e2e8f0;border-top-color:#667eea;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+        @keyframes spin{to{transform:rotate(360deg)}}
+
+        /* Responsive */
+        @media(max-width:480px){.cards{grid-template-columns:1fr 1fr}.card .value{font-size:1.3rem}}
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1><i class="fas fa-chart-bar"></i> Vendor Analytics</h1>
+    <div style="display:flex;gap:16px;align-items:center">
+        <span style="font-size:.85rem;opacity:.8">{{ vendor.name if vendor else '' }}</span>
+        <a href="/vendor/dashboard"><i class="fas fa-arrow-left"></i> Dashboard</a>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Top bar: language switcher + voice -->
+    <div class="top-bar">
+        <select id="langSelect" class="lang-select" onchange="changeLanguage(this.value)">
+            <option value="en">English</option>
+            <option value="hi">हिंदी</option>
+            <option value="mr">मराठी</option>
+            <option value="ta">தமிழ்</option>
+            <option value="te">తెలుగు</option>
+            <option value="bn">বাংলা</option>
+            <option value="gu">ગુજરાતી</option>
+            <option value="kn">ಕನ್ನಡ</option>
+            <option value="ml">മലയാളം</option>
+            <option value="pa">ਪੰਜਾਬੀ</option>
+        </select>
+
+        <button class="voice-btn" id="ttsBtn" onclick="readSummaryAloud()">
+            <i class="fas fa-volume-up"></i> <span id="ttsBtnText">Listen to Summary</span>
+        </button>
+
+        <button class="voice-btn" id="micBtn" onclick="toggleVoiceInput()">
+            <i class="fas fa-microphone"></i> <span id="micBtnText">Ask with Voice</span>
+        </button>
+
+        <div class="tts-player" id="ttsPlayer">
+            <i class="fas fa-music" style="color:#667eea"></i>
+            <audio id="ttsAudio" controls></audio>
+            <button onclick="document.getElementById('ttsPlayer').classList.remove('visible')" style="background:none;border:none;cursor:pointer;color:#718096"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Loading your analytics…</p>
+    </div>
+
+    <!-- Content (hidden until data loads) -->
+    <div id="analyticsContent" style="display:none">
+
+        <!-- Summary Cards -->
+        <div class="cards" id="summaryCards"></div>
+
+        <!-- AI Insights -->
+        <div class="insights" id="insightsBox">
+            <h3><i class="fas fa-lightbulb"></i> <span data-i18n="ai_insights">AI Insights</span></h3>
+            <div id="insightsList"></div>
+        </div>
+
+        <!-- Charts row 1 -->
+        <div class="charts">
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-line" style="color:#667eea"></i> <span data-i18n="daily_revenue">Daily Revenue (Last 7 Days)</span></h3>
+                <canvas id="dailyChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-calendar-alt" style="color:#48bb78"></i> <span data-i18n="monthly_trend">Monthly Revenue Trend</span></h3>
+                <canvas id="monthlyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Charts row 2 -->
+        <div class="charts">
+            <div class="chart-card">
+                <h3><i class="fas fa-clock" style="color:#ed8936"></i> <span data-i18n="peak_hours">Peak Order Hours</span></h3>
+                <canvas id="peakChart"></canvas>
+            </div>
+            <div class="chart-card">
+                <h3><i class="fas fa-trophy" style="color:#9f7aea"></i> <span data-i18n="top_items">Top Menu Items This Month</span></h3>
+                <canvas id="itemsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Popular items table -->
+        <div class="table-card">
+            <h3><i class="fas fa-utensils" style="color:#9f7aea"></i> <span data-i18n="popular_items">Popular Menu Items</span></h3>
+            <table id="itemsTable">
+                <thead>
+                    <tr>
+                        <th data-i18n="item">Item</th>
+                        <th data-i18n="orders_sold">Orders Sold</th>
+                        <th data-i18n="revenue">Revenue</th>
+                        <th data-i18n="status">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsTableBody"></tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────────
+let analyticsData = null;
+let currentLang   = 'en';
+let isListening   = false;
+let mediaRecorder = null;
+let audioChunks   = [];
+
+// ── i18n strings ───────────────────────────────────────────────────────────────
+const I18N = {
+    en: {
+        today_revenue:'Today\'s Revenue', week_revenue:'This Week', month_revenue:'This Month',
+        orders:'Orders', avg_order:'Avg Order', customers:'Customers',
+        daily_revenue:'Daily Revenue (Last 7 Days)', monthly_trend:'Monthly Revenue Trend',
+        peak_hours:'Peak Order Hours', top_items:'Top Menu Items This Month',
+        popular_items:'Popular Menu Items', item:'Item', orders_sold:'Qty Sold',
+        revenue:'Revenue (₹)', status:'Status', ai_insights:'AI Insights',
+        listen:'Listen to Summary', listening:'Listening…', ask_voice:'Ask with Voice',
+        stop_mic:'Stop',
+    },
+    hi: {
+        today_revenue:'आज की कमाई', week_revenue:'इस हफ्ते', month_revenue:'इस महीने',
+        orders:'ऑर्डर', avg_order:'औसत ऑर्डर', customers:'ग्राहक',
+        daily_revenue:'दैनिक कमाई (7 दिन)', monthly_trend:'मासिक कमाई ट्रेंड',
+        peak_hours:'पीक ऑर्डर घंटे', top_items:'इस महीने के टॉप आइटम',
+        popular_items:'लोकप्रिय मेनू', item:'आइटम', orders_sold:'बेचे गए',
+        revenue:'कमाई (₹)', status:'स्थिति', ai_insights:'AI सुझाव',
+        listen:'सारांश सुनें', listening:'सुन रहा है…', ask_voice:'आवाज़ से पूछें',
+        stop_mic:'रोकें',
+    },
+    mr: {
+        today_revenue:'आजची कमाई', week_revenue:'या आठवड्यात', month_revenue:'या महिन्यात',
+        orders:'ऑर्डर', avg_order:'सरासरी ऑर्डर', customers:'ग्राहक',
+        daily_revenue:'दैनिक कमाई (7 दिवस)', monthly_trend:'मासिक कमाई ट्रेंड',
+        peak_hours:'पीक ऑर्डर वेळ', top_items:'या महिन्याचे टॉप आयटम',
+        popular_items:'लोकप्रिय मेनू', item:'आयटम', orders_sold:'विकले गेले',
+        revenue:'कमाई (₹)', status:'स्थिती', ai_insights:'AI सूचना',
+        listen:'सारांश ऐका', listening:'ऐकत आहे…', ask_voice:'आवाजाने विचारा',
+        stop_mic:'थांबा',
+    },
+};
+const t = (key) => (I18N[currentLang] || I18N.en)[key] || (I18N.en[key] || key);
+
+// ── Load data ──────────────────────────────────────────────────────────────────
+async function loadAnalytics() {
+    try {
+        const res  = await fetch('/api/vendor/analytics');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
+        analyticsData = data;
+        renderAll(data);
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('analyticsContent').style.display = 'block';
+    } catch (e) {
+        document.getElementById('loading').innerHTML =
+            `<p style="color:#e53e3e">Failed to load analytics: ${e.message}</p>`;
+    }
+}
+
+function renderAll(data) {
+    renderCards(data);
+    renderInsights(data);
+    renderDailyChart(data.daily_chart);
+    renderMonthlyChart(data.monthly_chart);
+    renderPeakChart(data.peak_hours);
+    renderItemsChart(data.popular_items);
+    renderItemsTable(data.popular_items);
+}
+
+// ── Summary Cards ──────────────────────────────────────────────────────────────
+function renderCards(data) {
+    const s = data.summary;
+    const m = data.metrics;
+    const wc = s.week.change_pct;
+    const mc = s.month.change_pct;
+    const arrowW = wc >= 0 ? '▲' : '▼';
+    const arrowM = mc >= 0 ? '▲' : '▼';
+    const clsW = wc >= 0 ? 'up' : 'down';
+    const clsM = mc >= 0 ? 'up' : 'down';
+
+    document.getElementById('summaryCards').innerHTML = `
+        <div class="card">
+            <div class="label">${t('today_revenue')}</div>
+            <div class="value">₹${fmt(s.today.revenue)}</div>
+            <div class="sub neutral">${s.today.orders} ${t('orders')}</div>
+        </div>
+        <div class="card">
+            <div class="label">${t('week_revenue')}</div>
+            <div class="value">₹${fmt(s.week.revenue)}</div>
+            <div class="sub ${clsW}">${arrowW} ${Math.abs(wc)}% vs last week</div>
+        </div>
+        <div class="card">
+            <div class="label">${t('month_revenue')}</div>
+            <div class="value">₹${fmt(s.month.revenue)}</div>
+            <div class="sub ${clsM}">${arrowM} ${Math.abs(mc)}% vs last month</div>
+        </div>
+        <div class="card">
+            <div class="label">${t('avg_order')}</div>
+            <div class="value">₹${fmt(m.avg_order_value)}</div>
+            <div class="sub neutral">${t('week_revenue')}</div>
+        </div>
+        <div class="card">
+            <div class="label">${t('customers')}</div>
+            <div class="value">${m.unique_customers_month}</div>
+            <div class="sub neutral">Unique this month</div>
+        </div>
+        <div class="card">
+            <div class="label">Reward Points</div>
+            <div class="value">${m.reward_points}</div>
+            <div class="sub neutral">Self-delivery earnings</div>
+        </div>
+    `;
+}
+
+// ── AI Insights ────────────────────────────────────────────────────────────────
+function renderInsights(data) {
+    const s = data.summary;
+    const insights = [];
+
+    if (s.week.change_pct >= 10)
+        insights.push({icon:'fa-arrow-trend-up', text: `Revenue up ${s.week.change_pct}% this week – great job! Keep the momentum.`});
+    else if (s.week.change_pct < 0)
+        insights.push({icon:'fa-arrow-trend-down', text: `Revenue dipped ${Math.abs(s.week.change_pct)}% this week. Try running a promotion or extending hours.`});
+
+    if (data.peak_hours && data.peak_hours.length > 0) {
+        const peak = data.peak_hours.reduce((a, b) => a.orders > b.orders ? a : b);
+        insights.push({icon:'fa-clock', text: `Your busiest hour is ${peak.hour} IST. Make sure to have enough staff and supplies ready.`});
+    }
+
+    if (data.popular_items && data.popular_items.length > 0) {
+        insights.push({icon:'fa-star', text: `"${data.popular_items[0].name}" is your top seller this month. Consider promoting it on your storefront.`});
+    }
+
+    if (s.today.orders === 0)
+        insights.push({icon:'fa-exclamation-circle', text: 'No orders today yet. Try sharing your vendor link or enabling promotions.'});
+
+    if (data.metrics.supplier_spend_month > 0) {
+        const margin = s.month.revenue - data.metrics.supplier_spend_month;
+        insights.push({icon:'fa-wallet', text: `Estimated gross margin this month: ₹${fmt(margin)} (Revenue - Raw Material Cost).`});
+    }
+
+    if (insights.length === 0)
+        insights.push({icon:'fa-info-circle', text: 'Place more orders to unlock personalised insights.'});
+
+    document.getElementById('insightsList').innerHTML = insights.map(i =>
+        `<div class="insight-item"><i class="fas ${i.icon}"></i><span>${i.text}</span></div>`
+    ).join('');
+}
+
+// ── Charts ─────────────────────────────────────────────────────────────────────
+let charts = {};
+
+function mkChart(id, type, labels, datasets, options={}) {
+    const ctx = document.getElementById(id).getContext('2d');
+    if (charts[id]) charts[id].destroy();
+    charts[id] = new Chart(ctx, {
+        type,
+        data: { labels, datasets },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } }, ...options }
+    });
+}
+
+function renderDailyChart(daily) {
+    if (!daily || !daily.length) return;
+    mkChart('dailyChart', 'line',
+        daily.map(d => d.date),
+        [{
+            label: 'Revenue (₹)',
+            data: daily.map(d => d.revenue),
+            borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,.12)',
+            fill: true, tension: 0.4, pointRadius: 4,
+        }, {
+            label: 'Orders',
+            data: daily.map(d => d.orders),
+            borderColor: '#48bb78', backgroundColor: 'transparent',
+            tension: 0.4, yAxisID: 'y1', pointRadius: 3,
+        }],
+        { scales: { y: { position:'left', title:{display:true,text:'₹'} }, y1: { position:'right', grid:{drawOnChartArea:false}, title:{display:true,text:'Orders'} } } }
+    );
+}
+
+function renderMonthlyChart(monthly) {
+    if (!monthly || !monthly.length) return;
+    mkChart('monthlyChart', 'bar',
+        monthly.map(d => d.month),
+        [{
+            label: 'Monthly Revenue (₹)',
+            data: monthly.map(d => d.revenue),
+            backgroundColor: monthly.map((_, i) => i === monthly.length - 1 ? '#667eea' : 'rgba(102,126,234,.55)'),
+            borderRadius: 6,
+        }],
+        { scales: { y: { beginAtZero: true } } }
+    );
+}
+
+function renderPeakChart(peak) {
+    if (!peak || !peak.length) return;
+    mkChart('peakChart', 'bar',
+        peak.map(p => p.hour),
+        [{
+            label: 'Orders',
+            data: peak.map(p => p.orders),
+            backgroundColor: peak.map(p => p.orders === Math.max(...peak.map(x=>x.orders)) ? '#ed8936' : 'rgba(237,137,54,.45)'),
+            borderRadius: 4,
+        }],
+        { scales: { y: { beginAtZero: true, title:{display:true,text:'Orders'} } } }
+    );
+}
+
+function renderItemsChart(items) {
+    if (!items || !items.length) return;
+    const top5 = items.slice(0, 5);
+    mkChart('itemsChart', 'doughnut',
+        top5.map(i => i.name),
+        [{
+            data: top5.map(i => i.quantity),
+            backgroundColor: ['#667eea','#48bb78','#ed8936','#9f7aea','#38b2ac'],
+            hoverOffset: 8,
+        }],
+        { plugins: { legend: { position: 'right' } } }
+    );
+}
+
+function renderItemsTable(items) {
+    if (!items || !items.length) {
+        document.getElementById('itemsTableBody').innerHTML = '<tr><td colspan="4" style="text-align:center;color:#718096">No items data yet</td></tr>';
+        return;
+    }
+    const maxQty = Math.max(...items.map(i => i.quantity));
+    document.getElementById('itemsTableBody').innerHTML = items.map((item, idx) => `
+        <tr>
+            <td><strong>#${idx+1}</strong> ${item.name}</td>
+            <td>${item.quantity}</td>
+            <td>₹${fmt(item.revenue)}</td>
+            <td><span class="badge ${item.quantity >= maxQty * 0.6 ? 'green' : 'orange'}">${item.quantity >= maxQty * 0.6 ? '🔥 Hot' : 'Regular'}</span></td>
+        </tr>
+    `).join('');
+}
+
+// ── Language change ────────────────────────────────────────────────────────────
+async function changeLanguage(lang) {
+    currentLang = lang;
+    if (analyticsData) renderAll(analyticsData);
+
+    // Translate static labels via AWS Translate API
+    if (lang !== 'en') {
+        const labels = document.querySelectorAll('[data-i18n]');
+        const texts  = Array.from(labels).map(el => el.textContent);
+        try {
+            const res  = await fetch('/api/translate', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ texts, target: lang }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                labels.forEach((el, i) => { el.textContent = data.translated[i]; });
+            }
+        } catch (e) { /* silent */ }
+    }
+}
+
+// ── Text-to-Speech: read summary aloud ────────────────────────────────────────
+async function readSummaryAloud() {
+    if (!analyticsData) return;
+    const s = analyticsData.summary;
+    const topItem = analyticsData.popular_items?.[0]?.name || 'your top item';
+
+    const summaryText = currentLang === 'hi'
+        ? `आज की कमाई ₹${fmt(s.today.revenue)} है। इस हफ्ते ₹${fmt(s.week.revenue)} कमाए। ${topItem} सबसे ज्यादा बिकने वाला आइटम है।`
+        : `Today's revenue is ₹${fmt(s.today.revenue)}. This week you earned ₹${fmt(s.week.revenue)}. ${topItem} is your top selling item.`;
+
+    document.getElementById('ttsBtnText').textContent = 'Loading…';
+    document.getElementById('ttsBtn').disabled = true;
+
+    try {
+        const res  = await fetch('/api/voice/speak', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ text: summaryText, language: currentLang }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            const audio = document.getElementById('ttsAudio');
+            audio.src = 'data:audio/mp3;base64,' + data.audio_base64;
+            document.getElementById('ttsPlayer').classList.add('visible');
+            audio.play();
+        } else {
+            alert('TTS not available: ' + data.message);
+        }
+    } catch (e) {
+        alert('Could not connect to voice service.');
+    } finally {
+        document.getElementById('ttsBtnText').textContent = t('listen');
+        document.getElementById('ttsBtn').disabled = false;
+    }
+}
+
+// ── Voice Input (Transcribe) ────────────────────────────────────────────────────
+async function toggleVoiceInput() {
+    if (isListening) {
+        stopListening();
+    } else {
+        await startListening();
+    }
+}
+
+async function startListening() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        audioChunks = [];
+
+        mediaRecorder.addEventListener('dataavailable', e => audioChunks.push(e.data));
+        mediaRecorder.addEventListener('stop', async () => {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            await sendAudioForTranscription(blob);
+            stream.getTracks().forEach(t => t.stop());
+        });
+
+        mediaRecorder.start();
+        isListening = true;
+
+        const btn = document.getElementById('micBtn');
+        btn.classList.add('listening');
+        document.getElementById('micBtnText').textContent = t('stop_mic');
+
+        // Auto-stop after 8 seconds
+        setTimeout(() => { if (isListening) stopListening(); }, 8000);
+    } catch (e) {
+        alert('Microphone access denied or not supported.');
+    }
+}
+
+function stopListening() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    isListening = false;
+    const btn = document.getElementById('micBtn');
+    btn.classList.remove('listening');
+    document.getElementById('micBtnText').textContent = t('ask_voice');
+}
+
+async function sendAudioForTranscription(blob) {
+    document.getElementById('micBtnText').textContent = 'Processing…';
+    const formData = new FormData();
+    formData.append('audio', blob, 'recording.webm');
+    formData.append('language', currentLang);
+
+    try {
+        const res  = await fetch('/api/voice/transcribe', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (data.success) {
+            alert(`Heard: "${data.transcript}"\n(Voice commands coming soon in chatbot)`);
+        } else {
+            alert('Could not transcribe: ' + data.message);
+        }
+    } catch (e) {
+        alert('Transcription service unavailable.');
+    } finally {
+        document.getElementById('micBtnText').textContent = t('ask_voice');
+    }
+}
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+function fmt(n) {
+    if (n === undefined || n === null) return '0';
+    if (n >= 100000) return (n / 100000).toFixed(1) + 'L';
+    if (n >= 1000)   return (n / 1000).toFixed(1) + 'K';
+    return n.toFixed(0);
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+loadAnalytics();
+</script>
+
+</body>
+</html>

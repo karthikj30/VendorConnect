@@ -2082,7 +2082,30 @@
                         <i class="fas fa-briefcase"></i> Restaurant Jobs
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="/vendor/analytics" class="nav-link">
+                        <i class="fas fa-chart-bar"></i> Analytics
+                    </a>
+                </li>
             </ul>
+
+            <!-- Language selector in sidebar -->
+            <div style="padding:14px 20px 6px;border-top:1px solid rgba(255,255,255,.12);margin-top:8px">
+                <label style="color:rgba(255,255,255,.65);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">🌐 Language</label>
+                <select id="dashLangSelect" onchange="applyDashLanguage(this.value)"
+                    style="width:100%;padding:7px 10px;border-radius:8px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:.85rem;cursor:pointer;outline:none">
+                    <option value="en">English</option>
+                    <option value="hi">हिंदी</option>
+                    <option value="mr">मराठी</option>
+                    <option value="ta">தமிழ்</option>
+                    <option value="te">తెలుగు</option>
+                    <option value="bn">বাংলা</option>
+                    <option value="gu">ગુજરાતી</option>
+                    <option value="kn">ಕನ್ನಡ</option>
+                    <option value="ml">മലയാളം</option>
+                    <option value="pa">ਪੰਜਾਬੀ</option>
+                </select>
+            </div>
         </div>
 
         <!-- Main Content -->
@@ -6124,6 +6147,180 @@
                 window.vendorMobileHandler.closeSidebar();
             }
         });
+    </script>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         AWS VOICE + LANGUAGE WIDGET
+         Floating mic button → records audio → AWS Transcribe
+         Speaker button      → AWS Polly TTS
+         Language select     → sidebar (above) + AWS Translate on all [data-tr] nodes
+    ═══════════════════════════════════════════════════════════════════════ -->
+    <style>
+        /* Floating voice FAB */
+        #vcVoiceFab{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+        #vcMicBtn{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);border:none;color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:0 4px 16px rgba(102,126,234,.45);transition:transform .15s,box-shadow .15s}
+        #vcMicBtn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(102,126,234,.55)}
+        #vcMicBtn.vc-listening{background:linear-gradient(135deg,#e53e3e,#c53030);animation:vcPulse 1.2s infinite}
+        @keyframes vcPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,62,62,.4)}50%{box-shadow:0 0 0 10px rgba(229,62,62,0)}}
+        #vcMicBtn.vc-processing{opacity:.6;cursor:not-allowed}
+        /* Toast / transcript bubble */
+        #vcToast{display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;max-width:280px;box-shadow:0 4px 16px rgba(0,0,0,.12);font-size:.85rem;color:#2d3748;line-height:1.5;word-break:break-word}
+        #vcToast.visible{display:block}
+        #vcToast .vc-close{float:right;background:none;border:none;cursor:pointer;color:#718096;font-size:.9rem;margin-left:8px}
+        /* TTS mini-player */
+        #vcTtsBar{display:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 14px;box-shadow:0 4px 16px rgba(0,0,0,.12);align-items:center;gap:8px;max-width:280px}
+        #vcTtsBar.visible{display:flex}
+        #vcTtsAudio{height:32px;flex:1;min-width:0}
+        #vcTtsBar button{background:none;border:none;cursor:pointer;color:#718096}
+    </style>
+
+    <div id="vcVoiceFab">
+        <div id="vcToast">
+            <button class="vc-close" onclick="vcCloseToast()">✕</button>
+            <strong>Heard:</strong><br>
+            <span id="vcTranscript">…</span>
+        </div>
+        <div id="vcTtsBar">
+            <i class="fas fa-volume-up" style="color:#667eea;flex-shrink:0"></i>
+            <audio id="vcTtsAudio" controls></audio>
+            <button onclick="vcCloseTts()">✕</button>
+        </div>
+        <button id="vcMicBtn" title="Tap to speak" onclick="vcToggleMic()">🎤</button>
+    </div>
+
+    <script>
+    // ── VendorConnect AWS Voice + Translate Widget ────────────────────────────
+    (function() {
+        let _vcRecorder   = null;
+        let _vcChunks     = [];
+        let _vcListening  = false;
+        let _vcLang       = localStorage.getItem('vc_lang') || 'en';
+        let _vcStopTimer  = null;
+
+        // Sync saved language to sidebar selector on page load
+        const sel = document.getElementById('dashLangSelect');
+        if (sel && _vcLang !== 'en') {
+            sel.value = _vcLang;
+            // Silently translate page labels
+            _vcTranslatePage(_vcLang);
+        }
+
+        window.vcToggleMic = async function() {
+            if (_vcListening) { _vcStop(); return; }
+            const btn = document.getElementById('vcMicBtn');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                _vcChunks = [];
+                _vcRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+                _vcRecorder.addEventListener('dataavailable', e => _vcChunks.push(e.data));
+                _vcRecorder.addEventListener('stop', async () => {
+                    stream.getTracks().forEach(t => t.stop());
+                    await _vcSendAudio();
+                });
+                _vcRecorder.start();
+                _vcListening = true;
+                btn.classList.add('vc-listening');
+                btn.title = 'Tap to stop';
+                btn.textContent = '⏹';
+                _vcStopTimer = setTimeout(_vcStop, 8000);
+            } catch (err) {
+                _vcShowToast('Mic access denied. Please allow microphone permission.');
+            }
+        };
+
+        function _vcStop() {
+            if (_vcStopTimer) { clearTimeout(_vcStopTimer); _vcStopTimer = null; }
+            if (_vcRecorder && _vcRecorder.state !== 'inactive') _vcRecorder.stop();
+            _vcListening = false;
+            const btn = document.getElementById('vcMicBtn');
+            btn.classList.remove('vc-listening');
+            btn.classList.add('vc-processing');
+            btn.title = 'Processing…';
+            btn.textContent = '⏳';
+        }
+
+        async function _vcSendAudio() {
+            const blob = new Blob(_vcChunks, { type: 'audio/webm' });
+            const fd   = new FormData();
+            fd.append('audio', blob, 'rec.webm');
+            fd.append('language', _vcLang);
+            try {
+                const res  = await fetch('/api/voice/transcribe', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success && data.transcript) {
+                    document.getElementById('vcTranscript').textContent = data.transcript;
+                    document.getElementById('vcToast').classList.add('visible');
+                } else {
+                    _vcShowToast(data.message || 'Could not transcribe audio.');
+                }
+            } catch (e) {
+                _vcShowToast('Voice service unavailable.');
+            } finally {
+                const btn = document.getElementById('vcMicBtn');
+                btn.classList.remove('vc-processing');
+                btn.textContent = '🎤';
+                btn.title = 'Tap to speak';
+            }
+        }
+
+        window.vcCloseToast = function() {
+            document.getElementById('vcToast').classList.remove('visible');
+        };
+        window.vcCloseTts = function() {
+            const bar = document.getElementById('vcTtsBar');
+            bar.classList.remove('visible');
+            document.getElementById('vcTtsAudio').pause();
+        };
+
+        // Expose a global TTS function so any page section can call it
+        window.vcSpeak = async function(text, lang) {
+            lang = lang || _vcLang;
+            try {
+                const res  = await fetch('/api/voice/speak', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ text, language: lang }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const audio = document.getElementById('vcTtsAudio');
+                    audio.src   = 'data:audio/mp3;base64,' + data.audio_base64;
+                    document.getElementById('vcTtsBar').classList.add('visible');
+                    audio.play();
+                }
+            } catch (e) { /* silent */ }
+        };
+
+        // Language change handler (called from sidebar select)
+        window.applyDashLanguage = async function(lang) {
+            _vcLang = lang;
+            localStorage.setItem('vc_lang', lang);
+            if (lang !== 'en') await _vcTranslatePage(lang);
+        };
+
+        async function _vcTranslatePage(lang) {
+            // Collect all [data-tr] elements for lightweight translation
+            const nodes = document.querySelectorAll('[data-tr]');
+            if (!nodes.length) return;
+            const texts = Array.from(nodes).map(n => n.dataset.tr);
+            try {
+                const res  = await fetch('/api/translate', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ texts, target: lang }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                    nodes.forEach((n, i) => { n.textContent = data.translated[i]; });
+                }
+            } catch (e) { /* silent */ }
+        }
+
+        function _vcShowToast(msg) {
+            document.getElementById('vcTranscript').textContent = msg;
+            document.getElementById('vcToast').classList.add('visible');
+        }
+    })();
     </script>
 </body>
 </html>
