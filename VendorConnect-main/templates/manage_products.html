@@ -70,8 +70,8 @@
                     {% else %}
                     <!-- Add New Product Form -->
                     <form method="post" class="product-form" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
-                        <input name="name" placeholder="Product name" required style="padding:8px;border-radius:8px;border:1px solid #ddd;">
-                        <select name="category" required style="padding:8px;border-radius:8px;border:1px solid #ddd;min-width:150px;">
+                        <input name="name" id="productNameInput" placeholder="Product name" required style="padding:8px;border-radius:8px;border:1px solid #ddd;">
+                        <select name="category" id="productCategoryInput" required style="padding:8px;border-radius:8px;border:1px solid #ddd;min-width:150px;">
                             <option value="">Select Category</option>
                             {% if categories %}
                                 {% for cat in categories %}
@@ -86,6 +86,47 @@
                         <input name="unit" placeholder="Unit (kg, pcs)" style="padding:8px;border-radius:8px;border:1px solid #ddd;">
                         <button class="ad-button" type="submit">Add Product</button>
                     </form>
+
+                    <!-- 🤖 AWS Rekognition Auto-Tag from Image -->
+                    <div style="background:#f0f4ff;border:1px dashed #667eea;border-radius:10px;padding:16px;margin-bottom:20px;">
+                        <div style="font-weight:600;color:#667eea;margin-bottom:8px;">🤖 Auto-Fill from Image (AWS Rekognition)</div>
+                        <div style="font-size:13px;color:#666;margin-bottom:10px;">Upload a product photo and we'll suggest the name and category automatically.</div>
+                        <input type="file" id="autoTagImageInput" accept="image/*" style="margin-bottom:8px;">
+                        <button type="button" onclick="runAutoTag()" style="background:#667eea;color:#fff;border:none;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:14px;">🔍 Detect Product</button>
+                        <div id="autoTagResult" style="margin-top:10px;font-size:13px;display:none;"></div>
+                    </div>
+                    <script>
+                    async function runAutoTag() {
+                        const fileInput = document.getElementById('autoTagImageInput');
+                        const resultDiv = document.getElementById('autoTagResult');
+                        if (!fileInput.files.length) { alert('Please select an image first.'); return; }
+                        resultDiv.style.display = 'block';
+                        resultDiv.innerHTML = '⏳ Analysing image…';
+                        const formData = new FormData();
+                        formData.append('image', fileInput.files[0]);
+                        try {
+                            const res  = await fetch('/api/product/analyze-image', { method: 'POST', body: formData });
+                            const data = await res.json();
+                            if (data.success && data.auto_tag && data.auto_tag.suggested_name) {
+                                const tag = data.auto_tag;
+                                resultDiv.innerHTML = `✅ Detected: <strong>${tag.suggested_name}</strong> (${tag.confidence}% confidence) → category: <strong>${tag.suggested_category}</strong>
+                                    <br><button type="button" onclick="applyAutoTag('${tag.suggested_name}','${tag.suggested_category}')" style="margin-top:6px;background:#27ae60;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;">✔ Use This</button>`;
+                            } else {
+                                resultDiv.innerHTML = '⚠️ Could not detect product from this image. Please fill manually.';
+                            }
+                        } catch(e) {
+                            resultDiv.innerHTML = '❌ Error: ' + e.message;
+                        }
+                    }
+                    function applyAutoTag(name, category) {
+                        document.getElementById('productNameInput').value = name;
+                        const sel = document.getElementById('productCategoryInput');
+                        for (let i = 0; i < sel.options.length; i++) {
+                            if (sel.options[i].value === category) { sel.selectedIndex = i; break; }
+                        }
+                        document.getElementById('autoTagResult').innerHTML = '✅ Fields filled! Review and submit.';
+                    }
+                    </script>
                     {% endif %}
 
                     {% if not edit_product %}

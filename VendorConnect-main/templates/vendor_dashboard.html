@@ -2268,6 +2268,7 @@
         window.vendorBusinessType = "{{ vendor.business_type }}";
         window.vendorLogo = "{{ vendor.logo or '' }}";
         window.vendorHero = "{{ vendor.hero_image or '' }}";
+        window.__vendorId = {{ vendor.id }};  // used by loadReviewsSentiment, speakOrder, etc.
     </script>
     <div class="dashboard">
         <!-- Sidebar -->
@@ -2447,6 +2448,20 @@
                         <div class="stat-number" id="verified-suppliers">0</div>
                         <div class="stat-label">Verified Suppliers</div>
                     </div>
+                    <div class="stat-card" style="cursor:pointer;" onclick="loadReviewsSentiment()" title="Click to refresh">
+                        <div class="stat-number" id="review-sentiment-emoji" style="font-size:32px;">😐</div>
+                        <div class="stat-label">Customer Mood</div>
+                        <div style="font-size:11px;color:#aaa;margin-top:2px;" id="review-sentiment-label">—</div>
+                    </div>
+                </div>
+
+                <!-- Customer Reviews Sentiment Panel -->
+                <div class="card" id="reviews-sentiment-card" style="display:none;">
+                    <div class="card-header">
+                        <h3 class="card-title">💬 Customer Reviews <span style="font-size:12px;font-weight:400;color:#aaa;" id="reviews-count-badge"></span></h3>
+                        <i class="fas fa-smile card-icon"></i>
+                    </div>
+                    <div id="reviews-list" style="display:flex;flex-direction:column;gap:12px;padding:8px 0;"></div>
                 </div>
 
                 <!-- Recent Products -->
@@ -3579,6 +3594,9 @@
                     document.getElementById('active-group-orders').textContent = stats.active_group_orders || 0;
                     document.getElementById('verified-suppliers').textContent = stats.verified_suppliers || 0;
                 }
+
+                // Load customer review sentiment
+                loadReviewsSentiment();
                 
                 // Show recent products
                 displayRecentProducts();
@@ -3825,6 +3843,7 @@
                         <div class="product-actions" style="margin-top:8px; display:flex; gap:8px;">
                             <button class="btn btn-secondary" onclick="viewOrderDetails('${order.id}')">Details</button>
                             <button class="btn btn-primary" onclick="openDeliveryMap('${order.id}')">Track Delivery</button>
+                            <button class="btn btn-secondary" title="Read order aloud" onclick="speakOrder(${order.id})" style="padding:6px 10px; font-size:16px; cursor:pointer;">🔊</button>
                         </div>
                     </div>
                 `;
@@ -4264,7 +4283,82 @@
             alert(`Order #${order.id}\nSupplier: ${order.supplier_name}\nAmount: ₹${order.total_amount}\nStatus: ${order.status}\nETA: ${order.eta}`);
         }
 
-        // Delivery Map logic
+        // ── � Comprehend: Load customer review sentiment ──────────────────
+        async function loadReviewsSentiment() {
+            const vendorId = window.__vendorId;
+            if (!vendorId) return;
+            try {
+                const res  = await fetch(`/api/vendor/${vendorId}/reviews`);
+                const data = await res.json();
+                if (!data.success) return;
+
+                const reviews = data.reviews || [];
+                // Aggregate sentiment
+                const counts = { POSITIVE: 0, NEGATIVE: 0, NEUTRAL: 0, MIXED: 0 };
+                reviews.forEach(r => counts[r.sentiment] = (counts[r.sentiment] || 0) + 1);
+                const dominant = Object.entries(counts).sort((a,b) => b[1]-a[1])[0];
+                const emojiMap = { POSITIVE:'😊', NEGATIVE:'😠', NEUTRAL:'😐', MIXED:'🤔' };
+                if (dominant) {
+                    document.getElementById('review-sentiment-emoji').textContent = emojiMap[dominant[0]] || '😐';
+                    document.getElementById('review-sentiment-label').textContent  = dominant[0];
+                }
+                document.getElementById('reviews-count-badge').textContent = `${reviews.length} review${reviews.length !== 1 ? 's' : ''}`;
+
+                // Render review cards
+                const listEl = document.getElementById('reviews-list');
+                if (reviews.length === 0) {
+                    listEl.innerHTML = '<div style="color:#aaa;padding:12px;">No reviews yet.</div>';
+                } else {
+                    listEl.innerHTML = reviews.slice(0, 10).map(r => `
+                        <div style="background:#f8f9fa;border-radius:10px;padding:14px 16px;border-left:4px solid ${r.sentiment==='POSITIVE'?'#27ae60':r.sentiment==='NEGATIVE'?'#e74c3c':'#95a5a6'};">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                                <div>
+                                    <strong>${r.customer_name}</strong>
+                                    <span style="margin-left:8px;color:#f39c12;">${'⭐'.repeat(r.rating)}</span>
+                                </div>
+                                <span style="font-size:20px;" title="${r.sentiment}">${r.sentiment_emoji}</span>
+                            </div>
+                            ${r.review_text ? `<div style="color:#555;font-size:14px;">"${r.review_text}"</div>` : ''}
+                            <div style="font-size:11px;color:#aaa;margin-top:6px;">${r.created_at}</div>
+                        </div>
+                    `).join('');
+                }
+                document.getElementById('reviews-sentiment-card').style.display = 'block';
+            } catch(e) {
+                console.warn('Could not load reviews sentiment:', e);
+            }
+        }
+
+        // ── �🔊 Polly: Read order summary aloud ─────────────────────────────
+        async function speakOrder(orderId) {
+            const btn = event.currentTarget;
+            btn.textContent = '⏳';
+            btn.disabled = true;
+            try {
+                const lang = document.getElementById('languageSelect')?.value || 'en';
+                const res  = await fetch(`/api/vendor/orders/${orderId}/speak`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ language: lang })
+                });
+                const data = await res.json();
+                if (data.success && data.audio_base64) {
+                    const audio = new Audio('data:audio/mp3;base64,' + data.audio_base64);
+                    audio.play();
+                    btn.textContent = '🔊';
+                } else {
+                    btn.textContent = '🔇';
+                    setTimeout(() => btn.textContent = '🔊', 2000);
+                }
+            } catch (e) {
+                btn.textContent = '🔇';
+                setTimeout(() => btn.textContent = '🔊', 2000);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+
         let deliveryMap = null;
         let deliveryMarkers = [];
 

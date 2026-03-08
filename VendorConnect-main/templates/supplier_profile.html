@@ -206,12 +206,26 @@ document.addEventListener('DOMContentLoaded', function(){
           const data = await resp.json();
 
           const v = data.verification || {};
+          const ext = data.extracted || {};  // Textract fields
+
+          // Build extracted fields HTML
+          let extractedHTML = '';
+          if (ext.gstin || ext.business_name || ext.fssai) {
+              extractedHTML = `<div style="margin-top:8px;background:rgba(255,255,255,0.6);border-radius:8px;padding:8px 12px;font-size:.82rem;">
+                  <strong>📄 Auto-Extracted Fields:</strong><br>`;
+              if (ext.business_name) extractedHTML += `Business: <strong>${ext.business_name}</strong><br>`;
+              if (ext.gstin)         extractedHTML += `GSTIN: <code style="background:#e0e7ff;padding:2px 6px;border-radius:4px;">${ext.gstin}</code><br>`;
+              if (ext.fssai)         extractedHTML += `FSSAI: <code style="background:#e0e7ff;padding:2px 6px;border-radius:4px;">${ext.fssai}</code>`;
+              extractedHTML += '</div>';
+          }
+
           if (v.verified) {
               verifyResult.style.cssText = 'display:block;background:#d1fae5;border:1px solid #6ee7b7;border-radius:10px;padding:10px 14px;font-size:.88rem';
               verifyResult.innerHTML = `
                   <strong style="color:#065f46">✅ Document Verified!</strong><br>
                   Confidence: <strong>${v.confidence}%</strong><br>
                   Detected: ${(v.detected_text || []).slice(0,3).join(' · ') || 'N/A'}
+                  ${extractedHTML}
               `;
           } else {
               verifyResult.style.cssText = 'display:block;background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:10px 14px;font-size:.88rem';
@@ -219,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function(){
                   <strong style="color:#991b1b">❌ Verification Failed</strong><br>
                   ${v.reason || 'Could not verify document.'}<br>
                   <small>Confidence: ${v.confidence}% — Upload a clear scan of GSTIN/FSSAI certificate.</small>
+                  ${extractedHTML}
               `;
           }
       } catch (err) {

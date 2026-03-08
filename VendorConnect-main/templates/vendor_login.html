@@ -750,5 +750,99 @@ if (localStorage.getItem('darkMode') === 'enabled' || (localStorage.getItem('dar
     setDarkMode(false);
 }
 </script>
+
+<!-- ── AWS Cognito MFA Modal ─────────────────────────────────────────────── -->
+<div id="mfaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:32px;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.2)">
+    <div style="font-size:48px;margin-bottom:12px">🔐</div>
+    <h2 style="color:#333;margin-bottom:8px">Two-Factor Authentication</h2>
+    <p style="color:#666;font-size:14px;margin-bottom:24px" id="mfaDesc">Enter the 6-digit code sent to your phone.</p>
+    <input id="mfaCodeInput" type="text" maxlength="6" inputmode="numeric" placeholder="123456"
+      style="width:100%;padding:14px;font-size:22px;letter-spacing:8px;text-align:center;border:2px solid #e2e8f0;border-radius:10px;outline:none;margin-bottom:16px"
+      oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)">
+    <button onclick="submitMFACode()" style="width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer">
+      ✅ Verify
+    </button>
+    <p id="mfaError" style="color:#e53e3e;font-size:13px;margin-top:12px;display:none"></p>
+    <button onclick="document.getElementById('mfaModal').style.display='none'" style="margin-top:12px;background:none;border:none;color:#888;cursor:pointer;font-size:13px">Cancel</button>
+  </div>
+</div>
+
+<script>
+// ── AWS Cognito MFA support ────────────────────────────────────────────────
+let _cognitoMfaSession  = '';
+let _cognitoMfaEmail    = '';
+let _cognitoMfaChallenge = 'SMS_MFA';
+
+// Intercept normal login form to optionally run Cognito first
+// (falls back to standard login if Cognito is not configured)
+(function() {
+    const form = document.querySelector('form[action*="login"], #loginForm, form');
+    if (!form) return;
+    form.addEventListener('submit', async function(e) {
+        const phoneInput = document.getElementById('phone');
+        const passInput  = document.getElementById('password');
+        if (!phoneInput || !passInput) return;  // let default submit proceed
+
+        const email    = phoneInput.value.trim();
+        const password = passInput.value;
+
+        // Try Cognito first (silently, only if it's an email)
+        if (email.includes('@')) {
+            try {
+                const res = await fetch('/api/auth/cognito/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({email, password})
+                });
+                const data = await res.json();
+                if (data.challenge) {
+                    // MFA required — stop normal submit, show MFA modal
+                    e.preventDefault();
+                    _cognitoMfaSession   = data.session;
+                    _cognitoMfaEmail     = email;
+                    _cognitoMfaChallenge = data.challenge;
+                    document.getElementById('mfaDesc').textContent =
+                        data.challenge === 'SMS_MFA'
+                            ? 'Enter the 6-digit code sent to your phone via SMS.'
+                            : 'Enter the 6-digit code from your authenticator app.';
+                    document.getElementById('mfaModal').style.display = 'flex';
+                }
+                // If Cognito succeeds or fails (not configured), fall through to normal submit
+            } catch(err) {
+                // Cognito not reachable — let normal login proceed
+            }
+        }
+    });
+})();
+
+async function submitMFACode() {
+    const code  = document.getElementById('mfaCodeInput').value.trim();
+    const errEl = document.getElementById('mfaError');
+    errEl.style.display = 'none';
+    if (code.length !== 6) { errEl.textContent = 'Enter a 6-digit code.'; errEl.style.display='block'; return; }
+    try {
+        const res = await fetch('/api/auth/cognito/mfa', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email: _cognitoMfaEmail, mfa_code: code,
+                                  session: _cognitoMfaSession, challenge: _cognitoMfaChallenge})
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.getElementById('mfaModal').style.display = 'none';
+            // MFA passed — submit the original form to establish Flask session
+            const form = document.querySelector('form');
+            if (form) form.submit();
+        } else {
+            errEl.textContent = data.message || 'Invalid code. Try again.';
+            errEl.style.display = 'block';
+        }
+    } catch(err) {
+        errEl.textContent = 'Network error. Please try again.';
+        errEl.style.display = 'block';
+    }
+}
+</script>
 </body>
 </html> 

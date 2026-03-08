@@ -1431,6 +1431,88 @@
                 showToast('Error generating tracking link', 'error');
             }
         }
+
+        // ── AWS Location Service – Route Optimisation ─────────────────────────
+        async function calculateDeliveryRoute() {
+            const oLat = parseFloat(document.getElementById('routeOriginLat').value);
+            const oLng = parseFloat(document.getElementById('routeOriginLng').value);
+            const dLat = parseFloat(document.getElementById('routeDestLat').value);
+            const dLng = parseFloat(document.getElementById('routeDestLng').value);
+            if (isNaN(oLat) || isNaN(oLng) || isNaN(dLat) || isNaN(dLng)) {
+                showToast('Enter valid coordinates', 'error'); return;
+            }
+            const btn = document.getElementById('routeCalcBtn');
+            btn.textContent = '⏳ Calculating…'; btn.disabled = true;
+            try {
+                const res = await fetch('/api/delivery/route', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({origin_lat: oLat, origin_lng: oLng,
+                                          dest_lat: dLat, dest_lng: dLng})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    const r = data.route;
+                    const src = r.source === 'aws_location' ? '📡 AWS Location' : '📐 Straight-line estimate';
+                    document.getElementById('routeResult').innerHTML = `
+                      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px">
+                        <div style="background:#ebf8ff;border-radius:10px;padding:12px 18px;flex:1;min-width:100px;text-align:center">
+                          <div style="font-size:22px;font-weight:700;color:#2b6cb0">${r.distance_km} km</div>
+                          <div style="font-size:12px;color:#4a5568">Distance</div>
+                        </div>
+                        <div style="background:#f0fff4;border-radius:10px;padding:12px 18px;flex:1;min-width:100px;text-align:center">
+                          <div style="font-size:22px;font-weight:700;color:#276749">${r.duration_minutes} min</div>
+                          <div style="font-size:12px;color:#4a5568">Est. Time</div>
+                        </div>
+                      </div>
+                      <div style="font-size:11px;color:#888;margin-top:8px;text-align:right">${src}</div>`;
+                } else {
+                    document.getElementById('routeResult').innerHTML = '<p style="color:#e53e3e">Route calculation failed.</p>';
+                }
+            } catch(e) {
+                document.getElementById('routeResult').innerHTML = '<p style="color:#e53e3e">Network error.</p>';
+            }
+            btn.textContent = '🗺️ Calculate Route'; btn.disabled = false;
+        }
+
+        // ── Share live location with AWS Location tracker ─────────────────────
+        function startLiveTracking() {
+            if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
+            showToast('📍 Live tracking started', 'success');
+            navigator.geolocation.watchPosition(async pos => {
+                const {latitude: lat, longitude: lng} = pos.coords;
+                document.getElementById('liveLocDisplay').textContent = `📍 ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                try {
+                    await fetch('/api/delivery/location', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({lat, lng})
+                    });
+                } catch(e) {}
+            }, err => console.warn('Geolocation error', err), {enableHighAccuracy: true, maximumAge: 10000});
+        }
     </script>
+
+    <!-- ── AWS Location Service Panel ─────────────────────────────────────── -->
+    <div style="position:fixed;bottom:20px;left:20px;background:#fff;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:16px;width:300px;z-index:1000;border:1px solid #e2e8f0">
+      <div style="font-weight:700;color:#2d3748;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+        <span>🗺️</span> Route Optimiser <span style="font-size:10px;background:#ebf8ff;color:#2b6cb0;border-radius:20px;padding:2px 8px">AWS Location</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+        <input id="routeOriginLat"  placeholder="Origin Lat"  type="number" step="any" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+        <input id="routeOriginLng"  placeholder="Origin Lng"  type="number" step="any" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+        <input id="routeDestLat"    placeholder="Dest Lat"    type="number" step="any" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+        <input id="routeDestLng"    placeholder="Dest Lng"    type="number" step="any" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
+      </div>
+      <button id="routeCalcBtn" onclick="calculateDeliveryRoute()" style="width:100%;padding:8px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600">
+        🗺️ Calculate Route
+      </button>
+      <div id="routeResult"></div>
+      <hr style="margin:10px 0;border:none;border-top:1px solid #e2e8f0">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span id="liveLocDisplay" style="font-size:11px;color:#888">📍 Not tracking</span>
+        <button onclick="startLiveTracking()" style="padding:5px 10px;background:#48bb78;color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer">Go Live</button>
+      </div>
+    </div>
 </body>
 </html>

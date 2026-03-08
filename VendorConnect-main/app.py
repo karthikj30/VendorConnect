@@ -607,14 +607,9 @@ def fetch_google_userinfo(access_token):
 
 
 def send_otp_email(email, otp):
-    """Send OTP email to user"""
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = app.config['MAIL_USERNAME']
-        msg['To'] = email
-        msg['Subject'] = "VendorConnect - Password Reset OTP"
-        
-        body = f"""
+    """Send OTP email to user — tries AWS SES first, falls back to SMTP."""
+    subject = "VendorConnect - Password Reset OTP"
+    body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 10px 10px 0 0; text-align: center;">
@@ -640,7 +635,7 @@ def send_otp_email(email, otp):
                 </div>
                 
                 <p style="color: #666; font-size: 14px; margin-top: 30px;">
-                    This email was sent from <strong>hackathongoo@gmail.com</strong><br>
+                    This email was sent from VendorConnect<br>
                     For support, please contact our team.
                 </p>
             </div>
@@ -652,20 +647,29 @@ def send_otp_email(email, otp):
         </body>
         </html>
         """
-        
+
+    # ── Try AWS SES first ──────────────────────────────────────────────────────
+    try:
+        if AWS_ENABLED and send_ses_email(email, subject, body):
+            return True
+    except Exception:
+        pass
+
+    # ── Fallback: Gmail SMTP ───────────────────────────────────────────────────
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = email
+        msg['Subject'] = subject
         msg.attach(MIMEText(body, 'html'))
-        
         server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
         server.starttls()
         server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
-        text = msg.as_string()
-        server.sendmail(app.config['MAIL_USERNAME'], email, text)
+        server.sendmail(app.config['MAIL_USERNAME'], email, msg.as_string())
         server.quit()
-        
         return True
     except Exception as e:
         print(f"Error sending email: {e}")
-        # Fallback to mock email service for testing
         return send_mock_otp_email(email, otp)
 
 def send_mock_otp_email(email, otp):
@@ -979,6 +983,8 @@ class CustomerReview(db.Model):
     review_text = db.Column(db.Text, nullable=True)
     image = db.Column(db.String(300), nullable=True)
     helpful_votes = db.Column(db.Integer, default=0)
+    sentiment = db.Column(db.String(20), nullable=True)        # POSITIVE / NEGATIVE / NEUTRAL / MIXED
+    sentiment_emoji = db.Column(db.String(5), nullable=True)   # 😊 😠 😐 🤔
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -3006,7 +3012,19 @@ def get_price_alerts():
         
         if business_alerts:
             alerts = business_alerts + alerts[:2]  # Show business-specific alerts first
-    
+
+    # ── Publish SQS event for triggered alerts (async processing) ────────────
+    if AWS_ENABLED and vendor_id and alerts:
+        try:
+            publish_group_order_event('PRICE_ALERT_TRIGGERED', {
+                'vendor_id':   vendor_id,
+                'alert_count': len(alerts),
+                'top_product': alerts[0].get('product', '') if alerts else '',
+                'timestamp':   datetime.utcnow().isoformat(),
+            })
+        except Exception:
+            pass  # Non-critical – don't block the response
+
     return jsonify(alerts)
 
 @app.route('/api/vendor/orders')
@@ -3047,7 +3065,57 @@ def get_vendor_orders():
     
     return jsonify(orders_data)
 
-@app.route('/api/order/<order_id>/delivery')
+
+@app.route('/api/vendor/orders/<int:order_id>/speak', methods=['POST'])
+def speak_order_summary(order_id):
+    """
+    Use Amazon Polly to read an order summary aloud.
+    Returns base64 MP3 audio of the order details.
+    POST body: { "language": "hi" }  (optional, defaults to 'en')
+    """
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Please login first'}), 401
+
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+
+    order = db.session.get(Order, order_id)
+    if not order or order.vendor_id != session['vendor_id']:
+        return jsonify({'success': False, 'message': 'Order not found'}), 404
+
+    supplier = db.session.get(Supplier, order.supplier_id)
+    items    = OrderItem.query.filter_by(order_id=order.id).all()
+
+    # Build a natural-language summary
+    item_descriptions = []
+    for item in items:
+        product = db.session.get(Product, item.product_id)
+        if product:
+            item_descriptions.append(f"{item.quantity} {product.unit} of {product.name}")
+
+    summary_parts = [
+        f"Order number {order.id}.",
+        f"Supplier: {supplier.name if supplier else 'Unknown'}.",
+        f"Total amount: {int(order.total_amount)} rupees.",
+        f"Status: {order.status}.",
+    ]
+    if item_descriptions:
+        summary_parts.append("Items ordered: " + ", ".join(item_descriptions) + ".")
+
+    summary_text = " ".join(summary_parts)
+
+    data     = request.get_json(silent=True) or {}
+    language = data.get('language', 'en')
+
+    try:
+        audio_b64 = text_to_speech_base64(summary_text, language)
+        return jsonify({'success': True, 'audio_base64': audio_b64, 'text': summary_text})
+    except Exception as exc:
+        app.logger.error('Polly order speak failed: %s', exc)
+        return jsonify({'success': False, 'message': 'TTS failed'}), 500
+
+
+
 def get_order_delivery(order_id):
     """Return mock delivery tracking info for a given order"""
     # Simple mocked coordinates around Mumbai
@@ -4620,7 +4688,7 @@ def api_vendor_customer_order_action(order_id):
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index_new'))
+    return redirect(url_for('index'))
 
 
 @app.route('/vendor/dashboard')
@@ -8085,15 +8153,39 @@ def submit_review():
     """Submit a review for a vendor"""
     try:
         customer_id = session['customer_id']
-        data = request.get_json() or {}
-        
-        vendor_id = data.get('vendor_id')
-        order_id = data.get('order_id')
-        rating = data.get('rating', 5)
-        food_quality = data.get('food_quality')
-        delivery_speed = data.get('delivery_speed')
-        packaging = data.get('packaging')
-        review_text = (data.get('review_text') or '').strip()
+
+        # Support both JSON and multipart/form-data (file upload uses FormData)
+        if request.content_type and 'application/json' in request.content_type:
+            data = request.get_json() or {}
+            vendor_id     = data.get('vendor_id')
+            order_id      = data.get('order_id')
+            rating        = int(data.get('rating', 5))
+            food_quality  = data.get('food_quality')
+            delivery_speed = data.get('delivery_speed')
+            packaging     = data.get('packaging')
+            review_text   = (data.get('review_text') or '').strip()
+        else:
+            # multipart/form-data (FormData from browser)
+            vendor_id     = request.form.get('vendor_id')
+            order_id      = request.form.get('order_id') or None
+            rating        = int(request.form.get('rating', 5))
+            fq = request.form.get('food_quality')
+            ds = request.form.get('delivery_speed')
+            pk = request.form.get('packaging')
+            food_quality  = int(fq) if fq else None
+            delivery_speed = int(ds) if ds else None
+            packaging     = int(pk) if pk else None
+            review_text   = (request.form.get('review_text') or '').strip()
+
+        # Coerce vendor_id / order_id to int safely
+        try:
+            vendor_id = int(vendor_id) if vendor_id else None
+        except (ValueError, TypeError):
+            vendor_id = None
+        try:
+            order_id = int(order_id) if order_id else None
+        except (ValueError, TypeError):
+            order_id = None
         
         if not vendor_id or rating < 1 or rating > 5:
             return jsonify({'success': False, 'message': 'Invalid rating or vendor'}), 400
@@ -8137,7 +8229,16 @@ def submit_review():
             review_text=review_text,
             image=image_path
         )
-        
+
+        # ── AWS Comprehend: analyse review sentiment ──────────────────────────
+        if AWS_ENABLED and review_text:
+            try:
+                senti = analyze_sentiment(review_text)
+                review.sentiment       = senti.get('sentiment', 'NEUTRAL')
+                review.sentiment_emoji = senti.get('emoji', '😐')
+            except Exception as _se:
+                app.logger.warning('Comprehend sentiment skipped: %s', _se)
+
         db.session.add(review)
         db.session.commit()
         
@@ -8173,6 +8274,8 @@ def get_vendor_reviews(vendor_id):
                 'review_text': review.review_text,
                 'image': review.image,
                 'helpful_votes': review.helpful_votes,
+                'sentiment': review.sentiment or 'NEUTRAL',
+                'sentiment_emoji': review.sentiment_emoji or '😐',
                 'customer_name': customer.name if customer else 'Anonymous',
                 'created_at': format_ist_time(review.created_at, '%d %b %Y')
             })
@@ -8814,6 +8917,33 @@ try:
         analyze_food_image,
         S3_BUCKET_NAME,
         AWS_REGION,
+        # Comprehend / SES / Textract / Rekognition auto-tag
+        analyze_sentiment,
+        send_ses_email,
+        extract_document_fields,
+        auto_tag_product_image,
+        # DynamoDB – chat & notifications
+        save_chat_message,
+        get_chat_messages,
+        save_notification,
+        get_notifications,
+        # Lambda + EventBridge
+        invoke_lambda,
+        schedule_order_expiry,
+        trigger_scheduled_report,
+        # Location Service
+        calculate_route,
+        create_geofence,
+        check_geofence,
+        update_device_position,
+        # Personalize
+        get_recommendations,
+        record_user_event,
+        # Cognito
+        cognito_register,
+        cognito_login,
+        cognito_verify_mfa,
+        cognito_confirm_registration,
     )
     AWS_ENABLED = True
 except ImportError:
@@ -8882,7 +9012,7 @@ def voice_transcribe():
     if transcript is None:
         return jsonify({
             'success': False,
-            'message': 'Transcription unavailable – AWS Transcribe/S3 not configured or credentials missing',
+            'message': 'Transcription failed – audio may be too short, silent, or in an unsupported format. Please try again.',
             'aws_enabled': AWS_ENABLED,
         }), 503
 
@@ -8952,7 +9082,7 @@ def verify_supplier_doc():
     Accepts: multipart/form-data with 'document' file field.
     Returns verification result with confidence score.
     """
-    if 'supplier_id' not in session:
+    if 'supplier_id' not in session and 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'}), 401
 
     if not AWS_ENABLED:
@@ -8982,6 +9112,14 @@ def verify_supplier_doc():
 
     result = verify_supplier_document(image_bytes)
 
+    # ── AWS Textract: extract GSTIN / business name / FSSAI from document ────
+    textract_data = {}
+    if AWS_ENABLED:
+        try:
+            textract_data = extract_document_fields(image_bytes)
+        except Exception as _te:
+            app.logger.warning('Textract extraction skipped: %s', _te)
+
     # If verified, update supplier's verification_status and save doc to S3
     if result['verified']:
         supplier = db.session.get(Supplier, session['supplier_id'])
@@ -9004,17 +9142,29 @@ def verify_supplier_doc():
             if s3_url:
                 supplier.certification = s3_url
             supplier.verification_status = True
+            # Auto-fill GSTIN from Textract if not already set
+            if textract_data.get('gstin') and not getattr(supplier, 'gstin', None):
+                try:
+                    supplier.gstin = textract_data['gstin']
+                except Exception:
+                    pass
             db.session.commit()
 
     return jsonify({
         'success': True,
         'verification': result,
+        'extracted': {
+            'gstin':         textract_data.get('gstin'),
+            'business_name': textract_data.get('business_name'),
+            'fssai':         textract_data.get('fssai'),
+            'raw_text':      textract_data.get('raw_text', '')[:300],  # first 300 chars
+        },
     })
 
 
 @app.route('/api/product/analyze-image', methods=['POST'])
 def analyze_product_image():
-    """Analyze a product image for food detection and safety."""
+    """Analyze a product image for food detection, safety, and auto-tagging."""
     if not AWS_ENABLED:
         return jsonify({'success': False, 'message': 'AWS not configured'}), 503
 
@@ -9023,8 +9173,27 @@ def analyze_product_image():
         return jsonify({'success': False, 'message': 'No image provided'}), 400
 
     img_bytes = img_file.read()
-    result    = analyze_food_image(img_bytes)
-    return jsonify({'success': True, 'analysis': result})
+
+    # Food analysis (existing)
+    analysis = analyze_food_image(img_bytes)
+
+    # Auto-tag: suggested name + category (new)
+    tag_result = {}
+    try:
+        tag_result = auto_tag_product_image(img_bytes)
+    except Exception as _te:
+        app.logger.warning('Auto-tag skipped: %s', _te)
+
+    return jsonify({
+        'success':  True,
+        'analysis': analysis,
+        'auto_tag': {
+            'suggested_name':     tag_result.get('suggested_name', ''),
+            'suggested_category': tag_result.get('suggested_category', 'other'),
+            'labels':             tag_result.get('labels', []),
+            'confidence':         tag_result.get('confidence', 0),
+        },
+    })
 
 
 # ── SMS OTP via AWS SNS ───────────────────────────────────────────────────────
@@ -9274,10 +9443,11 @@ def process_expired_group_orders():
     Can be called by a scheduled task or AWS Lambda via HTTP trigger.
     Marks orders as expired & sends SQS events.
     """
-    # Simple auth via secret header (replace with proper Lambda auth in production)
+    # Auth: accept either a logged-in vendor session OR the internal secret header
+    # (header is used by scheduled Lambda/cron triggers; session is used by the dashboard)
     secret = request.headers.get('X-Internal-Secret', '')
     expected = os.environ.get('INTERNAL_SECRET', 'vendorconnect-internal')
-    if secret != expected:
+    if secret != expected and 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 403
 
     expiry_hours = int(request.args.get('hours', 24))
@@ -9380,9 +9550,346 @@ if __name__ == '__main__':
         create_sample_orders()
         create_sample_vendors()
         create_sample_menu_items()
-    
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DynamoDB – Real-time Chat
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/chat/send', methods=['POST'])
+def chat_send():
+    """Send a chat message (stored in DynamoDB)."""
+    if 'vendor_id' not in session and 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    data = request.get_json(silent=True) or {}
+    room_id     = data.get('room_id', '')
+    message     = (data.get('message') or '').strip()
+    msg_type    = data.get('type', 'text')
+    if not room_id or not message:
+        return jsonify({'success': False, 'message': 'room_id and message required'}), 400
+
+    if 'vendor_id' in session:
+        sender_id   = f"vendor_{session['vendor_id']}"
+        sender_name = session.get('vendor_name', 'Vendor')
+    else:
+        sender_id   = f"customer_{session['customer_id']}"
+        sender_name = session.get('customer_name', 'Customer')
+
+    if not AWS_ENABLED:
+        return jsonify({'success': True, 'message': message, 'sender': sender_name,
+                        'note': 'AWS DynamoDB not configured – message not persisted'}), 200
+
+    saved = save_chat_message(room_id, sender_id, sender_name, message, msg_type)
+    return jsonify({'success': True, 'message_id': saved.get('msg_id', ''),
+                    'timestamp': saved.get('timestamp', ''), 'sender': sender_name})
+
+
+@app.route('/api/chat/messages/<room_id>', methods=['GET'])
+def chat_get_messages(room_id):
+    """Fetch last 50 messages for a chat room."""
+    if 'vendor_id' not in session and 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    if not AWS_ENABLED:
+        return jsonify({'success': True, 'messages': [], 'note': 'DynamoDB not configured'})
+    msgs = get_chat_messages(room_id, limit=50)
+    return jsonify({'success': True, 'messages': msgs})
+
+
+@app.route('/api/notifications', methods=['GET'])
+def get_user_notifications():
+    """Fetch DynamoDB live notifications for the current user."""
+    if 'vendor_id' not in session and 'customer_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    if 'vendor_id' in session:
+        user_id = f"vendor_{session['vendor_id']}"
+    else:
+        user_id = f"customer_{session['customer_id']}"
+    unread_only = request.args.get('unread', 'false').lower() == 'true'
+    if not AWS_ENABLED:
+        return jsonify({'success': True, 'notifications': []})
+    notifs = get_notifications(user_id, unread_only=unread_only)
+    return jsonify({'success': True, 'notifications': notifs})
+
+
+@app.route('/api/notifications/send', methods=['POST'])
+def send_notification_api():
+    """Save a notification to DynamoDB for a target user."""
+    data      = request.get_json(silent=True) or {}
+    user_id   = data.get('user_id', '')
+    title     = data.get('title', 'Notification')
+    body      = data.get('body', '')
+    notif_type = data.get('type', 'info')
+    link      = data.get('link', '')
+    if not user_id:
+        return jsonify({'success': False, 'message': 'user_id required'}), 400
+    if not AWS_ENABLED:
+        return jsonify({'success': True, 'note': 'DynamoDB not configured – notification not saved'})
+    saved = save_notification(user_id, title, body, notif_type, link)
+    return jsonify({'success': True, 'notif_id': saved.get('notif_id', '')})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lambda + EventBridge – Order Expiry & Scheduled Reports
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/orders/<int:order_id>/schedule-expiry', methods=['POST'])
+def schedule_expiry(order_id):
+    """
+    Schedule automatic expiry of a group order via EventBridge.
+    POST body: { "expire_at": "2026-03-09T18:00:00Z" }
+    """
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    data       = request.get_json(silent=True) or {}
+    expire_at  = data.get('expire_at', '')
+    if not expire_at:
+        return jsonify({'success': False, 'message': 'expire_at (ISO timestamp) required'}), 400
+    ok = schedule_order_expiry(order_id, order_id, expire_at)
+    return jsonify({'success': ok,
+                    'message': 'Expiry scheduled' if ok else 'EventBridge unavailable – event not scheduled'})
+
+
+@app.route('/api/vendor/trigger-report', methods=['POST'])
+def trigger_report():
+    """
+    Trigger an async scheduled analytics report via EventBridge → Lambda.
+    POST body: { "report_type": "daily_summary" }
+    """
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    data        = request.get_json(silent=True) or {}
+    report_type = data.get('report_type', 'daily_summary')
+    ok = trigger_scheduled_report(session['vendor_id'], report_type)
+    return jsonify({'success': ok,
+                    'message': f'{report_type} report triggered' if ok else 'EventBridge unavailable'})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Location Service – Route Optimisation & Geofencing
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/delivery/route', methods=['POST'])
+def get_delivery_route():
+    """
+    Calculate optimised delivery route between two coordinates.
+    POST body: { "origin_lat": 12.9, "origin_lng": 77.5,
+                 "dest_lat": 12.95, "dest_lng": 77.55 }
+    """
+    data       = request.get_json(silent=True) or {}
+    origin_lat = float(data.get('origin_lat', 0))
+    origin_lng = float(data.get('origin_lng', 0))
+    dest_lat   = float(data.get('dest_lat', 0))
+    dest_lng   = float(data.get('dest_lng', 0))
+    if not (origin_lat or origin_lng or dest_lat or dest_lng):
+        return jsonify({'success': False, 'message': 'origin and destination coordinates required'}), 400
+    result = calculate_route(origin_lat, origin_lng, dest_lat, dest_lng)
+    return jsonify({'success': True, 'route': result})
+
+
+@app.route('/api/delivery/geofence', methods=['POST'])
+def setup_geofence():
+    """
+    Create a circular geofence around a vendor's shop.
+    POST body: { "geofence_id": "vendor_12", "lat": 12.9, "lng": 77.5, "radius_m": 500 }
+    """
+    if 'vendor_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    data        = request.get_json(silent=True) or {}
+    geofence_id = data.get('geofence_id') or f"vendor_{session['vendor_id']}"
+    lat         = float(data.get('lat', 0))
+    lng         = float(data.get('lng', 0))
+    radius      = float(data.get('radius_m', 500))
+    ok = create_geofence(geofence_id, lat, lng, radius)
+    return jsonify({'success': ok,
+                    'message': f'Geofence {geofence_id} created' if ok else 'Location Service unavailable'})
+
+
+@app.route('/api/delivery/location', methods=['POST'])
+def update_agent_location_aws():
+    """
+    Update delivery agent live position (AWS Location tracker).
+    POST body: { "lat": 12.9, "lng": 77.5 }
+    """
+    if 'delivery_agent_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated as delivery agent'}), 401
+    if not AWS_ENABLED:
+        return jsonify({'success': True, 'note': 'AWS not configured – position not tracked'})
+    data = request.get_json(silent=True) or {}
+    lat  = float(data.get('lat', 0))
+    lng  = float(data.get('lng', 0))
+    ok   = update_device_position(f"agent_{session['delivery_agent_id']}", lat, lng)
+    return jsonify({'success': ok})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Personalize – ML Product Recommendations
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/recommendations', methods=['GET'])
+def product_recommendations():
+    """
+    Return ML-based personalised product recommendations for the current customer.
+    Falls back to top-rated products when Personalize is not configured.
+    """
+    customer_id = session.get('customer_id')
+    if not customer_id:
+        return jsonify({'success': False, 'message': 'Not authenticated as customer'}), 401
+
+    recs = []
+    if AWS_ENABLED:
+        recs = get_recommendations(str(customer_id), num_results=6)
+
+    if recs:
+        # Enrich with product details from DB
+        enriched = []
+        for rec in recs:
+            product = db.session.get(Product, int(rec['item_id'])) if rec['item_id'].isdigit() else None
+            if product:
+                enriched.append({
+                    'id':       product.id,
+                    'name':     product.name,
+                    'price':    product.price,
+                    'unit':     product.unit,
+                    'category': product.category,
+                    'score':    rec['score'],
+                    'source':   'personalize',
+                })
+        return jsonify({'success': True, 'recommendations': enriched})
+
+    # Fallback: return top 6 products by popularity (most ordered)
+    top_products = db.session.query(
+        Product,
+        db.func.sum(OrderItem.quantity).label('total_ordered')
+    ).join(OrderItem, OrderItem.product_id == Product.id, isouter=True) \
+     .group_by(Product.id) \
+     .order_by(db.desc('total_ordered')) \
+     .limit(6).all()
+
+    fallback = [{
+        'id':       p.id,
+        'name':     p.name,
+        'price':    p.price,
+        'unit':     p.unit,
+        'category': p.category,
+        'score':    0,
+        'source':   'popular',
+    } for p, _ in top_products]
+
+    return jsonify({'success': True, 'recommendations': fallback})
+
+
+@app.route('/api/recommendations/event', methods=['POST'])
+def record_recommendation_event():
+    """
+    Record a user interaction event to improve future Personalize recommendations.
+    POST body: { "item_id": "42", "event_type": "click" }
+    """
+    customer_id = session.get('customer_id')
+    if not customer_id:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    data       = request.get_json(silent=True) or {}
+    item_id    = str(data.get('item_id', ''))
+    event_type = data.get('event_type', 'click')
+    if not item_id:
+        return jsonify({'success': False, 'message': 'item_id required'}), 400
+    if AWS_ENABLED:
+        record_user_event(str(customer_id), item_id, event_type,
+                          session.get('session_id', ''))
+    return jsonify({'success': True})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cognito – Managed Auth with MFA
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.route('/api/auth/cognito/register', methods=['POST'])
+def cognito_register_api():
+    """
+    Register a user in AWS Cognito User Pool.
+    POST body: { "email": "...", "password": "...", "name": "...", "phone": "+91..." }
+    """
+    data     = request.get_json(silent=True) or {}
+    email    = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+    name     = (data.get('name') or '').strip()
+    phone    = (data.get('phone') or '').strip()
+    if not email or not password or not name:
+        return jsonify({'success': False, 'message': 'email, password, and name required'}), 400
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    result = cognito_register(email, password, name, phone)
+    status = 200 if result['success'] else 400
+    return jsonify(result), status
+
+
+@app.route('/api/auth/cognito/login', methods=['POST'])
+def cognito_login_api():
+    """
+    Authenticate via Cognito. Returns tokens or MFA challenge.
+    POST body: { "email": "...", "password": "..." }
+    """
+    data     = request.get_json(silent=True) or {}
+    email    = (data.get('email') or '').strip().lower()
+    password = data.get('password', '')
+    if not email or not password:
+        return jsonify({'success': False, 'message': 'email and password required'}), 400
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    result = cognito_login(email, password)
+    if result['success']:
+        # Also set Flask session so existing auth checks still work
+        session['cognito_id_token']      = result['tokens']['id_token']
+        session['cognito_access_token']  = result['tokens']['access_token']
+    return jsonify(result)
+
+
+@app.route('/api/auth/cognito/mfa', methods=['POST'])
+def cognito_mfa_api():
+    """
+    Complete MFA challenge returned by /api/auth/cognito/login.
+    POST body: { "email": "...", "mfa_code": "123456",
+                 "session": "...", "challenge": "SMS_MFA" }
+    """
+    data      = request.get_json(silent=True) or {}
+    email     = (data.get('email') or '').strip().lower()
+    mfa_code  = (data.get('mfa_code') or '').strip()
+    sess_tok  = data.get('session', '')
+    challenge = data.get('challenge', 'SMS_MFA')
+    if not email or not mfa_code or not sess_tok:
+        return jsonify({'success': False, 'message': 'email, mfa_code, and session required'}), 400
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    result = cognito_verify_mfa(email, mfa_code, sess_tok, challenge)
+    if result['success']:
+        session['cognito_id_token']     = result['tokens']['id_token']
+        session['cognito_access_token'] = result['tokens']['access_token']
+    return jsonify(result)
+
+
+@app.route('/api/auth/cognito/confirm', methods=['POST'])
+def cognito_confirm_api():
+    """
+    Confirm new Cognito registration with the email verification code.
+    POST body: { "email": "...", "code": "123456" }
+    """
+    data  = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip().lower()
+    code  = (data.get('code') or '').strip()
+    if not email or not code:
+        return jsonify({'success': False, 'message': 'email and code required'}), 400
+    if not AWS_ENABLED:
+        return jsonify({'success': False, 'message': 'AWS not configured'}), 503
+    result = cognito_confirm_registration(email, code)
+    return jsonify(result)
+
+
 if __name__ == '__main__':
     # For production deployment on Render
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(debug=debug, host='0.0.0.0', port=port) 
+    app.run(debug=debug, host='0.0.0.0', port=port)
