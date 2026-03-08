@@ -23,6 +23,7 @@ import io
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -197,6 +198,16 @@ def send_sms_otp(phone_number: str, otp: str, language: str = 'en') -> bool:
     Send OTP via AWS SNS SMS.
     phone_number must be E.164 format, e.g. +919876543210
     Returns True on success, False on failure.
+
+    NOTE (India / DLT):
+    TRAI requires all SMS senders in India to register on the DLT portal.
+    Until the DLT Entity ID & Template ID are registered and added to the
+    MessageAttributes, Indian carriers silently drop the SMS even when
+    SNS returns HTTP 200.  To unblock during development:
+      1. Register at https://www.ucc.gov.in or any telecom DLT portal.
+      2. Add  AWS_SNS_DLT_ENTITY_ID  and  AWS_SNS_DLT_TEMPLATE_ID  to .env.
+    Until then, the OTP is returned in the API response as 'otp_fallback'
+    so the front-end can display it to the user.
     """
     client = get_sns()
     if client is None:
@@ -207,6 +218,8 @@ def send_sms_otp(phone_number: str, otp: str, language: str = 'en') -> bool:
     number = phone_number.strip()
     if number.startswith('0'):
         number = '+91' + number[1:]
+    elif re.match(r'^\d{10}$', number):
+        number = '+91' + number
     elif not number.startswith('+'):
         number = '+91' + number
 
@@ -226,22 +239,36 @@ def send_sms_otp(phone_number: str, otp: str, language: str = 'en') -> bool:
     }
     message = otp_messages.get(language, otp_messages['en'])
 
+    # Build message attributes — only add DLT fields if configured
+    msg_attrs: dict = {
+        'AWS.SNS.SMS.SMSType': {
+            'DataType': 'String',
+            'StringValue': 'Transactional',
+        },
+    }
+
+    # DLT registration (mandatory for India delivery)
+    dlt_entity_id   = os.environ.get('AWS_SNS_DLT_ENTITY_ID', '')
+    dlt_template_id = os.environ.get('AWS_SNS_DLT_TEMPLATE_ID', '')
+    if dlt_entity_id and dlt_template_id:
+        msg_attrs['AWS.MM.SMS.EntityId']   = {'DataType': 'String', 'StringValue': dlt_entity_id}
+        msg_attrs['AWS.MM.SMS.TemplateId'] = {'DataType': 'String', 'StringValue': dlt_template_id}
+        msg_attrs['AWS.SNS.SMS.SenderID']  = {'DataType': 'String', 'StringValue': SNS_SMS_SENDER_ID}
+        logger.info('DLT headers added for India SMS delivery')
+    else:
+        logger.warning(
+            'AWS_SNS_DLT_ENTITY_ID / AWS_SNS_DLT_TEMPLATE_ID not set in .env. '
+            'SMS will be silently dropped by Indian carriers (TRAI DLT requirement). '
+            'Register at https://www.ucc.gov.in and add the IDs to .env.'
+        )
+
     try:
-        client.publish(
+        response = client.publish(
             PhoneNumber=number,
             Message=message,
-            MessageAttributes={
-                'AWS.SNS.SMS.SenderID': {
-                    'DataType': 'String',
-                    'StringValue': SNS_SMS_SENDER_ID,
-                },
-                'AWS.SNS.SMS.SMSType': {
-                    'DataType': 'String',
-                    'StringValue': 'Transactional',
-                },
-            },
+            MessageAttributes=msg_attrs,
         )
-        logger.info('OTP SMS sent to %s', number)
+        logger.info('OTP SMS dispatched to %s (MessageId=%s)', number, response.get('MessageId'))
         return True
     except ClientError as exc:
         logger.exception('SNS SMS send failed: %s', exc)

@@ -2093,17 +2093,17 @@
             <div style="padding:14px 20px 6px;border-top:1px solid rgba(255,255,255,.12);margin-top:8px">
                 <label style="color:rgba(255,255,255,.65);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px">🌐 Language</label>
                 <select id="dashLangSelect" onchange="applyDashLanguage(this.value)"
-                    style="width:100%;padding:7px 10px;border-radius:8px;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:.85rem;cursor:pointer;outline:none">
-                    <option value="en">English</option>
-                    <option value="hi">हिंदी</option>
-                    <option value="mr">मराठी</option>
-                    <option value="ta">தமிழ்</option>
-                    <option value="te">తెలుగు</option>
-                    <option value="bn">বাংলা</option>
-                    <option value="gu">ગુજરાતી</option>
-                    <option value="kn">ಕನ್ನಡ</option>
-                    <option value="ml">മലയാളം</option>
-                    <option value="pa">ਪੰਜਾਬੀ</option>
+                    style="width:100%;padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:#34495e;color:#fff;font-size:.85rem;cursor:pointer;outline:none;appearance:none;-webkit-appearance:none;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23fff'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:right 10px center">
+                    <option value="en" style="background:#2c3e50;color:#fff">🌐 English</option>
+                    <option value="hi" style="background:#2c3e50;color:#fff">🇮🇳 हिंदी</option>
+                    <option value="mr" style="background:#2c3e50;color:#fff">🇮🇳 मराठी</option>
+                    <option value="ta" style="background:#2c3e50;color:#fff">🇮🇳 தமிழ்</option>
+                    <option value="te" style="background:#2c3e50;color:#fff">🇮🇳 తెలుగు</option>
+                    <option value="bn" style="background:#2c3e50;color:#fff">🇮🇳 বাংলা</option>
+                    <option value="gu" style="background:#2c3e50;color:#fff">🇮🇳 ગુજરાતી</option>
+                    <option value="kn" style="background:#2c3e50;color:#fff">🇮🇳 ಕನ್ನಡ</option>
+                    <option value="ml" style="background:#2c3e50;color:#fff">🇮🇳 മലയാളം</option>
+                    <option value="pa" style="background:#2c3e50;color:#fff">🇮🇳 ਪੰਜਾਬੀ</option>
                 </select>
             </div>
         </div>
@@ -5997,7 +5997,7 @@
     </div>
 
     <!-- Chatbot Toggle Button -->
-    <button id="chatbot-toggle" class="chatbot-toggle">
+    <button id="chatbot-toggle" class="chatbot-toggle" title="Chat Assistant">
         <i class="fas fa-comments"></i>
         <span class="notification-badge" id="notification-badge">1</span>
     </button>

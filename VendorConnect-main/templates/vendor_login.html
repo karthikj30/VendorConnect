@@ -608,6 +608,15 @@
                     otpStep.style.display = 'block';
                     modalSuccessAlert.textContent = data.message;
                     modalSuccessAlert.style.display = 'block';
+
+                    // SMS DLT fallback: auto-fill OTP and show it prominently
+                    if (data.otp_fallback) {
+                        document.getElementById('otpCode').value = data.otp_fallback;
+                        modalSuccessAlert.innerHTML =
+                            `⚠️ SMS delivery requires DLT registration.<br>` +
+                            `Your OTP (dev mode): <strong style="font-size:1.4rem;letter-spacing:4px">${data.otp_fallback}</strong><br>` +
+                            `<small>It has been auto-filled for you.</small>`;
+                    }
                 } else {
                     modalErrorAlert.textContent = data.message;
                     modalErrorAlert.style.display = 'block';

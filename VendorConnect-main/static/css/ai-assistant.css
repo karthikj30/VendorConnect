@@ -2,7 +2,7 @@
 
 .ai-assistant-container {
     position: fixed;
-    bottom: 90px;
+    bottom: 170px;
     right: 20px;
     width: 420px;
     max-height: 85vh;
@@ -23,7 +23,7 @@
 /* AI Assistant Toggle Button */
 .ai-assistant-toggle {
     position: fixed;
-    bottom: 90px;
+    bottom: 100px;
     right: 20px;
     width: 60px;
     height: 60px;
@@ -353,13 +353,13 @@
     .ai-assistant-container {
         width: calc(100vw - 40px);
         max-height: 80vh;
-        bottom: 80px;
+        bottom: 160px;
         right: 20px;
         left: 20px;
     }
 
     .ai-assistant-toggle {
-        bottom: 80px;
+        bottom: 100px;
     }
 
     .ai-tabs {

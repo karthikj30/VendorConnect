@@ -63,6 +63,31 @@
     justify-content: center;
 }
 
+/* FAB tooltip labels */
+.chatbot-toggle::after,
+#ai-assistant-toggle::after {
+    content: attr(title);
+    position: absolute;
+    right: 70px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.chatbot-toggle:hover::after,
+#ai-assistant-toggle:hover::after {
+    opacity: 1;
+    transform: translateX(0);
+}
+
 .chatbot-toggle:hover {
     transform: scale(1.1);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);

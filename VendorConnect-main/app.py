@@ -2043,6 +2043,7 @@ def vendor_forgot_password():
     else:
         # Phone-based flow: try AWS SNS first, fallback to mock
         sns_sent = False
+        dlt_configured = bool(os.environ.get('AWS_SNS_DLT_ENTITY_ID'))
         try:
             from aws_services import send_sms_otp as aws_send_sms
             sns_sent = aws_send_sms(identifier, otp)
@@ -2050,7 +2051,17 @@ def vendor_forgot_password():
             pass
         if not sns_sent:
             send_mock_otp_email(identifier, otp)
-        return jsonify({'success': True, 'message': 'OTP sent to your phone number'})
+
+        # If DLT is not registered, Indian carriers silently drop the SMS.
+        # Return the OTP in the response so the UI can display it as a fallback.
+        response_data = {'success': True, 'message': 'OTP sent to your phone number'}
+        if not dlt_configured:
+            response_data['otp_fallback'] = otp
+            response_data['message'] = (
+                'OTP generated. SMS delivery requires DLT registration. '
+                'Your OTP is shown below (development mode).'
+            )
+        return jsonify(response_data)
 
 @app.route('/vendor/verify-otp', methods=['POST'])
 def verify_otp():
@@ -8986,14 +8997,28 @@ def send_sms_otp_route():
     db.session.add(otp_record)
     db.session.commit()
 
-    if AWS_ENABLED:
-        sent = send_sms_otp(phone, otp, language)
-        if sent:
-            return jsonify({'success': True, 'message': 'OTP sent via SMS'})
+    dlt_configured = bool(os.environ.get('AWS_SNS_DLT_ENTITY_ID'))
+    sms_sent = False
 
-    # Fallback to mock
-    send_mock_otp_email(phone, otp)
-    return jsonify({'success': True, 'message': 'OTP sent (mock – check server logs)'})
+    if AWS_ENABLED:
+        sms_sent = send_sms_otp(phone, otp, language)
+
+    if not sms_sent:
+        send_mock_otp_email(phone, otp)
+
+    # If DLT not registered, Indian carriers silently drop SMS → show OTP on screen
+    if not dlt_configured:
+        return jsonify({
+            'success': True,
+            'message': (
+                'OTP generated. SMS delivery requires DLT registration for India. '
+                'Your OTP is shown below (development mode).'
+            ),
+            'otp_fallback': otp,
+            'dlt_required': True,
+        })
+
+    return jsonify({'success': True, 'message': 'OTP sent via SMS' if sms_sent else 'OTP sent (check server logs)'})
 
 
 # ── Vendor Analytics Dashboard ────────────────────────────────────────────────
