@@ -892,12 +892,270 @@
 
         /* Group Orders */
         .group-order-card {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 15px;
+            background: #fff;
+            border: 1px solid #e8eaf6;
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(99,102,241,.07);
+            transition: box-shadow .2s, transform .2s;
+            position: relative;
+            overflow: hidden;
         }
+        .group-order-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            border-radius: 4px 0 0 4px;
+        }
+        .group-order-card:hover {
+            box-shadow: 0 6px 20px rgba(99,102,241,.15);
+            transform: translateY(-2px);
+        }
+        .go-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #1e1b4b;
+            margin: 0 0 4px;
+        }
+        .go-meta {
+            font-size: .8rem;
+            color: #6b7280;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .go-meta .go-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #eef2ff;
+            color: #4f46e5;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: .75rem;
+            font-weight: 600;
+        }
+        .go-progress-wrap {
+            margin-top: 14px;
+        }
+        .go-progress-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: .78rem;
+            color: #6b7280;
+            margin-bottom: 6px;
+        }
+        .go-progress-track {
+            background: #e8eaf6;
+            border-radius: 999px;
+            height: 9px;
+            overflow: hidden;
+        }
+        .go-progress-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #6366f1, #a78bfa);
+            transition: width .5s cubic-bezier(.4,0,.2,1);
+        }
+        .go-progress-pct {
+            text-align: right;
+            font-size: .75rem;
+            font-weight: 700;
+            color: #6366f1;
+            margin-top: 3px;
+        }
+        .go-join-btn {
+            padding: 8px 18px;
+            font-size: .82rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity .2s, transform .15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .go-join-btn:hover { opacity: .88; transform: translateY(-1px); }
+        .go-joined-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1.5px solid #6ee7b7;
+            border-radius: 10px;
+            font-size: .82rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Group Orders section header */
+        #group-orders-list {
+            padding: 16px;
+        }
+        .go-empty {
+            text-align: center;
+            padding: 36px 20px;
+            color: #9ca3af;
+        }
+        .go-empty i {
+            font-size: 2.4rem;
+            color: #c7d2fe;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .go-empty p { margin: 4px 0 0; font-size: .9rem; }
+        .go-empty strong { color: #6366f1; }
+
+        /* Create Group Order modal */
+        #create-group-order-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,12,41,.55);
+            backdrop-filter: blur(3px);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        #create-group-order-modal.open { display: flex; }
+        #join-group-order-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15,12,41,.55);
+            backdrop-filter: blur(3px);
+            z-index: 2001;
+            align-items: center;
+            justify-content: center;
+        }
+        #join-group-order-modal.open { display: flex; }
+        .go-modal-box {
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px;
+            width: min(480px, 94vw);
+            box-shadow: 0 24px 64px rgba(0,0,0,.22);
+            animation: goModalIn .22s ease;
+        }
+        @keyframes goModalIn {
+            from { opacity:0; transform: scale(.94) translateY(12px); }
+            to   { opacity:1; transform: scale(1)   translateY(0); }
+        }
+        .go-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .go-modal-header h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #1e1b4b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .go-modal-header h3 span.go-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+        }
+        .go-close-btn {
+            width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            background: #f3f4f6; border: none; border-radius: 8px;
+            font-size: 1rem; cursor: pointer; color: #6b7280;
+            transition: background .15s;
+        }
+        .go-close-btn:hover { background: #e5e7eb; color: #374151; }
+        .go-field label {
+            display: block;
+            font-size: .85rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        .go-field input {
+            width: 100%;
+            padding: 10px 13px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: .92rem;
+            color: #111827;
+            transition: border-color .15s, box-shadow .15s;
+            box-sizing: border-box;
+            background: #fafafa;
+        }
+        .go-field input:focus {
+            outline: none;
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+            background: #fff;
+        }
+        .go-field input::placeholder { color: #9ca3af; }
+        .go-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .go-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 6px;
+        }
+        .go-cancel-btn {
+            padding: 10px 22px;
+            border: 1.5px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+            font-size: .9rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #6b7280;
+            transition: background .15s, border-color .15s;
+        }
+        .go-cancel-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+        .go-submit-btn {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: .9rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            transition: opacity .2s, transform .15s;
+        }
+        .go-submit-btn:hover { opacity: .9; transform: translateY(-1px); }
+        .go-submit-btn:disabled { opacity: .65; cursor: not-allowed; transform: none; }
+
+        /* dark-mode overrides for group orders */
+        .dark-mode .group-order-card {
+            background: #1e1e2e;
+            border-color: #2d2d3f;
+            color: #e2e8f0;
+        }
+        .dark-mode .go-title { color: #e2e8f0; }
+        .dark-mode .go-modal-box { background: #1e1e2e; color: #e2e8f0; }
+        .dark-mode .go-field input { background: #2d2d3f; border-color: #3f3f52; color: #e2e8f0; }
+        .dark-mode .go-field label { color: #a5b4fc; }
+        .dark-mode .go-cancel-btn { background: #2d2d3f; border-color: #3f3f52; color: #a5b4fc; }
 
         .progress-bar {
             background: rgba(255,255,255,0.3);
@@ -1332,7 +1590,6 @@
         .dark-mode .stat-card,
         .dark-mode .product-card,
         .dark-mode .voice-search,
-        .dark-mode .group-order-card,
         .dark-mode .combination-card {
             background: #232526;
             color: #ffd700;
@@ -2439,6 +2696,93 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- ── Group Orders (SQS) ────────────────────────────── -->
+                <div class="card" style="margin-top:16px;">
+                    <div class="card-header" style="align-items:center;gap:12px;">
+                        <div style="flex:1;min-width:0;">
+                            <h3 class="card-title" style="display:flex;align-items:center;gap:8px;">
+                                <span style="width:34px;height:34px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0;">🤝</span>
+                                Group Orders
+                            </h3>
+                            <p style="margin:4px 0 0;color:#6b7280;font-size:.8rem;padding-left:42px;">
+                                Pool orders with other vendors for bulk pricing · Events published to <strong style="color:#6366f1;">AWS SQS</strong>
+                            </p>
+                        </div>
+                        <button onclick="showCreateGroupOrder()"
+                            style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:10px;font-size:.85rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:opacity .2s;flex-shrink:0;"
+                            onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+                            <i class="fas fa-plus"></i> Create Group Order
+                        </button>
+                    </div>
+                    <div id="group-orders-list">
+                        <div class="loading"><div class="spinner"></div> Loading group orders…</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Create Group Order Modal ─────────────────────────── -->
+            <div id="create-group-order-modal">
+                <div class="go-modal-box">
+                    <div class="go-modal-header">
+                        <h3>
+                            <span class="go-icon">🤝</span>
+                            Create Group Order
+                        </h3>
+                        <button class="go-close-btn" onclick="closeCreateGroupOrder()" title="Close">✕</button>
+                    </div>
+                    <form id="group-order-form" onsubmit="submitGroupOrder(event)" style="display:flex;flex-direction:column;gap:18px;">
+                        <div class="go-field">
+                            <label><i class="fas fa-box" style="color:#6366f1;margin-right:5px;"></i>Product / Raw Material</label>
+                            <input name="product_name" required placeholder="e.g. Onions, Rice, Cooking Oil">
+                        </div>
+                        <div class="go-grid-2">
+                            <div class="go-field">
+                                <label><i class="fas fa-weight-hanging" style="color:#6366f1;margin-right:5px;"></i>Target Qty (kg)</label>
+                                <input name="target_quantity" type="number" min="1" required placeholder="100">
+                            </div>
+                            <div class="go-field">
+                                <label><i class="fas fa-rupee-sign" style="color:#6366f1;margin-right:5px;"></i>Price per kg (₹)</label>
+                                <input name="price_per_unit" type="number" min="0.01" step="0.01" required placeholder="45">
+                            </div>
+                        </div>
+                        <div id="group-order-msg" style="display:none;padding:11px 14px;border-radius:10px;font-size:.88rem;line-height:1.5;"></div>
+                        <div class="go-actions">
+                            <button type="button" class="go-cancel-btn" onclick="closeCreateGroupOrder()">Cancel</button>
+                            <button type="submit" id="group-order-submit-btn" class="go-submit-btn">
+                                <i class="fas fa-paper-plane"></i> Create &amp; Publish
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- ── Join Group Order Modal ──────────────────────────── -->
+            <div id="join-group-order-modal">
+                <div class="go-modal-box" style="max-width:400px;">
+                    <div class="go-modal-header">
+                        <h3>
+                            <span class="go-icon">🤝</span>
+                            Join Group Order
+                        </h3>
+                        <button class="go-close-btn" onclick="closeJoinModal()" title="Close">✕</button>
+                    </div>
+                    <div id="join-modal-product" style="background:#eef2ff;border-radius:10px;padding:12px 14px;margin-bottom:18px;">
+                        <div style="font-weight:700;color:#1e1b4b;font-size:1rem;" id="join-modal-name">—</div>
+                        <div style="font-size:.82rem;color:#6366f1;margin-top:2px;" id="join-modal-price">—</div>
+                    </div>
+                    <div class="go-field">
+                        <label><i class="fas fa-weight-hanging" style="color:#6366f1;margin-right:5px;"></i>Your contribution (kg)</label>
+                        <input id="join-qty-input" type="number" min="0.5" step="0.5" placeholder="e.g. 20">
+                    </div>
+                    <div id="join-modal-msg" style="display:none;margin-top:12px;padding:10px 14px;border-radius:10px;font-size:.88rem;"></div>
+                    <div class="go-actions" style="margin-top:18px;">
+                        <button type="button" class="go-cancel-btn" onclick="closeJoinModal()">Cancel</button>
+                        <button type="button" id="join-submit-btn" class="go-submit-btn" onclick="submitJoin()">
+                            <i class="fas fa-handshake"></i> Join Order
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Orders Section -->
@@ -3169,6 +3513,7 @@
                     break;
                 case 'suppliers':
                     await loadSuppliers();
+                    await loadGroupOrders();
                     break;
                 case 'group-orders':
                     await loadGroupOrders();
@@ -3366,25 +3711,64 @@
 
         // Load group orders
         async function loadGroupOrders() {
+            const container = document.getElementById('group-orders-list');
+            if (!container) return;
+            container.innerHTML = '<div class="loading"><div class="spinner"></div> Loading group orders…</div>';
             try {
                 const response = await fetch('/api/group-orders');
+                if (!response.ok) throw new Error('HTTP ' + response.status);
                 groupOrders = await response.json();
-                
-                const container = document.getElementById('group-orders-list');
+
+                if (!groupOrders.length) {
+                    container.innerHTML = `
+                        <div class="go-empty">
+                            <i class="fas fa-users"></i>
+                            <p>No active group orders yet.<br>
+                            Click <strong>+ Create Group Order</strong> to pool with other vendors!</p>
+                        </div>`;
+                    return;
+                }
+
                 container.innerHTML = groupOrders.map(order => `
                     <div class="group-order-card">
-                        <h4>${order.product_name}</h4>
-                        <p>Target: ${order.target_quantity}kg | Current: ${order.current_quantity}kg</p>
-                        <p>Price: ₹${order.price_per_unit}/kg | Participants: ${order.participants_count}</p>
-                        <div class="progress-bar">
-                            <div class="progress-fill" style="width: ${order.progress_percentage}%"></div>
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+                            <div style="flex:1;min-width:0;">
+                                <h4 class="go-title">${order.product_name}</h4>
+                                <div class="go-meta">
+                                    <span class="go-badge"><i class="fas fa-store"></i> ${order.participants_count} vendor${order.participants_count !== 1 ? 's' : ''}</span>
+                                    <span class="go-badge"><i class="fas fa-rupee-sign"></i> ₹${order.price_per_unit}/kg</span>
+                                </div>
+                            </div>
+                            ${order.is_joined
+                                ? `<span class="go-joined-badge"><i class="fas fa-check-circle"></i> Joined</span>`
+                                : `<button class="go-join-btn" onclick="joinGroupOrder(${order.id}, '${order.product_name.replace(/'/g,"\\'")}', ${order.price_per_unit})">
+                                    <i class="fas fa-handshake"></i> Join
+                                  </button>`
+                            }
                         </div>
-                        <button class="btn btn-primary" onclick="joinGroupOrder('${order.id}')">Join Order</button>
+                        <div class="go-progress-wrap">
+                            <div class="go-progress-labels">
+                                <span><i class="fas fa-cube" style="margin-right:3px;color:#6366f1;"></i>${order.current_quantity} kg collected</span>
+                                <span>Target: <strong>${order.target_quantity} kg</strong></span>
+                            </div>
+                            <div class="go-progress-track">
+                                <div class="go-progress-fill" style="width:${order.progress_percentage}%;"></div>
+                            </div>
+                            <div class="go-progress-pct">${order.progress_percentage}% filled</div>
+                        </div>
                     </div>
                 `).join('');
-                
+
             } catch (error) {
                 console.error('Error loading group orders:', error);
+                container.innerHTML = `
+                    <div style="text-align:center;padding:28px;color:#ef4444;">
+                        <i class="fas fa-exclamation-circle" style="font-size:1.8rem;display:block;margin-bottom:8px;"></i>
+                        Could not load group orders.<br>
+                        <button onclick="loadGroupOrders()" style="margin-top:10px;padding:7px 16px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.85rem;">
+                            <i class="fas fa-redo"></i> Retry
+                        </button>
+                    </div>`;
             }
         }
 
@@ -5679,6 +6063,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             populateCategoryFilter();
             loadDashboardData();
+            loadGroupOrders();   // pre-load so Suppliers section is ready instantly
             showBusinessSpecial();
             updateCartCount(); // Initialize cart count
             // Load initial open/closed status
@@ -5715,6 +6100,18 @@
                 const cartModal = document.getElementById('cart-modal');
                 if (e.target === cartModal) {
                     closeCart();
+                }
+
+                // Close group order modal on backdrop click
+                const goModal = document.getElementById('create-group-order-modal');
+                if (e.target === goModal) {
+                    closeCreateGroupOrder();
+                }
+
+                // Close join modal on backdrop click
+                const joinModal = document.getElementById('join-group-order-modal');
+                if (e.target === joinModal) {
+                    closeJoinModal();
                 }
                 
                 // Add click outside to close payment modal
@@ -5885,16 +6282,107 @@
     <script>
     // ... existing code ...
     function showCreateGroupOrder() {
-        document.getElementById('create-group-order-modal').style.display = 'block';
+        document.getElementById('create-group-order-modal').classList.add('open');
     }
     function closeCreateGroupOrder() {
-        document.getElementById('create-group-order-modal').style.display = 'none';
+        document.getElementById('create-group-order-modal').classList.remove('open');
     }
-    function submitGroupOrder(e) {
+    async function submitGroupOrder(e) {
         e.preventDefault();
-        // You can add AJAX here to actually create the group order
-        closeCreateGroupOrder();
-        alert('Group order created! (Demo)');
+        const form = e.target;
+        const btn  = document.getElementById('group-order-submit-btn');
+        const msg  = document.getElementById('group-order-msg');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating…'; }
+        if (msg) { msg.style.display = 'none'; }
+        const payload = {
+            product_name:    form.querySelector('[name="product_name"]')?.value.trim()    || '',
+            target_quantity: parseFloat(form.querySelector('[name="target_quantity"]')?.value) || 0,
+            price_per_unit:  parseFloat(form.querySelector('[name="price_per_unit"]')?.value)  || 0,
+        };
+
+        try {
+            const resp = await fetch('/api/create-group-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                msg.style.cssText = 'display:block;background:#ecfdf5;color:#065f46;border:1.5px solid #6ee7b7;padding:11px 14px;border-radius:10px;font-size:.88rem;';
+                msg.innerHTML = '✅ Group order created! SQS event published to <strong>vendorconnect-group-orders</strong>.';
+                form.reset();
+                setTimeout(() => { closeCreateGroupOrder(); loadGroupOrders(); }, 1800);
+            } else {
+                msg.style.cssText = 'display:block;background:#fef2f2;color:#991b1b;border:1.5px solid #fca5a5;padding:11px 14px;border-radius:10px;font-size:.88rem;';
+                msg.textContent = '❌ ' + (data.message || 'Failed to create group order');
+            }
+        } catch (err) {
+            msg.style.cssText = 'display:block;background:#fffbeb;color:#92400e;border:1.5px solid #fcd34d;padding:11px 14px;border-radius:10px;font-size:.88rem;';
+            msg.textContent = '⚠️ Network error: ' + err.message;
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Create &amp; Publish'; }
+        }
+    }
+
+    let _joinOrderId = null;
+
+    function joinGroupOrder(orderId, productName, pricePerUnit) {
+        _joinOrderId = orderId;
+        document.getElementById('join-modal-name').textContent = productName;
+        document.getElementById('join-modal-price').textContent = '₹' + pricePerUnit + ' per kg';
+        document.getElementById('join-qty-input').value = '';
+        const msgEl = document.getElementById('join-modal-msg');
+        msgEl.style.display = 'none';
+        const btn = document.getElementById('join-submit-btn');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-handshake"></i> Join Order';
+        document.getElementById('join-group-order-modal').classList.add('open');
+        setTimeout(() => document.getElementById('join-qty-input').focus(), 100);
+    }
+
+    function closeJoinModal() {
+        document.getElementById('join-group-order-modal').classList.remove('open');
+        _joinOrderId = null;
+    }
+
+    async function submitJoin() {
+        const qty = parseFloat(document.getElementById('join-qty-input').value);
+        const msg = document.getElementById('join-modal-msg');
+        const btn = document.getElementById('join-submit-btn');
+
+        if (!qty || qty <= 0) {
+            msg.style.cssText = 'display:block;background:#fef2f2;color:#991b1b;border:1.5px solid #fca5a5;padding:10px 14px;border-radius:10px;font-size:.88rem;';
+            msg.textContent = '❌ Please enter a valid quantity.';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Joining…';
+        msg.style.display = 'none';
+
+        try {
+            const resp = await fetch('/api/join-group-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ group_order_id: _joinOrderId, quantity: qty }),
+            });
+            const data = await resp.json();
+            if (data.success) {
+                msg.style.cssText = 'display:block;background:#ecfdf5;color:#065f46;border:1.5px solid #6ee7b7;padding:10px 14px;border-radius:10px;font-size:.88rem;';
+                msg.innerHTML = '✅ Joined! SQS event published.';
+                setTimeout(() => { closeJoinModal(); loadGroupOrders(); }, 1200);
+            } else {
+                msg.style.cssText = 'display:block;background:#fef2f2;color:#991b1b;border:1.5px solid #fca5a5;padding:10px 14px;border-radius:10px;font-size:.88rem;';
+                msg.textContent = '❌ ' + (data.message || 'Failed to join');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-handshake"></i> Join Order';
+            }
+        } catch (err) {
+            msg.style.cssText = 'display:block;background:#fffbeb;color:#92400e;border:1.5px solid #fcd34d;padding:10px 14px;border-radius:10px;font-size:.88rem;';
+            msg.textContent = '⚠️ Network error: ' + err.message;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-handshake"></i> Join Order';
+        }
     }
     // ... existing code ...
     </script>

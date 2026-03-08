@@ -919,7 +919,8 @@ class OrderItem(db.Model):
 
 class GroupOrder(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)   # nullable: allow free-text name
+    product_name = db.Column(db.String(200), nullable=True)                           # free-text fallback when no FK
     target_quantity = db.Column(db.Float, nullable=False)
     current_quantity = db.Column(db.Float, default=0)
     price_per_unit = db.Column(db.Float, nullable=False)
@@ -1053,20 +1054,23 @@ class InternshipApplication(db.Model):
 
 # Sample data for demonstration
 def create_sample_data():
-    # Create sample suppliers
-    suppliers_data = [
-        {'name': 'Krishna Mandi', 'phone': '9876543210', 'location': 'Mumbai Central', 'rating': 4.5, 'verification_status': True, 'hygiene_rating': 4.2},
-        {'name': 'Fresh Farm Supplies', 'phone': '9876543211', 'location': 'Andheri West', 'rating': 4.8, 'verification_status': True, 'hygiene_rating': 4.6},
-        {'name': 'Quality Vegetables', 'phone': '9876543212', 'location': 'Bandra East', 'rating': 4.3, 'verification_status': True, 'hygiene_rating': 4.0},
-        {'name': 'Organic Market', 'phone': '9876543213', 'location': 'Juhu', 'rating': 4.7, 'verification_status': True, 'hygiene_rating': 4.8},
-        {'name': 'Local Grocery Store', 'phone': '9876543214', 'location': 'Santacruz', 'rating': 4.1, 'verification_status': False, 'hygiene_rating': 3.8}
-    ]
-    
-    for supplier_data in suppliers_data:
-        supplier = Supplier(**supplier_data)
-        db.session.add(supplier)
-    
-    db.session.commit()
+    # Create sample suppliers only if none exist yet
+    if not Supplier.query.first():
+        suppliers_data = [
+            {'name': 'Krishna Mandi', 'phone': '9876543210', 'location': 'Mumbai Central', 'rating': 4.5, 'verification_status': True, 'hygiene_rating': 4.2},
+            {'name': 'Fresh Farm Supplies', 'phone': '9876543211', 'location': 'Andheri West', 'rating': 4.8, 'verification_status': True, 'hygiene_rating': 4.6},
+            {'name': 'Quality Vegetables', 'phone': '9876543212', 'location': 'Bandra East', 'rating': 4.3, 'verification_status': True, 'hygiene_rating': 4.0},
+            {'name': 'Organic Market', 'phone': '9876543213', 'location': 'Juhu', 'rating': 4.7, 'verification_status': True, 'hygiene_rating': 4.8},
+            {'name': 'Local Grocery Store', 'phone': '9876543214', 'location': 'Santacruz', 'rating': 4.1, 'verification_status': False, 'hygiene_rating': 3.8}
+        ]
+        for supplier_data in suppliers_data:
+            supplier = Supplier(**supplier_data)
+            db.session.add(supplier)
+        db.session.commit()
+
+    # Only seed products if table is empty
+    if Product.query.first():
+        return
     
     # Create sample products
     products_data = [
@@ -1170,6 +1174,11 @@ def create_sample_data():
     ]
     
     for product_data in products_data:
+        # Map supplier_id to an existing supplier (cycle through available ones)
+        available_suppliers = [s.id for s in Supplier.query.all()]
+        if available_suppliers:
+            sid = product_data['supplier_id']
+            product_data['supplier_id'] = available_suppliers[(sid - 1) % len(available_suppliers)]
         product = Product(**product_data)
         db.session.add(product)
     
@@ -2644,64 +2653,103 @@ def record_promotion_view(promo_id):
 def get_group_orders():
     group_orders = GroupOrder.query.filter_by(status='active').all()
     group_orders_data = []
-    
+
     for group_order in group_orders:
-        product = db.session.get(Product, group_order.product_id)
+        # Support both product_id FK and free-text product_name
+        if group_order.product_id:
+            product = db.session.get(Product, group_order.product_id)
+            pname = product.name if product else f'Product #{group_order.product_id}'
+        else:
+            pname = getattr(group_order, 'product_name', None) or 'Unknown Product'
+
         participants_count = GroupOrderParticipant.query.filter_by(group_order_id=group_order.id).count()
-        
+        target = group_order.target_quantity or 1
+        progress = min(round((group_order.current_quantity / target) * 100, 1), 100)
+
+        # Check if the current vendor already joined
+        current_vendor_id = session.get('vendor_id')
+        is_joined = False
+        if current_vendor_id:
+            is_joined = GroupOrderParticipant.query.filter_by(
+                group_order_id=group_order.id,
+                vendor_id=current_vendor_id
+            ).first() is not None
+
         group_orders_data.append({
-            'id': group_order.id,
-            'product_name': product.name,
-            'target_quantity': group_order.target_quantity,
-            'current_quantity': group_order.current_quantity,
-            'price_per_unit': group_order.price_per_unit,
+            'id':                group_order.id,
+            'product_name':      pname,
+            'target_quantity':   group_order.target_quantity,
+            'current_quantity':  group_order.current_quantity,
+            'price_per_unit':    group_order.price_per_unit,
             'participants_count': participants_count,
-            'progress_percentage': (group_order.current_quantity / group_order.target_quantity) * 100
+            'progress_percentage': progress,
+            'is_joined':         is_joined,
         })
-    
+
     return jsonify(group_orders_data)
 
 @app.route('/api/create-group-order', methods=['POST'])
 def create_group_order():
     if 'vendor_id' not in session:
         return jsonify({'success': False, 'message': 'Please login first'})
-    
-    data = request.get_json()
-    
+
+    data = request.get_json() or {}
+
+    # Accept either a product_id FK or a free-text product_name from the UI form
+    product_id   = data.get('product_id')
+    product_name = (data.get('product_name') or '').strip()
+    target_qty   = float(data.get('target_quantity') or 0)
+    price        = float(data.get('price_per_unit') or 0)
+
+    if not product_name and not product_id:
+        return jsonify({'success': False, 'message': 'Product name is required'})
+    if target_qty <= 0:
+        return jsonify({'success': False, 'message': 'Target quantity must be > 0'})
+    if price <= 0:
+        return jsonify({'success': False, 'message': 'Price per unit must be > 0'})
+
     group_order = GroupOrder(
-        product_id=data.get('product_id'),
-        target_quantity=data.get('target_quantity'),
-        price_per_unit=data.get('price_per_unit')
+        product_id=product_id,
+        target_quantity=target_qty,
+        price_per_unit=price,
+        current_quantity=0,
+        status='active',
     )
-    
+    # Store free-text name if no FK product
+    if not product_id and hasattr(group_order, 'product_name'):
+        group_order.product_name = product_name
+
     db.session.add(group_order)
     db.session.commit()
-    
+
     # Add the creator as first participant
     participant = GroupOrderParticipant(
         group_order_id=group_order.id,
         vendor_id=session['vendor_id'],
-        quantity=data.get('quantity') or 1   # default to 1 if not provided
+        quantity=float(data.get('quantity') or 1),
     )
-    
     db.session.add(participant)
     db.session.commit()
 
     # Publish SQS event for new group order
+    resolved_name = product_name
+    if product_id:
+        p = db.session.get(Product, product_id)
+        resolved_name = p.name if p else product_name
     try:
         from aws_services import publish_group_order_event
-        product = db.session.get(Product, data.get('product_id'))
         publish_group_order_event('CREATED', {
-            'group_order_id': group_order.id,
-            'product_id': data.get('product_id'),
-            'product_name': product.name if product else '',
-            'target_quantity': data.get('target_quantity'),
+            'group_order_id':    group_order.id,
+            'product_id':        product_id,
+            'product_name':      resolved_name,
+            'target_quantity':   target_qty,
+            'price_per_unit':    price,
             'created_by_vendor': session['vendor_id'],
         })
-    except Exception:
-        pass
+    except Exception as exc:
+        app.logger.warning('SQS publish skipped: %s', exc)
 
-    return jsonify({'success': True, 'message': 'Group order created successfully'})
+    return jsonify({'success': True, 'message': 'Group order created successfully', 'id': group_order.id})
 
 @app.route('/api/join-group-order', methods=['POST'])
 def join_group_order():
@@ -9320,6 +9368,10 @@ if __name__ == '__main__':
         # Only create sample data if database is empty
         try:
             if not Supplier.query.first():
+                create_sample_data()
+            elif not Product.query.first():
+                # Suppliers exist but products are missing — seed products only
+                app.logger.info('Suppliers exist but no products found — seeding products from create_sample_data')
                 create_sample_data()
         except Exception:
             # If Supplier table still not queryable, skip sample data creation
