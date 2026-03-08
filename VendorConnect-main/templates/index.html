@@ -726,6 +726,135 @@
             margin-bottom: 1rem;
         }
 
+        /* AWS Section */
+        .aws-section {
+            padding: 80px 0;
+            background: #0f1117;
+            color: white;
+            text-align: center;
+        }
+
+        .aws-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 0.8rem;
+            color: #FF9900;
+        }
+
+        .aws-section .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 3rem;
+            opacity: 0.75;
+            color: #ccc;
+        }
+
+        .aws-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.8rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .aws-card {
+            background: #1a1d27;
+            border: 1px solid rgba(255, 153, 0, 0.25);
+            border-radius: 16px;
+            padding: 2rem 1.5rem;
+            transition: transform 0.3s, border-color 0.3s, box-shadow 0.3s;
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .aws-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #FF9900, #FFD166);
+            border-radius: 16px 16px 0 0;
+        }
+
+        .aws-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(255, 153, 0, 0.6);
+            box-shadow: 0 12px 35px rgba(255, 153, 0, 0.18);
+        }
+
+        .aws-card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .aws-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #FF9900, #e68a00);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .aws-card-badge {
+            background: rgba(255, 153, 0, 0.15);
+            color: #FF9900;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 153, 0, 0.3);
+            text-transform: uppercase;
+        }
+
+        .aws-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #ffffff;
+            margin: 0;
+        }
+
+        .aws-card p {
+            font-size: 0.92rem;
+            color: #a0a5b5;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .aws-section-divider {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .aws-section-divider span {
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #FF9900;
+        }
+
+        .aws-section-divider::before,
+        .aws-section-divider::after {
+            content: '';
+            height: 1px;
+            width: 80px;
+            background: linear-gradient(90deg, transparent, #FF9900);
+        }
+
+        .aws-section-divider::after {
+            background: linear-gradient(90deg, #FF9900, transparent);
+        }
+
         /* CTA Section */
         .cta-section {
             padding: 80px 0;
@@ -855,6 +984,7 @@
                 <li><a href="#stats">Impact</a></li>
                 <li><a href="#download">Download</a></li>
                 <li><a href="#ai">AI Solutions</a></li>
+                <li><a href="#aws">AWS Cloud</a></li>
                 <li><a href="/vendor/login">Login</a></li>
                 <li><a href="/vendor/register" class="btn">Register</a></li>
             </ul>
@@ -1239,6 +1369,198 @@
                     <h3>24/7 AI Support</h3>
                     <p>Instant customer support with AI that understands your business needs and provides solutions in your language</p>
                 </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- AWS Powered Features Section -->
+    <section class="aws-section" id="aws">
+        <div class="container">
+            <h2>☁️ AWS Powered Features</h2>
+            <p class="subtitle">Enterprise-grade cloud infrastructure powering every part of VendorConnect</p>
+            <div class="aws-section-divider"><span>Powered by Amazon Web Services</span></div>
+            <div class="aws-grid">
+
+                <!-- S3 -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🗄️</div>
+                        <div>
+                            <div class="aws-card-badge">S3</div>
+                            <h3>Product Image Gallery &amp; PDF Storage</h3>
+                        </div>
+                    </div>
+                    <p>All product images, supplier documents, and PDF invoices are stored securely in Amazon S3 with fast CDN delivery across India.</p>
+                </div>
+
+                <!-- SNS -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🔔</div>
+                        <div>
+                            <div class="aws-card-badge">SNS</div>
+                            <h3>Web Push &amp; DLT SMS Notifications</h3>
+                        </div>
+                    </div>
+                    <p>Instant order alerts, promo blasts, and DLT-compliant SMS notifications delivered to vendors and customers via Amazon SNS.</p>
+                </div>
+
+                <!-- SQS -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">📬</div>
+                        <div>
+                            <div class="aws-card-badge">SQS</div>
+                            <h3>Price Alerts &amp; Order Expiry Events</h3>
+                        </div>
+                    </div>
+                    <p>Reliable event queuing via Amazon SQS for price-drop alerts, order expiration, and background job processing without data loss.</p>
+                </div>
+
+                <!-- Rekognition -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🏷️</div>
+                        <div>
+                            <div class="aws-card-badge">Rekognition</div>
+                            <h3>Auto-Tag Product Images</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Rekognition automatically detects and tags food items in product photos, making search smarter and catalogs richer.</p>
+                </div>
+
+                <!-- Polly -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🔊</div>
+                        <div>
+                            <div class="aws-card-badge">Polly</div>
+                            <h3>Order Summaries Read Aloud</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Polly converts order summaries and business updates to natural-sounding speech in multiple Indian languages for hands-free operations.</p>
+                </div>
+
+                <!-- Transcribe -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🎙️</div>
+                        <div>
+                            <div class="aws-card-badge">Transcribe</div>
+                            <h3>Voice-Based Order Placement</h3>
+                        </div>
+                    </div>
+                    <p>Place orders hands-free using Amazon Transcribe's real-time speech recognition, supporting Hindi, Tamil, Bengali, and more.</p>
+                </div>
+
+                <!-- Translate -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🌐</div>
+                        <div>
+                            <div class="aws-card-badge">Translate</div>
+                            <h3>Regional Language SMS &amp; UI</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Translate localises notifications, product descriptions, and UI text into 10+ regional languages so every vendor feels at home.</p>
+                </div>
+
+                <!-- Comprehend -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🧠</div>
+                        <div>
+                            <div class="aws-card-badge">Comprehend</div>
+                            <h3>Review Sentiment &amp; Chatbot Intent</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Comprehend analyses customer reviews for sentiment and extracts intent from chatbot messages for smarter, contextual responses.</p>
+                </div>
+
+                <!-- SES -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">✉️</div>
+                        <div>
+                            <div class="aws-card-badge">SES</div>
+                            <h3>Reliable Transactional Email</h3>
+                        </div>
+                    </div>
+                    <p>Amazon SES powers all transactional emails — OTPs, invoices, receipts, and order confirmations — with high deliverability and zero downtime.</p>
+                </div>
+
+                <!-- Textract -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">📄</div>
+                        <div>
+                            <div class="aws-card-badge">Textract</div>
+                            <h3>Auto-Read Supplier Documents</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Textract extracts structured data from supplier invoices, FSSAI certificates, and GSTIN documents automatically — no manual entry needed.</p>
+                </div>
+
+                <!-- DynamoDB -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">⚡</div>
+                        <div>
+                            <div class="aws-card-badge">DynamoDB</div>
+                            <h3>Real-Time Chat &amp; Live Notifications</h3>
+                        </div>
+                    </div>
+                    <p>Amazon DynamoDB provides millisecond-latency storage for live chat messages, real-time order tracking events, and push notification states.</p>
+                </div>
+
+                <!-- Lambda + EventBridge -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">⚙️</div>
+                        <div>
+                            <div class="aws-card-badge">Lambda + EventBridge</div>
+                            <h3>Auto-Expire Orders &amp; Scheduled Jobs</h3>
+                        </div>
+                    </div>
+                    <p>AWS Lambda functions triggered by EventBridge automatically expire stale orders, send reminders, and run nightly analytics jobs on schedule.</p>
+                </div>
+
+                <!-- Location Service -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">📍</div>
+                        <div>
+                            <div class="aws-card-badge">Location Service</div>
+                            <h3>Route Optimization &amp; Geofencing</h3>
+                        </div>
+                    </div>
+                    <p>AWS Location Service tracks delivery agents in real time, optimises delivery routes, and triggers geofence alerts when agents reach vendor zones.</p>
+                </div>
+
+                <!-- Personalize -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🎯</div>
+                        <div>
+                            <div class="aws-card-badge">Personalize</div>
+                            <h3>ML-Powered Recommendations</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Personalize learns each customer's preferences to surface hyper-relevant vendor and product recommendations, boosting repeat orders.</p>
+                </div>
+
+                <!-- Cognito -->
+                <div class="aws-card">
+                    <div class="aws-card-header">
+                        <div class="aws-card-icon">🔐</div>
+                        <div>
+                            <div class="aws-card-badge">Cognito</div>
+                            <h3>Managed Auth with MFA</h3>
+                        </div>
+                    </div>
+                    <p>Amazon Cognito handles secure sign-up, sign-in, and multi-factor authentication for vendors, customers, and delivery agents with zero friction.</p>
+                </div>
+
             </div>
         </div>
     </section>
