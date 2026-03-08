@@ -1293,7 +1293,7 @@ def save_chat_message(room_id: str, sender_id: str, sender_name: str,
         table.put_item(Item=item)
         return item
     except Exception as exc:
-        logger.exception('DynamoDB save_chat_message failed: %s', exc)
+        logger.warning('DynamoDB save_chat_message unavailable (%s) – using local fallback.', type(exc).__name__)
         return {}
 
 
@@ -1316,7 +1316,7 @@ def get_chat_messages(room_id: str, limit: int = 50) -> list:
         messages = resp.get('Items', [])
         return list(reversed(messages))
     except Exception as exc:
-        logger.exception('DynamoDB get_chat_messages failed: %s', exc)
+        logger.warning('DynamoDB get_chat_messages unavailable (%s) – using local fallback.', type(exc).__name__)
         return []
 
 
@@ -1346,7 +1346,7 @@ def save_notification(user_id: str, title: str, body: str,
         table.put_item(Item=item)
         return item
     except Exception as exc:
-        logger.exception('DynamoDB save_notification failed: %s', exc)
+        logger.warning('DynamoDB save_notification unavailable (%s) – using local fallback.', type(exc).__name__)
         return {}
 
 
@@ -1370,7 +1370,7 @@ def get_notifications(user_id: str, unread_only: bool = False, limit: int = 20) 
         resp = table.query(**kwargs)
         return resp.get('Items', [])
     except Exception as exc:
-        logger.exception('DynamoDB get_notifications failed: %s', exc)
+        logger.warning('DynamoDB get_notifications unavailable (%s) – using local fallback.', type(exc).__name__)
         return []
 
 
@@ -1628,7 +1628,7 @@ def update_device_position(device_id: str, lat: float, lng: float) -> bool:
         )
         return True
     except Exception as exc:
-        logger.exception('Location update_device_position failed: %s', exc)
+        logger.warning('Location update_device_position unavailable (%s) – skipping.', type(exc).__name__)
         return False
 
 

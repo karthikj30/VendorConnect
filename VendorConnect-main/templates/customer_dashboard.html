@@ -99,9 +99,13 @@
             <span class="search-icon"><i class="fas fa-search"></i></span>
         </div>
         <div class="header-icons">
-            <button class="icon-btn" onclick="toggleNotifications()">
+            <button class="icon-btn" title="Personalised Recommendations (AWS Personalize)" onclick="openRecommendations()" style="position:relative;">
+                ✨
+                <span style="position:absolute;top:-2px;right:-2px;background:#ff4757;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center;font-weight:700">AI</span>
+            </button>
+            <button class="icon-btn" onclick="toggleNotifications()" style="position:relative;">
                 <i class="fas fa-bell"></i>
-                <span class="badge">3</span>
+                <span class="badge" id="notifBadge" style="display:none;">0</span>
             </button>
             <button class="icon-btn" onclick="toggleCart()">
                 <i class="fas fa-shopping-cart"></i>
@@ -1133,6 +1137,9 @@
                     </button>
                     <button onclick="openScheduleModal()" style="padding: 8px 16px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
                         <i class="fas fa-calendar"></i> Schedule
+                    </button>
+                    <button onclick="document.getElementById('vendorModal').style.display='none'; openVendorChat(${v.id}, '${v.name.replace(/'/g, "\\'")}');" style="padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        💬 Chat
                     </button>
                 </div>
             `;
@@ -3111,22 +3118,6 @@
         </div>
     </div>
 
-    <!-- Recommendations Modal -->
-    <div class="checkout-modal" id="recommendationsModal">
-        <div class="checkout-content">
-            <div class="checkout-header">
-                <h2><i class="fas fa-lightbulb"></i> Recommended for You</h2>
-                <button class="close-modal" onclick="closeRecommendations()">&times;</button>
-            </div>
-            <div class="checkout-body" id="recommendationsBody">
-                <div style="text-align: center; padding: 40px;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">✨</div>
-                    <p>Loading recommendations...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Review Modal -->
     <div class="checkout-modal" id="reviewModal">
         <div class="checkout-content">
@@ -3709,67 +3700,7 @@
             }
         }
 
-        // ==================== RECOMMENDATIONS FUNCTIONS ====================
-        async function openRecommendations() {
-            const profile = document.getElementById('profileModal');
-            if (profile) profile.classList.remove('active');
-            showModalById('recommendationsModal');
-            await loadRecommendations();
-        }
-
-        function closeRecommendations() {
-            hideModalById('recommendationsModal');
-        }
-
-        async function loadRecommendations() {
-            try {
-                const response = await fetch('/api/customer/recommendations');
-                const data = await response.json();
-
-                if (data.success) {
-                    const recs = data.recommendations;
-                    let html = '';
-
-                    if (recs.trending.length > 0) {
-                        html += '<h3 style="margin-top: 20px; margin-bottom: 15px;">🔥 Trending Now</h3>';
-                        html += recs.trending.map(item => `
-                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
-                                <p><strong>${item.name}</strong> - ₹${item.price}</p>
-                                <p style="font-size: 14px; color: #666;">${item.vendor_name}</p>
-                            </div>
-                        `).join('');
-                    }
-
-                    if (recs.based_on_history.length > 0) {
-                        html += '<h3 style="margin-top: 20px; margin-bottom: 15px;">📊 Based on Your History</h3>';
-                        html += recs.based_on_history.map(item => `
-                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
-                                <p><strong>${item.name}</strong> - ₹${item.price}</p>
-                                <p style="font-size: 14px; color: #666;">${item.vendor_name}</p>
-                            </div>
-                        `).join('');
-                    }
-
-                    if (recs.similar_to_favorites.length > 0) {
-                        html += '<h3 style="margin-top: 20px; margin-bottom: 15px;">🎯 Similar to Your Favorites</h3>';
-                        html += recs.similar_to_favorites.map(item => `
-                            <div style="padding: 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 10px;">
-                                <p><strong>${item.name}</strong> - ₹${item.price}</p>
-                                <p style="font-size: 14px; color: #666;">${item.vendor_name}</p>
-                            </div>
-                        `).join('');
-                    }
-
-                    if (!html) {
-                        html = '<p style="text-align: center; padding: 40px;">No recommendations yet. Start ordering to get personalized suggestions!</p>';
-                    }
-
-                    document.getElementById('recommendationsBody').innerHTML = html;
-                }
-            } catch (error) {
-                console.error('Error loading recommendations:', error);
-            }
-        }
+        // ==================== RECOMMENDATIONS FUNCTIONS (see AWS Personalize section below) ====================
 
         // ==================== SORTING FUNCTIONS ====================
         async function applySort() {
@@ -3926,15 +3857,19 @@
                 }
                 const src = data.recommendations[0].source === 'personalize' ? '✨ Powered by AWS Personalize' : '🔥 Popular picks';
                 body.innerHTML = `
-                  <p style="color:#888;font-size:12px;text-align:center;margin-bottom:12px">${src}</p>
-                  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px">
-                  ${data.recommendations.map(p => `
-                    <div onclick="recordClick(${p.id})" style="border:1px solid #e2e8f0;border-radius:10px;padding:14px;cursor:pointer;transition:box-shadow .2s" onmouseover="this.style.boxShadow='0 4px 12px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow='none'">
-                      <div style="font-size:28px;text-align:center;margin-bottom:8px">🛍️</div>
-                      <div style="font-weight:600;font-size:14px">${p.name}</div>
-                      <div style="color:#667eea;font-weight:700;margin-top:4px">₹${p.price}/${p.unit}</div>
-                      <div style="font-size:11px;color:#888;margin-top:4px">${p.category}</div>
-                    </div>`).join('')}
+                  <p style="color:#888;font-size:11px;text-align:center;margin-bottom:10px">${src}</p>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  ${data.recommendations.map(p => {
+                    const img = p.image
+                      ? `<img src="/static/${p.image}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="width:100%;height:60px;object-fit:cover;border-radius:6px;margin-bottom:6px"><div style="display:none;font-size:24px;text-align:center;margin-bottom:6px">🍽️</div>`
+                      : `<div style="font-size:24px;text-align:center;margin-bottom:6px">🍽️</div>`;
+                    return `
+                    <div onclick="recordClick(${p.id})" style="border:1px solid #e2e8f0;border-radius:8px;padding:8px;cursor:pointer;transition:box-shadow .2s;text-align:center" onmouseover="this.style.boxShadow='0 3px 10px rgba(0,0,0,.1)'" onmouseout="this.style.boxShadow='none'">
+                      ${img}
+                      <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name}</div>
+                      <div style="color:#667eea;font-weight:700;font-size:12px;margin-top:2px">₹${p.price}</div>
+                      <div style="font-size:10px;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.vendor_name || ''}</div>
+                    </div>`}).join('')}
                   </div>`;
             } catch(e) {
                 console.warn('Recommendations load failed:', e);
@@ -4026,6 +3961,22 @@
         loadLiveNotifications();
 
     </script>
+
+    <!-- ── AWS Personalize – Recommendations Modal ───────────────────────── -->
+    <div id="recommendationsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9998;align-items:center;justify-content:center">
+      <div style="background:#fff;border-radius:16px;width:90%;max-width:420px;max-height:75vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 40px rgba(0,0,0,.2);margin:auto">
+        <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+          <span style="color:#fff;font-weight:700;font-size:14px">✨ Recommended for You</span>
+          <button onclick="closeRecommendations()" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div id="recommendationsBody" style="flex:1;overflow-y:auto;padding:12px">
+          <div style="text-align:center;padding:30px;color:#888">
+            <div style="font-size:36px;margin-bottom:12px">✨</div>
+            <p style="font-size:13px">Loading personalised picks…</p>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ── Chat Widget ─────────────────────────────────────────────────────── -->
     <div id="chatWidget" style="display:none;position:fixed;bottom:90px;right:20px;width:320px;height:420px;background:#fff;border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,.18);z-index:9999;flex-direction:column;overflow:hidden">

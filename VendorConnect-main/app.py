@@ -988,6 +988,32 @@ class CustomerReview(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+class ChatMessage(db.Model):
+    """Local SQLite fallback for chat messages when DynamoDB is unavailable."""
+    __tablename__ = 'chat_message'
+    id          = db.Column(db.Integer, primary_key=True)
+    room_id     = db.Column(db.String(120), nullable=False, index=True)
+    sender_id   = db.Column(db.String(60), nullable=False)
+    sender_name = db.Column(db.String(120), nullable=False)
+    message     = db.Column(db.Text, nullable=False)
+    msg_type    = db.Column(db.String(20), default='text')
+    read        = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+class LocalNotification(db.Model):
+    """Local SQLite fallback for live notifications when DynamoDB is unavailable."""
+    __tablename__ = 'local_notification'
+    id          = db.Column(db.Integer, primary_key=True)
+    user_id     = db.Column(db.String(60), nullable=False, index=True)
+    title       = db.Column(db.String(200), nullable=False)
+    body        = db.Column(db.Text, nullable=False)
+    notif_type  = db.Column(db.String(30), default='info')
+    link        = db.Column(db.String(300), default='')
+    read        = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Wishlist(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), nullable=False)
@@ -9552,15 +9578,49 @@ if __name__ == '__main__':
         create_sample_menu_items()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# DynamoDB – Real-time Chat
+# DynamoDB – Real-time Chat  (SQLite fallback when DynamoDB unavailable)
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _chat_save_local(room_id, sender_id, sender_name, message, msg_type='text'):
+    """Save chat message to local SQLite."""
+    msg = ChatMessage(room_id=room_id, sender_id=sender_id,
+                      sender_name=sender_name, message=message, msg_type=msg_type)
+    db.session.add(msg)
+    db.session.commit()
+    return {
+        'msg_id':      str(msg.id),
+        'room_id':     room_id,
+        'sender_id':   sender_id,
+        'sender_name': sender_name,
+        'message':     message,
+        'msg_type':    msg_type,
+        'timestamp':   msg.created_at.strftime('%Y-%m-%dT%H:%M:%S'),
+        'read':        False,
+    }
+
+def _chat_get_local(room_id, limit=50):
+    """Fetch chat messages from local SQLite."""
+    msgs = ChatMessage.query.filter_by(room_id=room_id)\
+               .order_by(ChatMessage.created_at.asc())\
+               .limit(limit).all()
+    return [{
+        'msg_id':      str(m.id),
+        'room_id':     m.room_id,
+        'sender_id':   m.sender_id,
+        'sender_name': m.sender_name,
+        'message':     m.message,
+        'msg_type':    m.msg_type,
+        'timestamp':   m.created_at.strftime('%Y-%m-%dT%H:%M:%S'),
+        'read':        m.read,
+    } for m in msgs]
+
 
 @app.route('/api/chat/send', methods=['POST'])
 def chat_send():
-    """Send a chat message (stored in DynamoDB)."""
+    """Send a chat message — tries DynamoDB first, falls back to SQLite."""
     if 'vendor_id' not in session and 'customer_id' not in session:
         return jsonify({'success': False, 'message': 'Not authenticated'}), 401
-    data = request.get_json(silent=True) or {}
+    data        = request.get_json(silent=True) or {}
     room_id     = data.get('room_id', '')
     message     = (data.get('message') or '').strip()
     msg_type    = data.get('type', 'text')
@@ -9574,29 +9634,46 @@ def chat_send():
         sender_id   = f"customer_{session['customer_id']}"
         sender_name = session.get('customer_name', 'Customer')
 
-    if not AWS_ENABLED:
-        return jsonify({'success': True, 'message': message, 'sender': sender_name,
-                        'note': 'AWS DynamoDB not configured – message not persisted'}), 200
+    saved = {}
+    if AWS_ENABLED:
+        try:
+            saved = save_chat_message(room_id, sender_id, sender_name, message, msg_type)
+        except Exception:
+            saved = {}
 
-    saved = save_chat_message(room_id, sender_id, sender_name, message, msg_type)
-    return jsonify({'success': True, 'message_id': saved.get('msg_id', ''),
-                    'timestamp': saved.get('timestamp', ''), 'sender': sender_name})
+    # Fallback to SQLite if DynamoDB failed or unavailable
+    if not saved:
+        saved = _chat_save_local(room_id, sender_id, sender_name, message, msg_type)
+
+    return jsonify({'success': True,
+                    'message_id': saved.get('msg_id', ''),
+                    'timestamp':  saved.get('timestamp', ''),
+                    'sender':     sender_name})
 
 
 @app.route('/api/chat/messages/<room_id>', methods=['GET'])
 def chat_get_messages(room_id):
-    """Fetch last 50 messages for a chat room."""
+    """Fetch last 50 messages — tries DynamoDB first, falls back to SQLite."""
     if 'vendor_id' not in session and 'customer_id' not in session:
         return jsonify({'success': False, 'message': 'Not authenticated'}), 401
-    if not AWS_ENABLED:
-        return jsonify({'success': True, 'messages': [], 'note': 'DynamoDB not configured'})
-    msgs = get_chat_messages(room_id, limit=50)
+
+    msgs = []
+    if AWS_ENABLED:
+        try:
+            msgs = get_chat_messages(room_id, limit=50)
+        except Exception:
+            msgs = []
+
+    # Fallback to SQLite
+    if not msgs:
+        msgs = _chat_get_local(room_id, limit=50)
+
     return jsonify({'success': True, 'messages': msgs})
 
 
 @app.route('/api/notifications', methods=['GET'])
 def get_user_notifications():
-    """Fetch DynamoDB live notifications for the current user."""
+    """Fetch live notifications — tries DynamoDB first, falls back to SQLite."""
     if 'vendor_id' not in session and 'customer_id' not in session:
         return jsonify({'success': False, 'message': 'Not authenticated'}), 401
     if 'vendor_id' in session:
@@ -9604,26 +9681,60 @@ def get_user_notifications():
     else:
         user_id = f"customer_{session['customer_id']}"
     unread_only = request.args.get('unread', 'false').lower() == 'true'
-    if not AWS_ENABLED:
-        return jsonify({'success': True, 'notifications': []})
-    notifs = get_notifications(user_id, unread_only=unread_only)
+
+    notifs = []
+    if AWS_ENABLED:
+        try:
+            notifs = get_notifications(user_id, unread_only=unread_only)
+        except Exception:
+            notifs = []
+
+    # Fallback to SQLite
+    if not notifs:
+        q = LocalNotification.query.filter_by(user_id=user_id)
+        if unread_only:
+            q = q.filter_by(read=False)
+        rows = q.order_by(LocalNotification.created_at.desc()).limit(20).all()
+        notifs = [{
+            'notif_id':  str(n.id),
+            'user_id':   n.user_id,
+            'title':     n.title,
+            'body':      n.body,
+            'type':      n.notif_type,
+            'link':      n.link,
+            'read':      n.read,
+            'timestamp': n.created_at.strftime('%Y-%m-%dT%H:%M:%S'),
+        } for n in rows]
+
     return jsonify({'success': True, 'notifications': notifs})
 
 
 @app.route('/api/notifications/send', methods=['POST'])
 def send_notification_api():
-    """Save a notification to DynamoDB for a target user."""
-    data      = request.get_json(silent=True) or {}
-    user_id   = data.get('user_id', '')
-    title     = data.get('title', 'Notification')
-    body      = data.get('body', '')
+    """Save a notification — tries DynamoDB first, falls back to SQLite."""
+    data       = request.get_json(silent=True) or {}
+    user_id    = data.get('user_id', '')
+    title      = data.get('title', 'Notification')
+    body       = data.get('body', '')
     notif_type = data.get('type', 'info')
-    link      = data.get('link', '')
+    link       = data.get('link', '')
     if not user_id:
         return jsonify({'success': False, 'message': 'user_id required'}), 400
-    if not AWS_ENABLED:
-        return jsonify({'success': True, 'note': 'DynamoDB not configured – notification not saved'})
-    saved = save_notification(user_id, title, body, notif_type, link)
+
+    saved = {}
+    if AWS_ENABLED:
+        try:
+            saved = save_notification(user_id, title, body, notif_type, link)
+        except Exception:
+            saved = {}
+
+    if not saved:
+        n = LocalNotification(user_id=user_id, title=title, body=body,
+                              notif_type=notif_type, link=link)
+        db.session.add(n)
+        db.session.commit()
+        saved = {'notif_id': str(n.id)}
+
     return jsonify({'success': True, 'notif_id': saved.get('notif_id', '')})
 
 
@@ -9733,52 +9844,62 @@ def update_agent_location_aws():
 @app.route('/api/recommendations', methods=['GET'])
 def product_recommendations():
     """
-    Return ML-based personalised product recommendations for the current customer.
-    Falls back to top-rated products when Personalize is not configured.
+    Personalised recommendations — AWS Personalize when configured,
+    otherwise falls back to most-ordered vendor menu items.
+    No auth required (guest-safe).
     """
     customer_id = session.get('customer_id')
-    if not customer_id:
-        return jsonify({'success': False, 'message': 'Not authenticated as customer'}), 401
 
-    recs = []
-    if AWS_ENABLED:
+    # Try AWS Personalize (logged-in customers only)
+    if customer_id and AWS_ENABLED:
         recs = get_recommendations(str(customer_id), num_results=6)
+        if recs:
+            enriched = []
+            for rec in recs:
+                if rec['item_id'].isdigit():
+                    item = db.session.get(MenuItem, int(rec['item_id']))
+                    if item:
+                        vendor = db.session.get(Vendor, item.vendor_id)
+                        enriched.append({
+                            'id':          item.id,
+                            'name':        item.name,
+                            'price':       item.price,
+                            'description': item.description or '',
+                            'image':       item.image or '',
+                            'vendor_name': vendor.name if vendor else '',
+                            'vendor_id':   item.vendor_id,
+                            'score':       rec['score'],
+                            'source':      'personalize',
+                        })
+            if enriched:
+                return jsonify({'success': True, 'recommendations': enriched})
 
-    if recs:
-        # Enrich with product details from DB
-        enriched = []
-        for rec in recs:
-            product = db.session.get(Product, int(rec['item_id'])) if rec['item_id'].isdigit() else None
-            if product:
-                enriched.append({
-                    'id':       product.id,
-                    'name':     product.name,
-                    'price':    product.price,
-                    'unit':     product.unit,
-                    'category': product.category,
-                    'score':    rec['score'],
-                    'source':   'personalize',
-                })
-        return jsonify({'success': True, 'recommendations': enriched})
-
-    # Fallback: return top 6 products by popularity (most ordered)
-    top_products = db.session.query(
-        Product,
-        db.func.sum(OrderItem.quantity).label('total_ordered')
-    ).join(OrderItem, OrderItem.product_id == Product.id, isouter=True) \
-     .group_by(Product.id) \
-     .order_by(db.desc('total_ordered')) \
+    # Fallback: top 6 most-ordered menu items across all vendors
+    top_items = db.session.query(
+        MenuItem,
+        db.func.coalesce(db.func.sum(CustomerOrderItem.quantity), 0).label('total_ordered')
+    ).outerjoin(CustomerOrderItem, CustomerOrderItem.menu_item_id == MenuItem.id) \
+     .group_by(MenuItem.id) \
+     .order_by(db.desc('total_ordered'), MenuItem.id.desc()) \
      .limit(6).all()
 
-    fallback = [{
-        'id':       p.id,
-        'name':     p.name,
-        'price':    p.price,
-        'unit':     p.unit,
-        'category': p.category,
-        'score':    0,
-        'source':   'popular',
-    } for p, _ in top_products]
+    if not top_items:
+        top_items = [(m, 0) for m in MenuItem.query.limit(6).all()]
+
+    fallback = []
+    for item, ordered in top_items:
+        vendor = db.session.get(Vendor, item.vendor_id)
+        fallback.append({
+            'id':          item.id,
+            'name':        item.name,
+            'price':       item.price,
+            'description': item.description or '',
+            'image':       item.image or '',
+            'vendor_name': vendor.name if vendor else '',
+            'vendor_id':   item.vendor_id,
+            'score':       int(ordered or 0),
+            'source':      'popular',
+        })
 
     return jsonify({'success': True, 'recommendations': fallback})
 
