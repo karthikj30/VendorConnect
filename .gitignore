@@ -33,3 +33,12 @@ instance/
 .DS_Store
 ._.DS_Store
 Thumbs.db
+
+# Secrets and local runtime data (never commit)
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+*.log
+cookies.txt
