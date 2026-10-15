@@ -208,12 +208,17 @@ except ImportError:
 basedir = os.path.abspath(os.path.dirname(__file__))
 
 # Configure Flask app with explicit instance path pointing to the repo-level instance folder
-app = Flask(__name__, instance_path=os.path.join(basedir, '../instance'))
-app.config['SECRET_KEY'] = 'vendorconnect_secret_key_2024'
+# On Vercel the deployment bundle is read-only and only /tmp is writable, so
+# the SQLite database and uploads live there (and reset on a cold start).
+ON_VERCEL = bool(os.environ.get('VERCEL'))
+instance_dir = os.environ.get('VENDORCONNECT_INSTANCE_DIR') or (
+    '/tmp/vendorconnect-instance' if ON_VERCEL else os.path.join(basedir, '../instance'))
+app = Flask(__name__, instance_path=instance_dir)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'vendorconnect_secret_key_2024')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max upload size
 
 # Flask session configuration - REQUIRED for OAuth state management
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True for HTTPS only
+app.config['SESSION_COOKIE_SECURE'] = ON_VERCEL  # HTTPS only when deployed
 app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent JavaScript access
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)  # Session expires in 7 days
@@ -687,9 +692,13 @@ def send_mock_otp_email(email, otp):
     print("✅ The user would receive this OTP in their inbox")
     print("="*60)
     
-    # Also save to a file for easy access
-    with open('otp_log.txt', 'a') as f:
-        f.write(f"{datetime.now()}: OTP {otp} sent to {email}\n")
+    # Also save to a file for easy access (local development only)
+    if not ON_VERCEL:
+        try:
+            with open('otp_log.txt', 'a') as f:
+                f.write(f"{datetime.now()}: OTP {otp} sent to {email}\n")
+        except OSError:
+            pass
     
     return True
 
@@ -9533,7 +9542,7 @@ def sqs_handler_webhook():
 # End of AWS Routes
 # ─────────────────────────────────────────────────────────────────────────────
 
-if __name__ == '__main__':
+def bootstrap_database():
     with app.app_context():
         # Create any missing tables (won't modify existing columns)
         db.create_all()
@@ -9576,6 +9585,15 @@ if __name__ == '__main__':
         create_sample_orders()
         create_sample_vendors()
         create_sample_menu_items()
+
+
+# Locally `python app.py` builds the database. A serverless instance starts
+# with an empty /tmp, so it has to build (and seed) it on import instead.
+if __name__ == '__main__' or ON_VERCEL:
+    try:
+        bootstrap_database()
+    except Exception:
+        app.logger.exception('Database bootstrap failed')
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DynamoDB – Real-time Chat  (SQLite fallback when DynamoDB unavailable)

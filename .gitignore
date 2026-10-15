@@ -42,3 +42,4 @@ Thumbs.db
 *.sqlite3
 *.log
 cookies.txt
+otp_log.txt

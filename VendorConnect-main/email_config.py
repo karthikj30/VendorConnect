@@ -1,14 +1,16 @@
 # Email Configuration for VendorConnect
-# Update these values with the correct credentials
+# Credentials come from the environment (.env locally, project settings when
+# deployed). Never put real values in this file: it is committed.
+import os
 
 # Gmail SMTP Configuration
-MAIL_SERVER = 'smtp.gmail.com'
-MAIL_PORT = 587
-MAIL_USE_TLS = True
+MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
+MAIL_PORT = int(os.environ.get('MAIL_PORT', '587'))
+MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'true').lower() in ('1', 'true', 'yes')
 
-# Email Credentials - UPDATE THESE VALUES
-MAIL_USERNAME = 'hackathongoo@gmail.com'
-MAIL_PASSWORD = 'yfuf fjuc xwdl vswr'  # App Password
+# Email Credentials
+MAIL_USERNAME = os.environ.get('MAIL_USERNAME', '')
+MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', '')
 
 # Test Configuration
-TEST_EMAIL = 'askotal07@gmail.com'  # Email to test with
+TEST_EMAIL = os.environ.get('TEST_EMAIL', '')  # Email to test with
