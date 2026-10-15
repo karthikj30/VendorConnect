@@ -1,6 +1,5 @@
-# The Procfile is for Heroku-style hosts. Vercel's Python builder runs its
-# `web:` command during the build, and gunicorn never exits, so the build
-# hangs. Without it Vercel serves `app` from app.py as a function.
+# Heroku-style start command; Vercel serves `app` from app.py as a function
+# and has no use for it.
 Procfile
 # Not needed at runtime
 tests/
